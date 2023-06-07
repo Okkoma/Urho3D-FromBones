@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<node>
+	<attribute name="Is Enabled" value="false" />
+	<node>
+		<attribute name="File" value="Objects/coffre.xml" />
+		<attribute name="Is Enabled" value="false" />		
+	</node>
+	<node>
+		<attribute name="File" value="Objects/money.xml" />
+		<attribute name="Is Enabled" value="false" />			
+	</node>
+	<node>
+		<attribute name="File" value="Objects/skel.xml" />
+		<attribute name="Is Enabled" value="false" />			
+	</node>
+	<node>
+		<attribute name="File" value="Objects/gob.xml" />
+		<attribute name="Is Enabled" value="false" />			
+	</node>
+	<node>
+		<attribute name="File" value="Objects/newskel.xml" />
+		<attribute name="Is Enabled" value="false" />			
+	</node>	
+</node>

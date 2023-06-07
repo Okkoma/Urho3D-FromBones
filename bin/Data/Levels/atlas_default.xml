@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TerrainAtlas>
+	<TileSheet name="Levels/tileset01.xml" />
+	<!-- <TileSheet name="Levels/tileset_spelunky.xml" /> -->
+	<!-- <TileSheet name="Levels/tileset03-512.xml" /> -->
+</TerrainAtlas>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TileSheet texture="Levels/Textures/watertiles.png" tilewidth="64" tileheight="64" offsetx="0" offsety="0" spacing="0" margin="0" >
+	<Terrain name="water_01" >
+		<Features name="Water" />
+		<Tile col="0" row="0" connection="RightBottomLeftConnect"/>
+		<Tile col="1" row="0" connection="RightBottomLeftConnect"/>		
+		<Tile col="0" row="1" connection="AllConnect"/>
+		<Tile col="1" row="1" connection="AllConnect"/>				
+	</Terrain>
+	<Skin name="ground_01" >
+		<Associate terrain="water_01" feature="Water" />
+	</Skin>
+	<Skin name="dungeon_01" >
+		<Associate terrain="water_01" feature="Water" />
+	</Skin>	
+</TileSheet>

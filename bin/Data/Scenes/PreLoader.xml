@@ -1,0 +1,135 @@
+<?xml version="1.0"?>
+<node>
+	<attribute name="Is Enabled" value="false" />
+
+	<component type="GOC_Animator2D">
+		<attribute name="Define Template" value="AnimatorTemplate_Default" />
+			<attribute name="New State" value="name:State_Walk | animKeyWords:walk | tick:0" />	  
+			<attribute name="New State" value="name:State_Jump | animKeyWords:fall;jump;walk | tick:0.4" />	
+			<attribute name="New State" value="name:State_Fall | animKeyWords:fall;jump;walk | tick:0" />
+			<attribute name="New State" value="name:State_Hurt | animKeyWords:hit;hurt;injured | tick:0" />
+			<attribute name="New State" value="name:State_Dead | animKeyWords:dead;die;crumble | tick:5" />	
+			<attribute name="New Event" value="name:Event_Default | applyToStates:State_Walk;State_Fall | nextState:State_Default" />
+			<attribute name="New Event" value="name:Event_OnWalk | applyToStates:State_Default;State_Walk;State_Fall | nextState:State_Walk" />
+			<attribute name="New Event" value="name:SPRITER_PartFeet | applyToStates:State_Walk | action:AAction_SpawnParticule(Particules/dust.pex)" />							
+			<attribute name="New Event" value="name:AEvent_StartLoop | applyToStates:State_Walk;State_Jump;State_Fall;State_Hurt;State_Dead | action:AAction_ChangeAnim" />			
+			<attribute name="New Event" value="name:AEvent_TickLoop | applyToStates:State_Hurt | action:AAction_CheckAnim" />
+			<attribute name="New Event" value="name:AEvent_TickLoop | applyToStates:State_Jump;State_Dead | action:AAction_CheckTimer" />			
+			<attribute name="New Event" value="name:AEvent_EndLoop | applyToStates:State_Jump;State_Hurt | action:AAction_FindState" />
+			<attribute name="New Event" value="name:AEvent_EndLoop | applyToStates:State_Dead | nextState:State_Disappear" />
+			<attribute name="New Event" value="name:Go_Jump | applyToStates:State_Default;State_Walk | nextState:State_Jump" />	
+			<attribute name="New Event" value="name:Event_OnFall | applyToStates:State_Default;State_Walk;State_Jump | nextState:State_Fall" />	
+			<attribute name="New Event" value="name:GOC_Life_Decrease | applyToStates:ALL;!State_Appear;!State_Disappear;!State_Destroy;!State_Dead | nextState:State_Hurt" />
+			<attribute name="New Event" value="name:GOC_Life_Dead | applyToStates:ALL;!State_Appear;!State_Disappear;!State_Destroy | nextState:State_Dead" />
+		<attribute name="Register Template" value="AnimatorTemplate_Walker" />
+		<attribute name="Define Template" value="AnimatorTemplate_Default" />
+			<attribute name="New State" value="name:State_FlyDown | animKeyWords:fly | tick:0" />	
+			<attribute name="New State" value="name:State_FlyUp | animKeyWords:fly | tick:0" />
+			<attribute name="New State" value="name:State_Hurt | animKeyWords:hit;hurt;injured | tick:0" />
+			<attribute name="New State" value="name:State_Dead | animKeyWords:dead;die;crumble | tick:5" />	
+			<attribute name="New Event" value="name:Event_Default | applyToStates:State_FlyDown;State_FlyUp | nextState:State_Default" />
+			<attribute name="New Event" value="name:Event_OnFlyUp | applyToStates:State_Default | State_FlyDown | nextState:State_FlyUp" />							
+			<attribute name="New Event" value="name:AEvent_StartLoop | applyToStates:State_FlyDown;State_FlyUp;State_Dead | action:AAction_ChangeAnim" />			
+			<attribute name="New Event" value="name:AEvent_TickLoop | applyToStates:State_Hurt | action:AAction_CheckAnim" />
+			<attribute name="New Event" value="name:AEvent_TickLoop | applyToStates:State_Dead | action:AAction_CheckTimer" />			
+			<attribute name="New Event" value="name:AEvent_EndLoop | applyToStates:State_Hurt | action:AAction_FindState" />
+			<attribute name="New Event" value="name:AEvent_EndLoop | applyToStates:State_Dead | nextState:State_Disappear" />
+			<attribute name="New Event" value="name:Event_OnFlyDown | applyToStates:State_Default;State_FlyUp | nextState:State_FlyDown" />	
+			<attribute name="New Event" value="name:GOC_Life_Decrease | applyToStates:ALL;!State_Appear;!State_Disappear;!State_Destroy;!State_Dead | nextState:State_Hurt" />
+			<attribute name="New Event" value="name:GOC_Life_Dead | applyToStates:ALL;!State_Appear;!State_Disappear;!State_Destroy | nextState:State_Dead" />
+		<attribute name="Register Template" value="AnimatorTemplate_Flyer" />		
+		<attribute name="Define Template" value="AnimatorTemplate_Walker" />
+			<attribute name="New State" value="name:State_Attack | animKeyWords:attack;swing | tick:0" />
+			<attribute name="New Event" value="name:ControlAction1 | applyToStates:State_Default;State_Walk;State_Jump;State_Fall | nextState:State_Attack" />
+			<attribute name="New Event" value="name:AEvent_StartLoop | applyToStates:State_Attack | action:AAction_ChangeAnim" />			
+			<attribute name="New Event" value="name:AEvent_TickLoop | applyToStates:State_Attack | action:AAction_CheckAnim" />
+			<attribute name="New Event" value="name:AEvent_EndLoop | applyToStates:State_Attack | action:AAction_FindState" />			
+			<attribute name="New Event" value="name:GOC_Life_Decrease | applyToStates:State_Attack | nextState:State_Hurt" />		
+			<attribute name="New Event" value="name:GOC_Life_Dead | applyToStates:State_Attack | nextState:State_Dead" />
+		<attribute name="Register Template" value="AnimatorTemplate_Attacker" />
+		<attribute name="Define Template" value="AnimatorTemplate_Flyer" />
+			<attribute name="New State" value="name:State_Attack | animKeyWords:attack;swing | tick:0.4" />
+			<attribute name="New Event" value="name:SPRITER_Entity | applyToStates:State_Attack | action:AAction_SpawnEntity" />			
+			<attribute name="New Event" value="name:ControlAction1 | applyToStates:State_Default;State_FlyUp;State_FlyDown | nextState:State_Attack" />
+			<attribute name="New Event" value="name:AEvent_StartLoop | applyToStates:State_Attack | action:AAction_ChangeAnim" />			
+			<attribute name="New Event" value="name:AEvent_TickLoop | applyToStates:State_Attack | action:AAction_CheckAnim" />
+			<attribute name="New Event" value="name:AEvent_EndLoop | applyToStates:State_Attack | action:AAction_FindState" />			
+			<attribute name="New Event" value="name:GOC_Life_Decrease | applyToStates:State_Attack | nextState:State_Hurt" />		
+			<attribute name="New Event" value="name:GOC_Life_Dead | applyToStates:State_Attack | nextState:State_Dead" />
+		<attribute name="Register Template" value="AnimatorTemplate_FlyAttacker" />		
+		<attribute name="Define Template" value="AnimatorTemplate_Default" />
+			<attribute name="New State" value="name:State_Walk | animKeyWords:walk | tick:0" />	  
+			<attribute name="New State" value="name:State_Jump | animKeyWords:jump;fall | tick:0.4" />	
+			<attribute name="New State" value="name:State_Fall | animKeyWords:fall | tick:0" />
+			<attribute name="New State" value="name:State_Hurt | animKeyWords:hit;hurt;injured | tick:0" />
+			<attribute name="New State" value="name:State_Dead | animKeyWords:dead;die;crumble | tick:5" />
+			<attribute name="New State" value="name:State_Attack | animKeyWords:attack;swing | tick:0" />
+			<attribute name="New Event" value="name:ControlAction1 | applyToStates:State_Default;State_Walk;State_Jump;State_Fall | nextState:State_Attack" />			
+			<attribute name="New Event" value="name:Event_Default | applyToStates:State_Walk;State_Fall | nextState:State_Default" />
+			<attribute name="New Event" value="name:Event_OnWalk | applyToStates:State_Default;State_Walk;State_Fall | nextState:State_Walk" />
+			<attribute name="New Event" value="name:SPRITER_PartFeet | applyToStates:State_Walk | action:AAction_SpawnParticule(Particules/dust.pex)" />							
+			<attribute name="New Event" value="name:AEvent_StartLoop | applyToStates:State_Walk;State_Jump;State_Fall;State_Hurt;State_Dead;State_Attack | action:AAction_ChangeAnim" />			
+			<attribute name="New Event" value="name:AEvent_TickLoop | applyToStates:State_Hurt;State_Attack | action:AAction_CheckAnim" />
+			<attribute name="New Event" value="name:AEvent_TickLoop | applyToStates:State_Jump;State_Dead | action:AAction_CheckTimer" />			
+			<attribute name="New Event" value="name:AEvent_EndLoop | applyToStates:State_Jump;State_Hurt;State_Attack | action:AAction_FindState" />
+			<attribute name="New Event" value="name:AEvent_EndLoop | applyToStates:State_Dead | nextState:State_Disappear" />
+			<attribute name="New Event" value="name:Go_Jump | applyToStates:State_Default;State_Walk | nextState:State_Jump" />	
+			<attribute name="New Event" value="name:Event_OnFall | applyToStates:State_Default;State_Walk;State_Jump | nextState:State_Fall" />	
+			<attribute name="New Event" value="name:GOC_Life_Decrease | applyToStates:ALL;!State_Appear;!State_Disappear;!State_Destroy;!State_Dead | nextState:State_Hurt" />
+			<attribute name="New Event" value="name:GOC_Life_Dead | applyToStates:ALL;!State_Appear;!State_Disappear;!State_Destroy | nextState:State_Dead" />
+		<attribute name="Register Template" value="AnimatorTemplate_Avatar" />		
+		<attribute name="Define Template" value="AnimatorTemplate_Default" />	
+			<attribute name="New State" value="name:State_Default | animKeyWords:nomove | tick:0" />			
+			<attribute name="New State" value="name:State_Get | animKeyWords:get | tick:0" />			
+			<attribute name="New Event" value="name:AEvent_StartLoop | applyToStates:State_Default;State_Get | action:AAction_ChangeAnim" />			
+			<attribute name="New Event" value="name:AEvent_TickLoop | applyToStates:State_Get | action:AAction_CheckAnim" />
+			<attribute name="New Event" value="name:AEvent_EndLoop | applyToStates:State_Get | nextState:State_Destroy" />	
+			<attribute name="New Event" value="name:Go_InventoryEmpty | applyToStates:State_Default | nextState:State_Get" />			
+		<attribute name="Register Template" value="AnimatorTemplate_Collectable" />
+		<attribute name="Define Template" value="AnimatorTemplate_Default" />	
+			<attribute name="New State" value="name:State_Default | animKeyWords:nomove | tick:0" />
+			<attribute name="New State" value="name:State_Use | animKeyWords:use | tick:3" />
+			<attribute name="New State" value="name:State_Disappear | animKeyWords:end | tick:0" />
+			<attribute name="New State" value="name:State_Dead | animKeyWords:dead | tick:0" />				
+			<attribute name="New Event" value="name:AEvent_StartLoop | applyToStates:State_Default;State_Use;State_Disappear;State_Dead | action:AAction_ChangeAnim" />			
+			<attribute name="New Event" value="name:AEvent_TickLoop | applyToStates:State_Use;State_Dead | action:AAction_CheckTimer" />		
+			<attribute name="New Event" value="name:AEvent_TickLoop | applyToStates:State_Disappear | action:AAction_CheckAnim" />
+			<attribute name="New Event" value="name:AEvent_EndLoop | applyToStates:State_Use | nextState:State_Disappear" />
+			<attribute name="New Event" value="name:AEvent_EndLoop | applyToStates:State_Disappear | nextState:State_Dead" />
+			<attribute name="New Event" value="name:AEvent_EndLoop | applyToStates:State_Dead | nextState:State_Destroy" />
+			<attribute name="New Event" value="name:Go_ItemLoopUse | applyToStates:State_Default | nextState:State_Use" />			
+		<attribute name="Register Template" value="AnimatorTemplate_Usable" />
+		<attribute name="Define Template" value="AnimatorTemplate_Default" />	
+			<attribute name="New State" value="name:State_Default | animKeyWords:nomove | tick:0" />
+			<attribute name="New State" value="name:State_Use | animKeyWords:use | tick:5" />
+			<attribute name="New State" value="name:State_Disappear | animKeyWords:end | tick:0" />
+			<attribute name="New State" value="name:State_Dead | animKeyWords:dead | tick:0" />				
+			<attribute name="New Event" value="name:AEvent_StartLoop | applyToStates:State_Default;State_Use;State_Disappear;State_Dead | action:AAction_ChangeAnim" />			
+			<attribute name="New Event" value="name:AEvent_TickLoop | applyToStates:State_Use;State_Dead | action:AAction_CheckTimer" />		
+			<attribute name="New Event" value="name:AEvent_TickLoop | applyToStates:State_Disappear | action:AAction_CheckAnim" />
+			<attribute name="New Event" value="name:AEvent_EndLoop | applyToStates:State_Use | nextState:State_Disappear" />
+			<attribute name="New Event" value="name:AEvent_EndLoop | applyToStates:State_Disappear | nextState:State_Dead" />
+			<attribute name="New Event" value="name:AEvent_EndLoop | applyToStates:State_Dead | nextState:State_Destroy" />
+			<attribute name="New Event" value="name:Go_ItemLoopUse | applyToStates:State_Default | nextState:State_Use" />			
+		<attribute name="Register Template" value="AnimatorTemplate_Usable_Tick5" />
+		<attribute name="Define Template" value="AnimatorTemplate_Empty" />	
+			<attribute name="New State" value="name:State_Close_Full | animKeyWords:nomove | tick:0" />
+			<attribute name="New State" value="name:State_Close_Empty | animKeyWords:nomove | tick:0" />				
+			<attribute name="New State" value="name:State_Opened_Full | animKeyWords:opened_full | tick:0" />
+			<attribute name="New State" value="name:State_Opened_Empty | animKeyWords:opened_empty | tick:0" />			
+			<attribute name="New State" value="name:State_Opening_Full | animKeyWords:opening_full | tick:0" />
+			<attribute name="New State" value="name:State_Opening_Empty| animKeyWords:opening_empty | tick:0" />			
+			<attribute name="New State" value="name:State_Get | animKeyWords:get | tick:0" />			
+			<attribute name="New Event" value="name:AEvent_StartLoop | applyToStates:State_Opening_Full;State_Opened_Full;State_Close_Full;State_Get | action:AAction_ChangeAnim" />
+			<attribute name="New Event" value="name:AEvent_StartLoop | applyToStates:State_Opening_Empty;State_Opened_Empty;State_Close_Empty | action:AAction_ChangeAnim" />			
+			<attribute name="New Event" value="name:AEvent_TickLoop | applyToStates:State_Opening_Full;State_Opening_Empty;State_Get | action:AAction_CheckAnim" />
+			<attribute name="New Event" value="name:AEvent_EndLoop | applyToStates:State_Opening_Full | nextState:State_Opened_Full" />
+			<attribute name="New Event" value="name:AEvent_EndLoop | applyToStates:State_Opening_Empty;State_Get | nextState:State_Opened_Empty" />	
+			<attribute name="New Event" value="name:Go_DetectorPlayerIn | applyToStates:State_Close_Full | nextState:State_Opening_Full" />
+			<attribute name="New Event" value="name:Go_DetectorPlayerIn | applyToStates:State_Close_Empty | nextState:State_Opening_Empty" />
+			<attribute name="New Event" value="name:Go_InventoryEmpty | applyToStates:State_Opened_Full;State_Opening_Full | nextState:State_Get" />				
+		<attribute name="Register Template" value="AnimatorTemplate_Container" />		
+	</component>
+</node>
+
+

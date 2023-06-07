@@ -1,0 +1,6 @@
+<TextureAtlas imagePath="watertiles.png">
+	<SubTexture name="water_center_01.png" x="0" y="66" width="64" height="64"/>
+	<SubTexture name="water_center_02.png" x="0" y="132" width="64" height="64"/>
+	<SubTexture name="water_top_01.png" x="66" y="0" width="64" height="64"/>
+	<SubTexture name="water_top_02.png" x="0" y="0" width="64" height="64"/>
+</TextureAtlas>

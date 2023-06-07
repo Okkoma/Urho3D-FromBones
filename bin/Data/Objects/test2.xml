@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<node>
+	<attribute name="Is Enabled" value="true" />
+	<attribute name="Name" value="test" />
+	<attribute name="Position" value="0.0 0.0 0" />
+	<attribute name="Rotation" value="1 0 0 0" />
+	<attribute name="Scale" value="1 1 1" />
+	<attribute name="Variables" />
+	<component type="AnimatedSprite2D">
+		<attribute name="Layer" value="1001" />
+		<attribute name="Animation Set" value="AnimationSet2D;2D/newskel.scml" />
+		<attribute name="Animation" value="Idle" />
+	</component>
+<!-- 	<component type="Light">
+		<attribute name="Light Type" type="Enum" value="Point" />
+		<attribute name="Color" value="2 2 2 1" />
+		<attribute name="Specular Intensity" value="0" />
+		<attribute name="Range" value="3" />
+		<attribute name="Spot FOV" value="30" />
+		<attribute name="Spot Aspect Ratio" value="1" />
+		<attribute name="Can Be Occluded" value="true" />
+		<attribute name="Cast Shadows" value="false" />
+		<attribute name="Per Vertex" value="true" />
+	</component> -->	
+</node>

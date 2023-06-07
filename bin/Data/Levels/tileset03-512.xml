@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TileSheet texture="Levels/Textures/worldtiles03-512.png" tilewidth="32" tileheight="32" hotspotx="0" hotspoty="1" spacing="0" margin="0" >
+	<Terrain name="earth_01" neighbors="8" >
+		<Features name="OuterFloor" />
+		<Tile col="7" row="11" connection="NoConnect"/>
+		<Tile col="0" row="4" connection="TopConnect"/>
+		<Tile col="7" row="4" connection="TopConnect"/>
+		<Tile col="6" row="9" connection="RightConnect"/>
+		<Tile col="0" row="13" connection="RightConnect"/>		
+		<Tile col="2" row="4" connection="TopRightConnect"/>
+		<Tile col="0" row="0" connection="BottomConnect"/>
+		<Tile col="7" row="0" connection="BottomConnect"/>		
+		<Tile col="1" row="7" connection="TopBottomConnect"/>
+		<Tile col="3" row="7" connection="TopBottomConnect"/> 
+		<Tile col="5" row="7" connection="TopBottomConnect"/> 		
+		<Tile col="2" row="0" connection="BottomRightConnect"/>
+		<Tile col="0" row="5" connection="BottomRightConnect"/>
+		<Tile col="0" row="10" connection="BottomRightConnect"/>
+		<Tile col="5" row="5" connection="BottomRightConnect"/>		
+		<Tile col="0" row="2" connection="TopRightBottomConnect"/>
+		<Tile col="3" row="2" connection="TopRightBottomConnect"/>
+		<Tile col="6" row="2" connection="TopRightBottomConnect"/>	
+		<Tile col="7" row="9" connection="LeftConnect"/>
+		<Tile col="4" row="13" connection="LeftConnect"/> 		
+		<Tile col="5" row="4" connection="TopLeftConnect"/>
+		<Tile col="6" row="6" connection="TopLeftConnect"/>
+		<Tile col="1" row="11" connection="TopLeftConnect"/>
+		<Tile col="2" row="6" connection="RightLeftConnect"/>
+		<Tile col="4" row="6" connection="RightLeftConnect"/>
+		<Tile col="2" row="8" connection="RightLeftConnect"/>		
+		<Tile col="3" row="4" connection="TopRightLeftConnect"/>
+		<Tile col="4" row="4" connection="TopRightLeftConnect"/>	
+		<Tile col="6" row="15" connection="TopRightLeftConnect"/>			
+		<Tile col="5" row="0" connection="BottomLeftConnect"/>
+		<Tile col="1" row="5" connection="BottomLeftConnect"/>
+		<Tile col="6" row="5" connection="BottomLeftConnect"/>		
+		<Tile col="1" row="2" connection="TopBottomLeftConnect"/>
+		<Tile col="4" row="2" connection="TopBottomLeftConnect"/>
+		<Tile col="7" row="2" connection="TopBottomLeftConnect"/>		
+		<Tile col="3" row="0" connection="RightBottomLeftConnect"/>
+		<Tile col="4" row="0" connection="RightBottomLeftConnect"/>
+		<Tile col="6" row="12" connection="RightBottomLeftConnect"/>			
+		<Tile col="6" row="13" connection="AllConnect"/>
+		<Tile col="6" row="14" connection="AllConnect"/>
+		<Tile col="2" row="13" connection="AllConnect"/>		
+		<Tile col="6" row="8" connection="TopRightConnect_Corner"/>
+		<Tile col="6" row="7" connection="BottomRightConnect_Corner"/>
+		<Tile col="7" row="8" connection="TopLeftConnect_Corner"/>
+		<Tile col="7" row="7" connection="BottomLeftConnect_Corner"/>
+		<Tile col="0" row="3" connection="TopRightBottomConnect_CornerBottom"/>
+		<Tile col="0" row="1" connection="TopRightBottomConnect_CornerTop"/>
+		<Tile col="1" row="8" connection="TopRightBottomConnect_CornerTopBottom"/>
+		<Tile col="1" row="3" connection="TopRightLeftConnect_CornerRight"/>
+		<Tile col="6" row="3" connection="TopRightLeftConnect_CornerLeft"/>
+		<Tile col="3" row="10" connection="TopRightLeftConnect_CornerRightLeft"/>
+		<Tile col="7" row="1" connection="TopBottomLeftConnect_CornerTop"/>
+		<Tile col="7" row="3" connection="TopBottomLeftConnect_CornerBottom"/>
+		<Tile col="5" row="8" connection="TopBottomLeftConnect_CornerTopBottom"/>
+		<Tile col="6" row="1" connection="RightBottomLeftConnect_CornerLeft"/>
+		<Tile col="1" row="1" connection="RightBottomLeftConnect_CornerRight"/>
+		<Tile col="3" row="6" connection="RightBottomLeftConnect_CornerRightLeft"/>
+		<Tile col="3" row="8" connection="AllConnect_C4"/>
+		<Tile col="3" row="3" connection="AllConnect_C1_TopLeft"/>
+		<Tile col="4" row="3" connection="AllConnect_C1_TopRight"/>
+		<Tile col="4" row="1" connection="AllConnect_C1_BottomRight"/>
+		<Tile col="3" row="1" connection="AllConnect_C1_BottomLeft"/>
+		<Tile col="2" row="12" connection="AllConnect_C2_TopLeftRight"/>         <!-- 4T2_1 -->
+		<Tile col="2" row="14" connection="AllConnect_C2_BottomRightLeft"/>      <!-- 4T2_3 -->
+		<Tile col="3" row="13" connection="AllConnect_C2_TopBottomRight"/>       <!-- 4T2_2 -->
+		<Tile col="1" row="13" connection="AllConnect_C2_TopBottomLeft"/>        <!-- 4T2_4 -->
+		<Tile col="1" row="0" connection="AllConnect_C2_TopLeft_BottomRight"/>   <!-- 4T2_5 Missing -->
+		<Tile col="1" row="0" connection="AllConnect_C2_TopRight_BottomLeft"/>   <!-- 4T2_6 Missing -->
+		<Tile col="5" row="10" connection="AllConnect_C3_NoBottomRightCorner"/>
+		<Tile col="1" row="10" connection="AllConnect_C3_NoBottomLeftCorner"/>
+		<Tile col="5" row="6" connection="AllConnect_C3_NoTopRightCorner"/>
+		<Tile col="1" row="6" connection="AllConnect_C3_NoTopLeftCorner"/>
+		<Furniture category="Rocks" sscategory="01" >
+			<Compatible connection="BottomConnect"/>
+		</Furniture>
+	</Terrain>		
+	<Terrain name="clay_01" neighbors="8" >
+		<Features name="RoomFloor|RoomWall|RoomPlateForm|CorridorFloor|CorridorWall|InnerSpace|InnerFloor|OuterFloor" />
+		<Tile col="15" row="11" connection="NoConnect"/>		
+		<Tile col="8" row="4" connection="TopConnect"/>
+		<Tile col="15" row="4" connection="TopConnect"/>
+		<Tile col="14" row="9" connection="RightConnect"/>
+		<Tile col="8" row="13" connection="RightConnect"/>		
+		<Tile col="10" row="4" connection="TopRightConnect"/>
+		<Tile col="8" row="0" connection="BottomConnect"/>
+		<Tile col="15" row="0" connection="BottomConnect"/>		
+		<Tile col="9" row="7" connection="TopBottomConnect"/>
+		<Tile col="11" row="7" connection="TopBottomConnect"/> 
+		<Tile col="13" row="7" connection="TopBottomConnect"/> 		
+		<Tile col="10" row="0" connection="BottomRightConnect"/>
+		<Tile col="8" row="5" connection="BottomRightConnect"/>
+		<Tile col="8" row="10" connection="BottomRightConnect"/>
+		<Tile col="13" row="5" connection="BottomRightConnect"/>		
+		<Tile col="8" row="2" connection="TopRightBottomConnect"/>
+		<Tile col="11" row="2" connection="TopRightBottomConnect"/>
+		<Tile col="14" row="2" connection="TopRightBottomConnect"/>	
+		<Tile col="15" row="9" connection="LeftConnect"/>
+		<Tile col="12" row="13" connection="LeftConnect"/> 		
+		<Tile col="13" row="4" connection="TopLeftConnect"/>
+		<Tile col="14" row="6" connection="TopLeftConnect"/>
+		<Tile col="9" row="11" connection="TopLeftConnect"/>
+		<Tile col="10" row="6" connection="RightLeftConnect"/>
+		<Tile col="12" row="6" connection="RightLeftConnect"/>
+		<Tile col="10" row="8" connection="RightLeftConnect"/>		
+		<Tile col="11" row="4" connection="TopRightLeftConnect"/>
+		<Tile col="12" row="4" connection="TopRightLeftConnect"/>	
+		<Tile col="14" row="15" connection="TopRightLeftConnect"/>			
+		<Tile col="13" row="0" connection="BottomLeftConnect"/>
+		<Tile col="9" row="5" connection="BottomLeftConnect"/>
+		<Tile col="14" row="5" connection="BottomLeftConnect"/>		
+		<Tile col="9" row="2" connection="TopBottomLeftConnect"/>
+		<Tile col="12" row="2" connection="TopBottomLeftConnect"/>
+		<Tile col="15" row="2" connection="TopBottomLeftConnect"/>		
+		<Tile col="11" row="0" connection="RightBottomLeftConnect"/>
+		<Tile col="12" row="0" connection="RightBottomLeftConnect"/>
+		<Tile col="14" row="12" connection="RightBottomLeftConnect"/>			
+		<Tile col="14" row="13" connection="AllConnect"/>
+		<Tile col="14" row="14" connection="AllConnect"/>
+		<Tile col="10" row="13" connection="AllConnect"/>		
+		<Tile col="14" row="8" connection="TopRightConnect_Corner"/>
+		<Tile col="14" row="7" connection="BottomRightConnect_Corner"/>
+		<Tile col="15" row="8" connection="TopLeftConnect_Corner"/>
+		<Tile col="15" row="7" connection="BottomLeftConnect_Corner"/>
+		<Tile col="8" row="3" connection="TopRightBottomConnect_CornerBottom"/>
+		<Tile col="8" row="1" connection="TopRightBottomConnect_CornerTop"/>
+		<Tile col="9" row="8" connection="TopRightBottomConnect_CornerTopBottom"/>
+		<Tile col="9" row="3" connection="TopRightLeftConnect_CornerRight"/>
+		<Tile col="14" row="3" connection="TopRightLeftConnect_CornerLeft"/>
+		<Tile col="11" row="10" connection="TopRightLeftConnect_CornerRightLeft"/>
+		<Tile col="15" row="1" connection="TopBottomLeftConnect_CornerTop"/>
+		<Tile col="15" row="3" connection="TopBottomLeftConnect_CornerBottom"/>
+		<Tile col="13" row="8" connection="TopBottomLeftConnect_CornerTopBottom"/>
+		<Tile col="14" row="1" connection="RightBottomLeftConnect_CornerLeft"/>
+		<Tile col="9" row="1" connection="RightBottomLeftConnect_CornerRight"/>
+		<Tile col="11" row="6" connection="RightBottomLeftConnect_CornerRightLeft"/>
+		<Tile col="11" row="8" connection="AllConnect_C4"/>
+		<Tile col="11" row="3" connection="AllConnect_C1_TopLeft"/>
+		<Tile col="12" row="3" connection="AllConnect_C1_TopRight"/>
+		<Tile col="12" row="1" connection="AllConnect_C1_BottomRight"/>
+		<Tile col="11" row="1" connection="AllConnect_C1_BottomLeft"/>
+		<Tile col="10" row="12" connection="AllConnect_C2_TopLeftRight"/>         <!-- 4T2_1 -->
+		<Tile col="10" row="14" connection="AllConnect_C2_BottomRightLeft"/>      <!-- 4T2_3 -->
+		<Tile col="11" row="13" connection="AllConnect_C2_TopBottomRight"/>       <!-- 4T2_2 -->
+		<Tile col="9" row="13" connection="AllConnect_C2_TopBottomLeft"/>        <!-- 4T2_4 -->
+		<Tile col="9" row="0" connection="AllConnect_C2_TopLeft_BottomRight"/>   <!-- 4T2_5 Missing -->
+		<Tile col="9" row="0" connection="AllConnect_C2_TopRight_BottomLeft"/>   <!-- 4T2_6 Missing -->
+		<Tile col="13" row="10" connection="AllConnect_C3_NoBottomRightCorner"/>
+		<Tile col="9" row="10" connection="AllConnect_C3_NoBottomLeftCorner"/>
+		<Tile col="13" row="6" connection="AllConnect_C3_NoTopRightCorner"/>
+		<Tile col="9" row="6" connection="AllConnect_C3_NoTopLeftCorner"/>
+		<Furniture category="Rocks" sscategory="01" >
+			<Compatible connection="BottomConnect"/>
+		</Furniture>		
+	</Terrain>	
+	<Skin name="ground_01" neighbors="8" >
+		<Associate terrain="earth_01" feature="InnerSpace" />
+		<Associate terrain="earth_01" feature="OuterFloor" />
+		<Associate terrain="earth_01" feature="InnerFloor" />			
+	</Skin>
+	<Skin name="dungeon_01" neighbors="8" >
+		<Associate terrain="clay_01" feature="RoomFloor" />
+		<Associate terrain="clay_01" feature="RoomWall" />
+		<Associate terrain="clay_01" feature="RoomPlateForm" />
+		<Associate terrain="clay_01" feature="CorridorFloor" />
+		<Associate terrain="clay_01" feature="CorridorWall" />
+		<Associate terrain="earth_01" feature="InnerSpace" />
+		<Associate terrain="earth_01" feature="RoomInnerSpace" />
+		<Associate terrain="earth_01" feature="OuterFloor" />
+		<Associate terrain="earth_01" feature="InnerFloor" />			
+	</Skin>	
+</TileSheet>

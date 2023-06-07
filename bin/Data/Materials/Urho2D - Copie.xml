@@ -1,0 +1,3 @@
+<material>
+    <technique name="Techniques/Urho2D.xml" />
+</material>

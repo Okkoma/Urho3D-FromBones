@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TileSheet texture="Levels/Textures/worldtiles01.png" tilewidth="64" tileheight="64" offsetx="16" offsety="16" spacing="0" margin="0" >
+	<Terrain name="grass_01" >
+		<Features name="OuterFloor" />
+		<Tile col="0" row="0" connection="NoConnect"/>
+		<Tile col="1" row="0" connection="TopConnect"/>
+		<Tile col="2" row="0" connection="RightConnect"/>
+		<Tile col="3" row="0" connection="BottomConnect"/>
+		<Tile col="4" row="0" connection="LeftConnect"/>
+		<Tile col="5" row="0" connection="TopRightConnect"/>
+		<Tile col="6" row="0" connection="TopBottomConnect"/>
+		<Tile col="7" row="0" connection="TopLeftConnect"/>
+		<Tile col="0" row="1" connection="BottomRightConnect"/>
+		<Tile col="1" row="1" connection="RightLeftConnect"/>
+		<Tile col="2" row="1" connection="BottomLeftConnect"/>
+		<Tile col="3" row="1" connection="TopRightBottomConnect"/>
+		<Tile col="4" row="1" connection="TopRightLeftConnect"/>
+		<Tile col="5" row="1" connection="TopBottomLeftConnect"/>
+		<Tile col="6" row="1" connection="RightBottomLeftConnect"/>
+		<Tile col="7" row="1" connection="AllConnect"/>
+		<Tile col="0" row="2" connection="NoConnect"/>
+		<Tile col="1" row="2" connection="TopConnect"/>
+		<Tile col="2" row="2" connection="RightConnect"/>
+		<Tile col="3" row="2" connection="BottomConnect"/>
+		<Tile col="4" row="2" connection="LeftConnect"/>
+		<Tile col="5" row="2" connection="TopRightConnect"/>
+		<Tile col="6" row="2" connection="TopBottomConnect"/>
+		<Tile col="7" row="2" connection="TopLeftConnect"/>
+		<Tile col="0" row="3" connection="BottomRightConnect"/>
+		<Tile col="1" row="3" connection="RightLeftConnect"/>
+		<Tile col="2" row="3" connection="BottomLeftConnect"/>
+		<Tile col="3" row="3" connection="TopRightBottomConnect"/>
+		<Tile col="4" row="3" connection="TopRightLeftConnect"/>
+		<Tile col="5" row="3" connection="TopBottomLeftConnect"/>
+		<Tile col="6" row="3" connection="RightBottomLeftConnect"/>
+		<Tile col="7" row="3" connection="AllConnect"/>			
+		<Furniture category="Vegetation" sscategory="01|02|03|04|05|06|07|08|09" >
+			<Compatible connection="BottomConnect"/>
+			<Compatible connection="BottomLeftConnect"/>
+			<Compatible connection="BottomRightConnect"/>
+			<Compatible connection="RightBottomLeftConnect"/>
+		</Furniture>
+	</Terrain>
+	<Terrain name="clay_01" >
+		<Features name="RoomFloor|RoomWall|RoomPlateForm|CorridorFloor|CorridorWall" />
+		<Tile col="0" row="4" connection="NoConnect"/>
+		<Tile col="1" row="4" connection="TopConnect"/>
+		<Tile col="2" row="4" connection="RightConnect"/>
+		<Tile col="3" row="4" connection="BottomConnect"/>
+		<Tile col="4" row="4" connection="LeftConnect"/>
+		<Tile col="5" row="4" connection="TopRightConnect"/>
+		<Tile col="6" row="4" connection="TopBottomConnect"/>
+		<Tile col="7" row="4" connection="TopLeftConnect"/>
+		<Tile col="0" row="5" connection="BottomRightConnect"/>
+		<Tile col="1" row="5" connection="RightLeftConnect"/>
+		<Tile col="2" row="5" connection="BottomLeftConnect"/>
+		<Tile col="3" row="5" connection="TopRightBottomConnect"/>
+		<Tile col="4" row="5" connection="TopRightLeftConnect"/>
+		<Tile col="5" row="5" connection="TopBottomLeftConnect"/>
+		<Tile col="6" row="5" connection="RightBottomLeftConnect"/>
+		<Tile col="7" row="5" connection="AllConnect"/>
+		<Tile col="0" row="6" connection="NoConnect"/>
+		<Tile col="1" row="6" connection="TopConnect"/>
+		<Tile col="2" row="6" connection="RightConnect"/>
+		<Tile col="3" row="6" connection="BottomConnect"/>
+		<Tile col="4" row="6" connection="LeftConnect"/>
+		<Tile col="5" row="6" connection="TopRightConnect"/>
+		<Tile col="6" row="6" connection="TopBottomConnect"/>
+		<Tile col="7" row="6" connection="TopLeftConnect"/>
+		<Tile col="0" row="7" connection="BottomRightConnect"/>
+		<Tile col="1" row="7" connection="RightLeftConnect"/>
+		<Tile col="2" row="7" connection="BottomLeftConnect"/>
+		<Tile col="3" row="7" connection="TopRightBottomConnect"/>
+		<Tile col="4" row="7" connection="TopRightLeftConnect"/>
+		<Tile col="5" row="7" connection="TopBottomLeftConnect"/>
+		<Tile col="6" row="7" connection="RightBottomLeftConnect"/>
+		<Tile col="7" row="7" connection="AllConnect"/>			
+		<Furniture category="Rocks" sscategory="01" >
+			<Compatible connection="BottomConnect"/>
+		</Furniture>
+	</Terrain>
+	<Skin name="ground_01" >
+		<Associate terrain="grass_01" feature="OuterFloor" />
+		<Associate terrain="clay_01" feature="InnerSpace" />
+		<Associate terrain="clay_01" feature="InnerFloor" />
+	</Skin>
+	<Skin name="dungeon_01" >
+		<Associate terrain="grass_01" feature="OuterFloor" />
+		<Associate terrain="clay_01" feature="RoomFloor" />
+		<Associate terrain="clay_01" feature="RoomWall" />
+		<Associate terrain="clay_01" feature="RoomPlateForm" />
+		<Associate terrain="clay_01" feature="CorridorFloor" />
+		<Associate terrain="clay_01" feature="CorridorWall" />
+		<Associate terrain="clay_01" feature="InnerSpace" />
+		<Associate terrain="clay_01" feature="InnerFloor" />
+	</Skin>	
+</TileSheet>

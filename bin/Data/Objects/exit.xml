@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<node>
+	<attribute name="Is Enabled" value="true" />
+	<attribute name="Name" value="GOT_Exit" />
+	<attribute name="Position" value="0.0 0.0 0" />
+	<attribute name="Rotation" value="1 0 0 0" />
+	<attribute name="Scale" value="1 1 1" />
+	<attribute name="Variables">
+		<variant name="GOA_RescaleToWorld" hash="1322200902" type="bool" value="true" />
+	</attribute>
+	<component type="RigidBody2D">	
+		<attribute name="Body Type" value="Static" />		
+	</component>	
+	<component type="CollisionBox2D">
+		<attribute name="Size" value="0.25 0.25" />
+<!-- 	<component type="CollisionCircle2D">
+		<attribute name="Radius" value="0.13" /> -->		
+		<attribute name="Center" value="0 0" />			
+		<attribute name="Trigger" value="true" />
+		<attribute name="Category Bits" value="1" />
+		<attribute name="Mask Bits" value="65535" />
+	</component>
+	<component type="GOC_Destroyer" />	
+	<component type="GOC_Detector">
+		<attribute name="Trigger Event In" value="Go_DetectorSwitchViewIn" />
+		<attribute name="Trigger Event Out" value="Go_DetectorSwitchViewOut" />
+	</component>
+</node>

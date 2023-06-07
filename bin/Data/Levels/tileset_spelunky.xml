@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TileSheet texture="Levels/Textures/grasstiles.png" tilewidth="64" tileheight="64" hotspotx="0" hotspoty="1" spacing="0" margin="0" >
+	<Terrain name="dirt_01" neighbors="0" >
+		<Features name="RoomFloor|RoomWall|RoomPlateForm|CorridorFloor|CorridorWall|InnerSpace|InnerFloor|OuterFloor|RoomInnerSpace" />
+		<Tile col="0" row="1" width="1" height="1" connection="AllConnect" />
+		<Tile col="1" row="1" width="1" height="1" connection="AllConnect" />
+		<Tile col="0" row="2" width="1" height="1" connection="AllConnect" />
+		<Tile col="1" row="2" width="1" height="1" connection="AllConnect" />
+		
+		<Tile col="2" row="1" width="1" height="2" connection="AllConnect" />
+		<Tile col="3" row="1" width="1" height="2" connection="AllConnect" />
+		
+		<Tile col="0" row="3" width="2" height="1" connection="AllConnect" />
+		<Tile col="2" row="3" width="2" height="1" connection="AllConnect" />
+		
+		<Tile col="0" row="4" width="2" height="2" connection="AllConnect" />
+		<Tile col="0" row="6" width="2" height="2" connection="AllConnect" />
+		<Tile col="2" row="4" width="2" height="2" connection="AllConnect" />
+		<Tile col="2" row="6" width="2" height="2" connection="AllConnect" />
+		
+		<Decal col="5" row="0" width="1" height="1" connection="TopConnect" />
+		<Decal col="6" row="0" width="1" height="1" connection="TopConnect" />
+		<Decal col="7" row="0" width="1" height="1" connection="TopConnect" />
+		<Decal col="7" row="2" width="1" height="1" connection="RightConnect" />			
+		<Decal col="5" row="1" width="1" height="1" connection="BottomConnect" />
+		<Decal col="6" row="1" width="1" height="1" connection="BottomConnect" />		
+		<Decal col="7" row="1" width="1" height="1" connection="LeftConnect" />
+	</Terrain>
+	<Skin name="ground_01" neighbors="0" >
+		<Associate terrain="dirt_01" feature="OuterFloor" />
+		<Associate terrain="dirt_01" feature="InnerSpace" />
+		<Associate terrain="dirt_01" feature="InnerFloor" />
+	</Skin>
+	<Skin name="dungeon_01" neighbors="0" >
+		<Associate terrain="dirt_01" feature="OuterFloor" />
+		<Associate terrain="dirt_01" feature="RoomFloor" />
+		<Associate terrain="dirt_01" feature="RoomWall" />
+		<Associate terrain="dirt_01" feature="RoomPlateForm" />
+		<Associate terrain="dirt_01" feature="CorridorFloor" />
+		<Associate terrain="dirt_01" feature="CorridorWall" />
+		<Associate terrain="dirt_01" feature="RoomInnerSpace" />
+		<Associate terrain="dirt_01" feature="InnerSpace" />
+		<Associate terrain="dirt_01" feature="InnerFloor" />
+	</Skin>	
+</TileSheet>

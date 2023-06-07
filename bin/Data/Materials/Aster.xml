@@ -1,0 +1,5 @@
+<material>
+    <technique name="Techniques/Urho2D.xml" />
+	<texture unit="0" name="Urho2D/Aster.png" />
+	<cull value="none" />
+</material>

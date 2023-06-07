@@ -1,0 +1,917 @@
+[Mon Jun 13 11:23:45 2022] INFO: Network() - Start ...
+[Mon Jun 13 11:23:45 2022] INFO: Network() - Start ... OK !
+[Mon Jun 13 11:23:45 2022] INFO: Opened log file /home/chris/.local/share/urho3d/logs/Water.log
+[Mon Jun 13 11:23:45 2022] INFO: Engine() - Initialize : ...
+[Mon Jun 13 11:23:45 2022] INFO: Created 3 worker threads
+[Mon Jun 13 11:23:45 2022] INFO: Added resource path /media/DATA/Dev/Urho3D/Urho3D-Vulkan/build/linux-vulkan/debug/bin/Data/
+[Mon Jun 13 11:23:45 2022] INFO: Added resource path /media/DATA/Dev/Urho3D/Urho3D-Vulkan/build/linux-vulkan/debug/bin/CoreData/
+[Mon Jun 13 11:23:45 2022] INFO: Added resource path /media/DATA/Dev/Urho3D/Urho3D-Vulkan/build/linux-vulkan/debug/bin/Autoload/LargeData/
+[Mon Jun 13 11:23:45 2022] INFO: Graphics() - VULKAN x11 Try to create window with w=1024 h=768 fullscreen=false borderless=false maximize=false externalWindow_=0...
+[Mon Jun 13 11:23:45 2022] INFO: create window=27761848 
+[Mon Jun 13 11:23:45 2022] INFO: Graphics() - api=VULKAN driver=x11 using validation layers ...
+[Mon Jun 13 11:23:45 2022] INFO: Initialize Volk for Vulkan !
+[Mon Jun 13 11:23:47 2022] DEBUG: Volk Load Instance !
+[Mon Jun 13 11:23:47 2022] INFO: found physical device [0] : GeForce GTX 1050 Ti 
+[Mon Jun 13 11:23:47 2022] INFO: validated physical device [0] : GeForce GTX 1050 Ti score=13 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Volk Load Device !
+[Mon Jun 13 11:23:47 2022] DEBUG: Initialize Vma !
+[Mon Jun 13 11:23:47 2022] DEBUG: CreateVulkanInstance !
+[Mon Jun 13 11:23:47 2022] DEBUG: UpdateSwapChain !
+[Mon Jun 13 11:23:47 2022] INFO: Graphics() - api=VULKAN driver=x11 Set screen mode 1024x768 windowed monitor 0
+[Mon Jun 13 11:23:47 2022] INFO: Urho3D : ResetState ...
+[Mon Jun 13 11:23:47 2022] INFO: Urho3D : ResetState ... OK !
+[Mon Jun 13 11:23:47 2022] INFO: Input() - GainFocus !
+[Mon Jun 13 11:23:47 2022] INFO: Urho3D : ResetJoysticks !
+[Mon Jun 13 11:23:47 2022] INFO: Urho3D : ResetState ...
+[Mon Jun 13 11:23:47 2022] INFO: Urho3D : ResetState ... OK !
+[Mon Jun 13 11:23:47 2022] INFO: Initialized input
+[Mon Jun 13 11:23:47 2022] DEBUG: UI() - Initialize ... 1024x768
+[Mon Jun 13 11:23:47 2022] DEBUG: GetShader : create manual resource shader this=40993024 Shaders/Vulkan/Basic !
+[Mon Jun 13 11:23:47 2022] DEBUG: GetShader : shader 40993024 Basic defines=VERTEXCOLOR !
+[Mon Jun 13 11:23:47 2022] DEBUG: LoadByteCode : Shaders/Vulkan/Basic_B15D181F.vs5
+[Mon Jun 13 11:23:47 2022] DEBUG: Num Texture Units Used=0 
+[Mon Jun 13 11:23:47 2022] DEBUG: Loaded cached vertex shader Basic(VERTEXCOLOR) variationName=Basic_VS_VERTEXCOLOR CachedName=Basic_B15D181F
+[Mon Jun 13 11:23:47 2022] DEBUG: LoadByteCode : Shaders/Vulkan/Basic_B15D181F.ps5
+[Mon Jun 13 11:23:47 2022] DEBUG: Num Texture Units Used=0 
+[Mon Jun 13 11:23:47 2022] DEBUG: Loaded cached pixel shader Basic(VERTEXCOLOR) variationName=Basic_PS_VERTEXCOLOR CachedName=Basic_B15D181F
+[Mon Jun 13 11:23:47 2022] DEBUG: RegisterPipelineInfo : DescriptorSet - Structure ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=1 type=6 unit=1 to 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: RegisterPipelineInfo : DescriptorSet - Structure ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=1 type=6 unit=1 to 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: LoadByteCode : Shaders/Vulkan/Basic_9A6030F6.vs5
+[Mon Jun 13 11:23:47 2022] DEBUG: Num Texture Units Used=0 
+[Mon Jun 13 11:23:47 2022] DEBUG: Loaded cached vertex shader Basic(DIFFMAP VERTEXCOLOR) variationName=Basic_VS_DIFFMAP VERTEXCOLOR CachedName=Basic_9A6030F6
+[Mon Jun 13 11:23:47 2022] DEBUG: LoadByteCode : Shaders/Vulkan/Basic_9A6030F6.ps5
+[Mon Jun 13 11:23:47 2022] DEBUG: Num Texture Units Used=1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Use Texture Unit=0 
+[Mon Jun 13 11:23:47 2022] DEBUG: Loaded cached pixel shader Basic(DIFFMAP VERTEXCOLOR) variationName=Basic_PS_DIFFMAP VERTEXCOLOR CachedName=Basic_9A6030F6
+[Mon Jun 13 11:23:47 2022] DEBUG: RegisterPipelineInfo : DescriptorSet - Structure ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=1 type=6 unit=1 to 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=16 type=1 unit=0 to 0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: RegisterPipelineInfo : DescriptorSet - Structure ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=1 type=6 unit=1 to 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=16 type=1 unit=0 to 0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: LoadByteCode : Shaders/Vulkan/Basic_E5EBC920.ps5
+[Mon Jun 13 11:23:47 2022] DEBUG: Num Texture Units Used=1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Use Texture Unit=0 
+[Mon Jun 13 11:23:47 2022] DEBUG: Loaded cached pixel shader Basic(ALPHAMASK DIFFMAP VERTEXCOLOR) variationName=Basic_PS_ALPHAMASK DIFFMAP VERTEXCOLOR CachedName=Basic_E5EBC920
+[Mon Jun 13 11:23:47 2022] DEBUG: RegisterPipelineInfo : DescriptorSet - Structure ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=1 type=6 unit=1 to 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=16 type=1 unit=0 to 0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: RegisterPipelineInfo : DescriptorSet - Structure ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=1 type=6 unit=1 to 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=16 type=1 unit=0 to 0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: RegisterPipelineInfo : DescriptorSet - Structure ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=1 type=6 unit=1 to 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=16 type=1 unit=0 to 0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: RegisterPipelineInfo : DescriptorSet - Structure ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=1 type=6 unit=1 to 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=16 type=1 unit=0 to 0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: LoadByteCode : Shaders/Vulkan/Basic_533CFC5D.ps5
+[Mon Jun 13 11:23:47 2022] DEBUG: Num Texture Units Used=1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Use Texture Unit=0 
+[Mon Jun 13 11:23:47 2022] DEBUG: Loaded cached pixel shader Basic(ALPHAMAP VERTEXCOLOR) variationName=Basic_PS_ALPHAMAP VERTEXCOLOR CachedName=Basic_533CFC5D
+[Mon Jun 13 11:23:47 2022] DEBUG: RegisterPipelineInfo : DescriptorSet - Structure ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=1 type=6 unit=1 to 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=16 type=1 unit=0 to 0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: UI() - Initialize ... OK ! 8
+[Mon Jun 13 11:23:47 2022] INFO: Initialized user interface
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading resource Textures/Ramp.png
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading temporary resource Textures/Ramp.xml
+[Mon Jun 13 11:23:47 2022] DEBUG: Create Texture levels=1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: SetData ... UnCompressed levels=1 components=4 image=Textures/Ramp.png
+[Mon Jun 13 11:23:47 2022] DEBUG: SetData ... OK !
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading resource Textures/Spot.png
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading temporary resource Textures/Spot.xml
+[Mon Jun 13 11:23:47 2022] DEBUG: Create Texture levels=1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: SetData ... UnCompressed levels=1 components=4 image=Textures/Spot.png
+[Mon Jun 13 11:23:47 2022] DEBUG: SetData ... OK !
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading resource Techniques/NoTexture.xml
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading resource RenderPaths/Forward.xml
+[Mon Jun 13 11:23:47 2022] DEBUG: SetData index buffer vertexcount=6 size=12
+[Mon Jun 13 11:23:47 2022] DEBUG: SetData index buffer vertexcount=36 size=72
+[Mon Jun 13 11:23:47 2022] DEBUG: SetData index buffer vertexcount=132 size=264
+[Mon Jun 13 11:23:47 2022] INFO: Initialized renderer
+[Mon Jun 13 11:23:47 2022] INFO: Initialized engine
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading resource Textures/UrhoIcon.png
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading resource UI/DefaultStyle.xml
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading resource Textures/UI.png
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading temporary resource Textures/UI.xml
+[Mon Jun 13 11:23:47 2022] DEBUG: Create Texture levels=1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: SetData ... UnCompressed levels=1 components=4 image=Textures/UI.png
+[Mon Jun 13 11:23:47 2022] DEBUG: SetData ... OK !
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading resource Fonts/Anonymous Pro.ttf
+[Mon Jun 13 11:23:47 2022] DEBUG: Font face Anonymous Pro (11pt) has 624 glyphs
+[Mon Jun 13 11:23:47 2022] DEBUG: Create Texture levels=1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: SetData ... UnCompressed levels=1 components=1 image=Fonts/Anonymous Pro.ttf11
+[Mon Jun 13 11:23:47 2022] DEBUG: SetData ... OK !
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading resource Urho2D/Tilesets/Ortho.tmx
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading resource Urho2D/Tilesets/Ortho.png
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading temporary resource Urho2D/Tilesets/Ortho.xml
+[Mon Jun 13 11:23:47 2022] DEBUG: Create Texture levels=10 !
+[Mon Jun 13 11:23:47 2022] DEBUG: SetData ... UnCompressed levels=1 components=4 image=Urho2D/Tilesets/Ortho.png
+[Mon Jun 13 11:23:47 2022] DEBUG: SetData ... OK !
+[Mon Jun 13 11:23:47 2022] DEBUG: GetShader : create manual resource shader this=41810224 Shaders/Vulkan/Urho2D !
+[Mon Jun 13 11:23:47 2022] DEBUG: GetShader : shader 41810224 Urho2D defines= !
+[Mon Jun 13 11:23:47 2022] DEBUG: LoadByteCode : Shaders/Vulkan/Urho2D_00000000.vs5
+[Mon Jun 13 11:23:47 2022] DEBUG: Num Texture Units Used=0 
+[Mon Jun 13 11:23:47 2022] DEBUG: Loaded cached vertex shader Urho2D() variationName=Urho2D_VS_ CachedName=Urho2D_00000000
+[Mon Jun 13 11:23:47 2022] DEBUG: LoadByteCode : Shaders/Vulkan/Urho2D_00000000.ps5
+[Mon Jun 13 11:23:47 2022] DEBUG: Num Texture Units Used=1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Use Texture Unit=0 
+[Mon Jun 13 11:23:47 2022] DEBUG: Loaded cached pixel shader Urho2D() variationName=Urho2D_PS_ CachedName=Urho2D_00000000
+[Mon Jun 13 11:23:47 2022] DEBUG: RegisterPipelineInfo : DescriptorSet - Structure ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=1 type=6 unit=1 to 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=16 type=1 unit=0 to 0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: RegisterPipelineInfo : DescriptorSet - Structure ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=1 type=6 unit=1 to 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=16 type=1 unit=0 to 0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: RegisterPipelineInfo : DescriptorSet - Structure ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=1 type=6 unit=1 to 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=16 type=1 unit=0 to 0 ...
+[Mon Jun 13 11:23:47 2022] WARNING: Renderer2D() - GetMaterial : no Material => Create Default Urho2D Material !
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading resource 2D/Textures/groundtiles.png
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading temporary resource 2D/Textures/groundtiles.xml
+[Mon Jun 13 11:23:47 2022] DEBUG: Create Texture levels=1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: SetData ... UnCompressed levels=1 components=4 image=2D/Textures/groundtiles.png
+[Mon Jun 13 11:23:47 2022] DEBUG: SetData ... OK !
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading resource Materials/groundtiles.xml
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading resource Techniques/Urho2D.xml
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading resource Materials/Water2D.xml
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading resource Techniques/Water2D.xml
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading resource 2D/Textures/watertiles.png
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading temporary resource 2D/Textures/watertiles.xml
+[Mon Jun 13 11:23:47 2022] DEBUG: Create Texture levels=1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: SetData ... UnCompressed levels=1 components=4 image=2D/Textures/watertiles.png
+[Mon Jun 13 11:23:47 2022] DEBUG: SetData ... OK !
+[Mon Jun 13 11:23:47 2022] DEBUG: Loading resource RenderPaths/ForwardUrho2D.xml
+[Mon Jun 13 11:23:47 2022] DEBUG: Window was moved to 1410,738
+[Mon Jun 13 11:23:47 2022] INFO: Urho3D : ResetState ...
+[Mon Jun 13 11:23:47 2022] INFO: Urho3D : ResetState ... OK !
+[Mon Jun 13 11:23:47 2022] INFO: Input() - GainFocus !
+[Mon Jun 13 11:23:47 2022] WARNING: Scene() - Update ... timeStep=0 timeScale=1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: Reloading shaders
+[Mon Jun 13 11:23:47 2022] DEBUG: Renderer LoadPassShaders pass=alpha lightningMode=1 vs=Urho2D vsdefine= ps=Urho2D psdefine= ...
+[Mon Jun 13 11:23:47 2022] DEBUG: ... pass=alpha vs=Urho2D vsdefine= ps=Urho2D psdefine=
+[Mon Jun 13 11:23:47 2022] DEBUG: Renderer LoadPassShaders pass=alpha lightningMode=1 vs=Urho2D vsdefine= ps=Urho2D psdefine= ...
+[Mon Jun 13 11:23:47 2022] DEBUG: ... pass=alpha vs=Urho2D vsdefine= ps=Urho2D psdefine=
+[Mon Jun 13 11:23:47 2022] DEBUG: Renderer LoadPassShaders pass=refract lightningMode=0 vs=Water2D vsdefine= ps=Water2D psdefine= ...
+[Mon Jun 13 11:23:47 2022] DEBUG: GetShader : create manual resource shader this=43530608 Shaders/Vulkan/Water2D !
+[Mon Jun 13 11:23:47 2022] DEBUG: GetShader : shader 43530608 Water2D defines= !
+[Mon Jun 13 11:23:47 2022] DEBUG: ... pass=refract vs=Water2D vsdefine= ps=Water2D psdefine=
+[Mon Jun 13 11:23:47 2022] DEBUG: -> Begin Frame=0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: Texture2D - Create name= USAGE=2 > STATIC !
+[Mon Jun 13 11:23:47 2022] DEBUG: Allocated new screen buffer size 1024x768 format 23
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Clear ...
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass alpha...
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() Urho2D vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() - new ShaderProgram
+[Mon Jun 13 11:23:47 2022] DEBUG: ShaderProgram : Urho2D vs=2239813241 ps=2190244211 
+[Mon Jun 13 11:23:47 2022] DEBUG: ShaderProgram : VS get or create constantbuffer group=1 size=64
+[Mon Jun 13 11:23:47 2022] DEBUG: GetOrCreateConstantBuffer : key=226547321 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: Create constant this=43620864 buffer=54 size=64
+[Mon Jun 13 11:23:47 2022] DEBUG: ... new constantbuffer=226547321 created !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : VSP_VIEWPROJ constantbuffer=43620864 matrix=1.81066 0 0 0 0 -2.41421 0 0 0 0 1.0001 9.90099 0 0 1 10
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : PSP_AMBIENTCOLOR color=0.1 0.1 0.1 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: Texture - UpdateParameters : 2D/Textures/groundtiles.png addressMode=(2,2,0) anisotropy=0 mag=1 min=1 mipmap=1
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: Can't find pipeline info for shader=Urho2D vs= ps= pipelineStates=528131 => Register new pipeline
+[Mon Jun 13 11:23:47 2022] DEBUG: RegisterPipelineInfo : DescriptorSet - Structure ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=1 type=6 unit=1 to 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   . Set=1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:     -> Bind=0 stage=16 type=1 unit=0 to 0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG:   vertex attribute binding=0 location=0 type=TYPE_VECTOR2 size=8 location=0 offset=0
+[Mon Jun 13 11:23:47 2022] DEBUG:   vertex attribute binding=0 location=1 type=TYPE_VECTOR2 size=8 location=1 offset=8
+[Mon Jun 13 11:23:47 2022] DEBUG:   vertex attribute binding=0 location=2 type=TYPE_UBYTE4_NORM size=4 location=2 offset=16
+[Mon Jun 13 11:23:47 2022] DEBUG:   vertex attribute binding=0 location=3 type=TYPE_FLOAT size=4 location=3 offset=20
+[Mon Jun 13 11:23:47 2022] DEBUG:   vertex attribute binding=0 location=4 type=TYPE_INT size=4 location=4 offset=24
+[Mon Jun 13 11:23:47 2022] DEBUG:   vertex attribute binding=0 location=5 type=TYPE_INT size=4 location=5 offset=28
+[Mon Jun 13 11:23:47 2022] DEBUG:   vertex size=32
+[Mon Jun 13 11:23:47 2022] DEBUG: pipeline layout : add descriptorSet set=0 layout = 58 !
+[Mon Jun 13 11:23:47 2022] DEBUG: pipeline layout : add descriptorSet set=1 layout = 111 !
+[Mon Jun 13 11:23:47 2022] DEBUG: create pipeline : shaderStages=2 vertexBindings=1 vertexAttributes=6 dynamicStates=2 colorAttachments=1 !
+[Mon Jun 13 11:23:47 2022] DEBUG:                   VkPipeline=165 VkPipelineLayout=164
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=0 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=0 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: Texture - UpdateParameters : Urho2D/Tilesets/Ortho.png addressMode=(2,2,0) anisotropy=0 mag=1 min=1 mipmap=1
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:47 2022] DEBUG:   vertex attribute binding=0 location=0 type=TYPE_VECTOR2 size=8 location=0 offset=0
+[Mon Jun 13 11:23:47 2022] DEBUG:   vertex attribute binding=0 location=1 type=TYPE_VECTOR2 size=8 location=1 offset=8
+[Mon Jun 13 11:23:47 2022] DEBUG:   vertex attribute binding=0 location=2 type=TYPE_UBYTE4_NORM size=4 location=2 offset=16
+[Mon Jun 13 11:23:47 2022] DEBUG:   vertex attribute binding=0 location=3 type=TYPE_FLOAT size=4 location=3 offset=20
+[Mon Jun 13 11:23:47 2022] DEBUG:   vertex attribute binding=0 location=4 type=TYPE_INT size=4 location=4 offset=24
+[Mon Jun 13 11:23:47 2022] DEBUG:   vertex attribute binding=0 location=5 type=TYPE_INT size=4 location=5 offset=28
+[Mon Jun 13 11:23:47 2022] DEBUG:   vertex size=32
+[Mon Jun 13 11:23:47 2022] DEBUG: pipeline layout : add descriptorSet set=0 layout = 169 !
+[Mon Jun 13 11:23:47 2022] DEBUG: pipeline layout : add descriptorSet set=1 layout = 222 !
+[Mon Jun 13 11:23:47 2022] DEBUG: create pipeline : shaderStages=2 vertexBindings=1 vertexAttributes=6 dynamicStates=2 colorAttachments=1 !
+[Mon Jun 13 11:23:47 2022] DEBUG:                   VkPipeline=276 VkPipelineLayout=275
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=0 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=0 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=false textureDirty=false 
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=1 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=1 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass refract...
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=1 name= !
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=refract material=Materials/Water2D.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=43531856  ps=43536752 
+[Mon Jun 13 11:23:47 2022] DEBUG: Texture - UpdateParameters : 2D/Textures/watertiles.png addressMode=(0,0,0) anisotropy=0 mag=1 min=1 mipmap=1
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/watertiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=2D/Textures/watertiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/watertiles.png imageview=49 sampler=277 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=1 descInd=2 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: -> ... End Frame=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: -> Begin Frame=1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Clear ...
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass alpha...
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() Urho2D vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() Urho2D active program=43620160
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : VSP_VIEWPROJ constantbuffer=43620864 matrix=1.81066 0 0 0 0 -2.41421 0 0 0 0 1.0001 9.90099 0 0 1 10
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : PSP_AMBIENTCOLOR color=0.1 0.1 0.1 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=0 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=0 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=0 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=0 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=1 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=1 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=false textureDirty=false 
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=1 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=1 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass refract...
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=1 name= !
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=refract material=Materials/Water2D.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=43531856  ps=43536752 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/watertiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=2D/Textures/watertiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/watertiles.png imageview=49 sampler=277 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=1 descInd=2 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: -> ... End Frame=1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: -> Begin Frame=0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Clear ...
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass alpha...
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() Urho2D vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() Urho2D active program=43620160
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : VSP_VIEWPROJ constantbuffer=43620864 matrix=1.81066 0 0 0 0 -2.41421 0 0 0 0 1.0001 9.90099 0 0 1 10
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : PSP_AMBIENTCOLOR color=0.1 0.1 0.1 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=1 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=1 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=2 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=3 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=2 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=2 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=false textureDirty=false 
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=3 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=4 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass refract...
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=1 name= !
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=refract material=Materials/Water2D.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=43531856  ps=43536752 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/watertiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=2D/Textures/watertiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/watertiles.png imageview=49 sampler=277 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=1 descInd=5 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: -> ... End Frame=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: -> Begin Frame=1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Clear ...
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass alpha...
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() Urho2D vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() Urho2D active program=43620160
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : VSP_VIEWPROJ constantbuffer=43620864 matrix=1.81066 0 0 0 0 -2.41421 0 0 0 0 1.0001 9.90099 0 0 1 10
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : PSP_AMBIENTCOLOR color=0.1 0.1 0.1 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=2 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=2 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=2 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=3 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=3 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=3 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=false textureDirty=false 
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=3 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=4 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass refract...
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=1 name= !
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=refract material=Materials/Water2D.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=43531856  ps=43536752 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/watertiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=2D/Textures/watertiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/watertiles.png imageview=49 sampler=277 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=1 descInd=5 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: -> ... End Frame=1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: -> Begin Frame=0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Clear ...
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass alpha...
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() Urho2D vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() Urho2D active program=43620160
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : VSP_VIEWPROJ constantbuffer=43620864 matrix=1.81066 0 0 0 0 -2.41421 0 0 0 0 1.0001 9.90099 0 0 1 10
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : PSP_AMBIENTCOLOR color=0.1 0.1 0.1 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=3 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=3 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=4 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=6 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=4 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=4 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=false textureDirty=false 
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=5 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=7 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass refract...
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=1 name= !
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=refract material=Materials/Water2D.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=43531856  ps=43536752 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/watertiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=2D/Textures/watertiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/watertiles.png imageview=49 sampler=277 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=1 descInd=8 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: -> ... End Frame=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: -> Begin Frame=1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Clear ...
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass alpha...
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() Urho2D vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() Urho2D active program=43620160
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : VSP_VIEWPROJ constantbuffer=43620864 matrix=1.81066 0 0 0 0 -2.41421 0 0 0 0 1.0001 9.90099 0 0 1 10
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : PSP_AMBIENTCOLOR color=0.1 0.1 0.1 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=4 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=4 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=4 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=6 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=5 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=5 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=false textureDirty=false 
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=5 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=7 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass refract...
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=1 name= !
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=refract material=Materials/Water2D.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=43531856  ps=43536752 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/watertiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=2D/Textures/watertiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/watertiles.png imageview=49 sampler=277 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=1 descInd=8 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: -> ... End Frame=1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: -> Begin Frame=0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Clear ...
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass alpha...
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() Urho2D vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() Urho2D active program=43620160
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : VSP_VIEWPROJ constantbuffer=43620864 matrix=1.81066 0 0 0 0 -2.41421 0 0 0 0 1.0001 9.90099 0 0 1 10
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : PSP_AMBIENTCOLOR color=0.1 0.1 0.1 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=5 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=5 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=6 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=9 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=6 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=6 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=false textureDirty=false 
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=7 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=10 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass refract...
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=1 name= !
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=refract material=Materials/Water2D.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=43531856  ps=43536752 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/watertiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=2D/Textures/watertiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/watertiles.png imageview=49 sampler=277 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=1 descInd=11 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: -> ... End Frame=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: -> Begin Frame=1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Clear ...
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass alpha...
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() Urho2D vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() Urho2D active program=43620160
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : VSP_VIEWPROJ constantbuffer=43620864 matrix=1.81066 0 0 0 0 -2.41421 0 0 0 0 1.0001 9.90099 0 0 1 10
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : PSP_AMBIENTCOLOR color=0.1 0.1 0.1 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=6 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=6 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=6 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=9 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=7 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=7 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=false textureDirty=false 
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=7 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=10 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass refract...
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=1 name= !
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=refract material=Materials/Water2D.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=43531856  ps=43536752 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/watertiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=2D/Textures/watertiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/watertiles.png imageview=49 sampler=277 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=1 descInd=11 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: -> ... End Frame=1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: -> Begin Frame=0 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Clear ...
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass alpha...
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() Urho2D vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() Urho2D active program=43620160
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : VSP_VIEWPROJ constantbuffer=43620864 matrix=1.81066 0 0 0 0 -2.41421 0 0 0 0 1.0001 9.90099 0 0 1 10
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : PSP_AMBIENTCOLOR color=0.1 0.1 0.1 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=7 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=7 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=8 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=12 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=8 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=8 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=false textureDirty=false 
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=9 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=13 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass refract...
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=1 name= !
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=refract material=Materials/Water2D.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=43531856  ps=43536752 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/watertiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=2D/Textures/watertiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/watertiles.png imageview=49 sampler=277 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=1 descInd=14 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: -> ... End Frame=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: -> Begin Frame=1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Clear ...
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass alpha...
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() Urho2D vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetShader() Urho2D active program=43620160
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : VSP_VIEWPROJ constantbuffer=43620864 matrix=1.81066 0 0 0 0 -2.41421 0 0 0 0 1.0001 9.90099 0 0 1 10
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - SetShaderParameter() : PSP_AMBIENTCOLOR color=0.1 0.1 0.1 1 ...
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=8 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=8 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=8 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=12 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=9 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=9 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=false textureDirty=false 
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=9 update buffer=43620864 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=13 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: View Execute Scene Pass refract...
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=1 name= !
+[Mon Jun 13 11:23:47 2022] DEBUG: Batch Prepare pass=refract material=Materials/Water2D.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=43531856  ps=43536752 
+[Mon Jun 13 11:23:47 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/watertiles.png !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=2D/Textures/watertiles.png 
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/watertiles.png imageview=49 sampler=277 !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=1 descInd=14 update 1 samplers !
+[Mon Jun 13 11:23:47 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 1 !
+[Mon Jun 13 11:23:47 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:47 2022] DEBUG: -> ... End Frame=1 !
+[Mon Jun 13 11:23:48 2022] DEBUG: -> Begin Frame=0 ...
+[Mon Jun 13 11:23:48 2022] DEBUG: View Execute Clear ...
+[Mon Jun 13 11:23:48 2022] DEBUG: View Execute Scene Pass alpha...
+[Mon Jun 13 11:23:48 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:48 2022] DEBUG: SetShader() Urho2D vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:48 2022] DEBUG: SetShader() Urho2D active program=43620160
+[Mon Jun 13 11:23:48 2022] DEBUG: Graphics - SetShaderParameter() : VSP_VIEWPROJ constantbuffer=43620864 matrix=1.81066 0 0 0 0 -2.41421 0 0 0 0 1.0001 9.90099 0 0 1 10
+[Mon Jun 13 11:23:48 2022] DEBUG: Graphics - SetShaderParameter() : PSP_AMBIENTCOLOR color=0.1 0.1 0.1 1 ...
+[Mon Jun 13 11:23:48 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=9 update buffer=43620864 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=9 update 1 samplers !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:48 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:48 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:48 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=10 update buffer=43620864 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=15 update 1 samplers !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:48 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:48 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:48 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=10 update buffer=43620864 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=10 update 1 samplers !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:48 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:48 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=false textureDirty=false 
+[Mon Jun 13 11:23:48 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:48 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:48 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=11 update buffer=43620864 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=16 update 1 samplers !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=0 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:48 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:48 2022] DEBUG: View Execute Scene Pass refract...
+[Mon Jun 13 11:23:48 2022] DEBUG: SetTexture ... unit=1 name= !
+[Mon Jun 13 11:23:48 2022] DEBUG: Batch Prepare pass=refract material=Materials/Water2D.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=43531856  ps=43536752 
+[Mon Jun 13 11:23:48 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/watertiles.png !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=0 ... pipelineDirty=true textureDirty=2D/Textures/watertiles.png 
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/watertiles.png imageview=49 sampler=277 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=1 descInd=17 update 1 samplers !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 1 !
+[Mon Jun 13 11:23:48 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:48 2022] DEBUG: -> ... End Frame=0 !
+[Mon Jun 13 11:23:48 2022] DEBUG: -> Begin Frame=1 ...
+[Mon Jun 13 11:23:48 2022] DEBUG: View Execute Clear ...
+[Mon Jun 13 11:23:48 2022] DEBUG: View Execute Scene Pass alpha...
+[Mon Jun 13 11:23:48 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:48 2022] DEBUG: SetShader() Urho2D vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:48 2022] DEBUG: SetShader() Urho2D active program=43620160
+[Mon Jun 13 11:23:48 2022] DEBUG: Graphics - SetShaderParameter() : VSP_VIEWPROJ constantbuffer=43620864 matrix=1.81066 0 0 0 0 -2.41421 0 0 0 0 1.0001 9.90099 0 0 1 10
+[Mon Jun 13 11:23:48 2022] DEBUG: Graphics - SetShaderParameter() : PSP_AMBIENTCOLOR color=0.1 0.1 0.1 1 ...
+[Mon Jun 13 11:23:48 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=10 update buffer=43620864 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=10 update 1 samplers !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:48 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:48 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:48 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=10 update buffer=43620864 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=15 update 1 samplers !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:48 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:48 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:48 2022] DEBUG: SetTexture ... unit=0 name=Urho2D/Tilesets/Ortho.png !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=Urho2D/Tilesets/Ortho.png 
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=11 update buffer=43620864 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=Urho2D/Tilesets/Ortho.png imageview=43 sampler=166 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=11 update 1 samplers !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(276) Urho2D vs= ps= states=3843 stencilvalue=0 !
+[Mon Jun 13 11:23:48 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:48 2022] DEBUG: Batch Prepare pass=alpha material=Urho2D/Tilesets/Ortho.png_alpha lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=false textureDirty=false 
+[Mon Jun 13 11:23:48 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:48 2022] DEBUG: Batch Prepare pass=alpha material=Materials/groundtiles.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=true vs=41811776  ps=41812080 
+[Mon Jun 13 11:23:48 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/groundtiles.png !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=2D/Textures/groundtiles.png 
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update VS Set=0.0 write=1 group=1 size=64 descInd=11 update buffer=43620864 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/groundtiles.png imageview=46 sampler=55 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=2 descInd=16 update 1 samplers !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 2 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=1 bind pipeline(165) Urho2D vs= ps= states=528131 stencilvalue=0 !
+[Mon Jun 13 11:23:48 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:48 2022] DEBUG: View Execute Scene Pass refract...
+[Mon Jun 13 11:23:48 2022] DEBUG: SetTexture ... unit=1 name= !
+[Mon Jun 13 11:23:48 2022] DEBUG: Batch Prepare pass=refract material=Materials/Water2D.xml lightqueue=0 light=0 numvertexlights=0 depthwrite=false vs=43531856  ps=43536752 
+[Mon Jun 13 11:23:48 2022] DEBUG: SetTexture ... unit=0 name=2D/Textures/watertiles.png !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... frame=1 ... pipelineDirty=true textureDirty=2D/Textures/watertiles.png 
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 update unit=0 texture=2D/Textures/watertiles.png imageview=49 sampler=277 !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update PS Set=1.0 write=1 descInd=17 update 1 samplers !
+[Mon Jun 13 11:23:48 2022] DEBUG: PrepareDraw ... update descriptor Sets num writes = 1 !
+[Mon Jun 13 11:23:48 2022] DEBUG: Graphics - Draw() indexed 1 
+[Mon Jun 13 11:23:48 2022] DEBUG: -> ... End Frame=1 !
+[Mon Jun 13 11:23:48 2022] DEBUG: Release image !
+[Mon Jun 13 11:23:48 2022] DEBUG: Release image !
+[Mon Jun 13 11:23:48 2022] DEBUG: Release image !
+[Mon Jun 13 11:23:48 2022] DEBUG: Release image !
+[Mon Jun 13 11:23:48 2022] DEBUG: Release image !
+[Mon Jun 13 11:23:48 2022] DEBUG: Release image !
+[Mon Jun 13 11:23:48 2022] DEBUG: Release image !
+[Mon Jun 13 11:23:48 2022] INFO: Urho3D : DoExit() ... OK !
+Used resources:
+Shaders/Vulkan/Basic
+Shaders/Vulkan/Urho2D
+Shaders/Vulkan/Water2D
+Textures/Ramp.png
+Textures/Spot.png
+Textures/UI.png
+Urho2D/Tilesets/Ortho.png
+2D/Textures/groundtiles.png
+2D/Textures/watertiles.png
+Techniques/NoTexture.xml
+Techniques/Urho2D.xml
+Techniques/Water2D.xml
+RenderPaths/Forward.xml
+UI/DefaultStyle.xml
+RenderPaths/ForwardUrho2D.xml
+Textures/UrhoIcon.png
+Fonts/Anonymous Pro.ttf
+Urho2D/Tilesets/Ortho.tmx
+Materials/groundtiles.xml
+Materials/Water2D.xml
+[Mon Jun 13 11:23:48 2022] INFO: ~Scene() ...
+[Mon Jun 13 11:23:48 2022] INFO: ~Scene() ... 7 Local Nodes
+[Mon Jun 13 11:23:48 2022] INFO: ~Scene() ... 777 Replicate Nodes
+[Mon Jun 13 11:23:48 2022] INFO: ~Scene() ... OK !

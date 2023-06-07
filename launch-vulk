@@ -1,0 +1,15 @@
+
+
+VULKAN_SDK="/media/DATA/Dev/Vulkan/1.2.198.1/x86_64"
+export VULKAN_SDK
+PATH="$VULKAN_SDK/bin:$PATH"
+export PATH
+LD_LIBRARY_PATH="$VULKAN_SDK/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH
+VK_LAYER_PATH="$VULKAN_SDK/etc/vulkan/explicit_layer.d"
+export VK_LAYER_PATH
+
+cd build/linux-vulkan/debug/bin
+./$1*
+cd ../../../..
+

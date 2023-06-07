@@ -1,0 +1,3171 @@
+//
+// Copyright (c) 2008-2022 the Urho3D project.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+
+#include "../../Precompiled.h"
+
+#include "../../Core/Context.h"
+
+#include "../../Graphics/Graphics.h"
+#include "../../Graphics/GraphicsImpl.h"
+#include "../../Graphics/VertexBuffer.h"
+#include "../../Graphics/IndexBuffer.h"
+
+#include "../../IO/Log.h"
+
+#include "../../IO/File.h"
+
+#include "../../DebugNew.h"
+
+#include <SDL/SDL.h>
+#include <SDL/SDL_vulkan.h>
+
+#ifdef URHO3D_VMA
+#define VMA_IMPLEMENTATION
+#include "vma/vk_mem_alloc.h"
+#endif
+
+namespace Urho3D
+{
+
+const uint64_t TIME_OUT = 1000;
+//const uint64_t TIME_OUT = UINT64_MAX;
+
+const unsigned MaxFrames = 3;
+const unsigned NumDeviceExtensions = 1;
+
+const char* deviceExtensions[] =
+{
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME, 0
+};
+
+static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
+{
+    if (GraphicsImpl::GetPipelineInfo())
+    {
+        const PipelineInfo& info = *GraphicsImpl::GetPipelineInfo();
+
+        String s;
+        s.AppendWithFormat("key=%u states=%u stencilValue=%u %s vs=%s ps=%s \n", info.key_.Value(), info.pipelineStates_, info.stencilValue_,
+                           info.vs_ ? info.vs_->GetName().CString() : "null", info.vs_ ? info.vs_->GetDefines().CString() : "null",
+                           info.ps_ ? info.ps_->GetDefines().CString() : "null");
+
+        URHO3D_LOGERRORF("Vulkan Validation : pipelineInfo %s %s", s.CString(), pCallbackData->pMessage);
+    }
+    else
+    {
+        URHO3D_LOGERRORF("Vulkan Validation : %s", pCallbackData->pMessage);
+    }
+
+    return VK_FALSE;
+}
+
+const VkFormat ELEMENT_TYPE_VKFORMAT[] =
+{
+    VK_FORMAT_R32_SINT,             // TYPE_INT
+    VK_FORMAT_R32_SFLOAT,           // TYPE_FLOAT
+    VK_FORMAT_R32G32_SFLOAT,        // TYPE_VECTOR2
+    VK_FORMAT_R32G32B32_SFLOAT,     // TYPE_VECTOR3
+    VK_FORMAT_R32G32B32A32_SFLOAT,  // TYPE_VECTOR4
+    VK_FORMAT_R8G8B8A8_UINT,        // TYPE_UBYTE4
+    VK_FORMAT_R8G8B8A8_UNORM        // TYPE_UBYTE4_NORM
+};
+
+const char* ELEMENT_TYPE_STR[] =
+{
+    "TYPE_INT",
+    "TYPE_FLOAT",
+    "TYPE_VECTOR2",
+    "TYPE_VECTOR3",
+    "TYPE_VECTOR4",
+    "TYPE_UBYTE4",
+    "TYPE_UBYTE4_NORM",
+};
+
+static const VkPrimitiveTopology VulkanPrimitiveTopologies[] =
+{
+    VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,                 // 3  // TRIANGLE_LIST = 0,
+    VK_PRIMITIVE_TOPOLOGY_LINE_LIST,                     // 1  // LINE_LIST,
+    VK_PRIMITIVE_TOPOLOGY_POINT_LIST,                    // 0  // POINT_LIST,
+    VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,                // 4  // TRIANGLE_STRIP,
+    VK_PRIMITIVE_TOPOLOGY_LINE_STRIP,                    // 2  // LINE_STRIP,
+    VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN,                  // 5  // TRIANGLE_FAN,
+    VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,                 // 5  // QUAD_LIST
+    VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY,      // 6
+    VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY,     // 7
+    VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY,  // 8
+    VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY, // 9
+    VK_PRIMITIVE_TOPOLOGY_PATCH_LIST                     // 10
+};
+
+static const VkPolygonMode VulkanPolygonMode[] =
+{
+    VK_POLYGON_MODE_FILL,               // FILL_SOLID = 0,
+    VK_POLYGON_MODE_LINE,               // FILL_WIREFRAME,
+    VK_POLYGON_MODE_POINT,              // FILL_POINT
+    VK_POLYGON_MODE_FILL_RECTANGLE_NV
+};
+
+static const VkCompareOp VulkanCompareMode[] =
+{
+    VK_COMPARE_OP_ALWAYS,           // 7 // CMP_ALWAYS = 0,
+    VK_COMPARE_OP_EQUAL,            // 2 // CMP_EQUAL,
+    VK_COMPARE_OP_NOT_EQUAL,        // 5 // CMP_NOTEQUAL,
+    VK_COMPARE_OP_LESS,             // 1 // CMP_LESS,
+    VK_COMPARE_OP_LESS_OR_EQUAL,    // 3 // CMP_LESSEQUAL,
+    VK_COMPARE_OP_GREATER,          // 4 // CMP_GREATER,
+    VK_COMPARE_OP_GREATER_OR_EQUAL, // 6 // CMP_GREATEREQUAL
+};
+
+static const VkStencilOp VulkanStencilOp[] =
+{
+    VK_STENCIL_OP_KEEP, // OP_KEEP = 0,
+    VK_STENCIL_OP_ZERO, // OP_ZERO,
+    VK_STENCIL_OP_REPLACE, // OP_REF,
+    VK_STENCIL_OP_INCREMENT_AND_CLAMP, // OP_INCR,
+    VK_STENCIL_OP_DECREMENT_AND_CLAMP, // OP_DECR
+};
+
+//const unsigned VulkanStencilModeValues[][4] =
+//{
+//    { VK_COMPARE_OP_ALWAYS, VK_STENCIL_OP_REPLACE, VK_STENCIL_OP_KEEP, VK_STENCIL_OP_KEEP },
+//    { VK_COMPARE_OP_EQUAL, VK_STENCIL_OP_KEEP, VK_STENCIL_OP_KEEP, VK_STENCIL_OP_KEEP },
+//};
+
+const unsigned PipelineStateMaskBits[PIPELINESTATE_MAX][2] =
+{  //  OFFSET, MASK                    28bits
+    {  0, 0x0000000F }, // BLENDMODE    4bits
+    {  4, 0x0000000F }, // PRIMITIVE    4bits
+    {  8, 0x0000000F }, // COLORMASK    4bits
+    { 12, 0x00000003 }, // FILLMODE     2bits
+    { 14, 0x00000003 }, // CULLMODE     2bits
+    { 16, 0x00000007 }, // DEPTHTEST    3bits
+    { 19, 0x00000001 }, // DEPTHWRITE   1bit
+    { 20, 0x00000001 }, // STENCILTEST  1bit
+    { 21, 0x0000000F }, // STENCILMODE  4bits
+    { 25, 0x00000007 }, // SAMPLES      3bits
+    { 28, 0x00000003 }, // LINEWIDTH    2bits
+};
+
+const char* PipelineStateNames_[PIPELINESTATE_MAX] =
+{
+    "BLEN",
+    "PRIM",
+    "CMSK",
+    "FILL",
+    "CULL",
+    "ZTEST",
+    "ZWRIT",
+    "STEST",
+    "SMODE",
+    "SAMPL",
+    "LINEW"
+};
+
+static const float LineWidthValues_[] =
+{
+    1.f,
+    5.f,
+    10.f
+};
+
+
+void SetPipelineState(PipelineInfo* info, PipelineState state, unsigned value)
+{
+    unsigned offset       = PipelineStateMaskBits[state][0];
+    unsigned mask         = (PipelineStateMaskBits[state][1] << offset);
+    info->pipelineStates_ = ((value << offset) & mask) + (info->pipelineStates_ & ~mask);
+}
+
+unsigned GetPipelineStateInternal(PipelineInfo* info, PipelineState state)
+{
+    unsigned stateValue = (info->pipelineStates_ >> PipelineStateMaskBits[state][0]) & PipelineStateMaskBits[state][1];
+    return stateValue;
+}
+
+
+void ExtractStencilMode(int value, CompareMode& mode, StencilOp& pass, StencilOp& fail, StencilOp& zFail)
+{
+    if (value == 0)
+    {
+        mode = CMP_ALWAYS;
+        pass = OP_REF;
+        fail = OP_KEEP;
+        zFail = OP_KEEP;
+    }
+    else if (value == 1)
+    {
+        mode = CMP_EQUAL;
+        pass = OP_KEEP;
+        fail = OP_KEEP;
+        zFail = OP_KEEP;
+    }
+}
+
+int StencilMode(CompareMode mode, StencilOp pass, StencilOp fail, StencilOp zFail)
+{
+    if (mode == CMP_ALWAYS && pass == OP_REF && fail == OP_KEEP && zFail == OP_KEEP)
+        return 0;
+    if (mode == CMP_EQUAL && pass == OP_KEEP && fail == OP_KEEP && zFail == OP_KEEP)
+        return 1;
+    return 0;
+}
+
+
+PipelineBuilder::PipelineBuilder(GraphicsImpl* impl) :
+    numShaderStages_(0U),
+    numVertexBindings_(0U),
+    numVertexAttributes_(0U),
+    numDynamicStates_(0U),
+    numColorAttachments_(1U),
+    impl_(impl),
+    viewportSetted_(false),
+    pAllocator_(nullptr)
+{
+    vertexInputState_   = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+    inputAssemblyState_ = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+    viewportState_      = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
+    rasterizationState_ = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+    depthStencilState_  = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+    dynamicState_       = { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
+    multiSampleState_   = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
+    colorBlendState_    = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+
+//    vertexInputState_.sType   = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+//    vertexInputState_.pNext   = nullptr;
+//    vertexInputState_.flags   = 0;
+//    inputAssemblyState_.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+//    inputAssemblyState_.flags = 0;
+//    inputAssemblyState_.pNext = nullptr;
+//    viewportState_.sType      = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+//    viewportState_.flags      = 0;
+//    viewportState_.pNext      = nullptr;
+//    rasterizationState_.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+//    rasterizationState_.flags = 0;
+//    rasterizationState_.pNext = nullptr;
+//    depthStencilState_.sType  = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+//    depthStencilState_.flags  = 0;
+//    depthStencilState_.pNext  = nullptr;
+//    dynamicState_.sType       = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+//    dynamicState_.flags       = 0;
+//    dynamicState_.pNext       = nullptr;
+//    multiSampleState_.sType   = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+//    multiSampleState_.flags   = 0;
+//    multiSampleState_.pNext   = nullptr;
+//    colorBlendState_.sType    = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+//    colorBlendState_.flags    = 0;
+//    colorBlendState_.pNext    = nullptr;
+
+    Reset();
+}
+
+void PipelineBuilder::Reset()
+{
+    inputAssemblyState_.topology                = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssemblyState_.primitiveRestartEnable  = VK_FALSE;
+    viewportState_.viewportCount                = 1;
+    viewportState_.pViewports                   = &viewport_;
+    viewportState_.scissorCount                 = 1;
+    viewportState_.pScissors                    = &scissor_;
+    rasterizationState_.rasterizerDiscardEnable = VK_FALSE;
+    rasterizationState_.polygonMode             = VK_POLYGON_MODE_FILL;
+    rasterizationState_.lineWidth               = 1.f;
+    rasterizationState_.cullMode                = VK_CULL_MODE_BACK_BIT;
+    rasterizationState_.frontFace               = VK_FRONT_FACE_CLOCKWISE;
+    rasterizationState_.depthBiasEnable         = VK_FALSE;
+    rasterizationState_.depthBiasClamp          = 0.f;
+    rasterizationState_.depthBiasConstantFactor = 0.f;
+    rasterizationState_.depthBiasSlopeFactor    = 0.f;
+    rasterizationState_.depthClampEnable        = VK_FALSE;
+    depthStencilState_.depthTestEnable          = VK_FALSE;
+    depthStencilState_.depthWriteEnable         = VK_FALSE;
+    depthStencilState_.depthCompareOp           = VK_COMPARE_OP_LESS;
+    depthStencilState_.depthBoundsTestEnable    = VK_FALSE;
+    depthStencilState_.stencilTestEnable        = VK_FALSE;
+    dynamicState_.dynamicStateCount             = 0;
+    dynamicState_.pDynamicStates                = nullptr;
+    multiSampleState_.alphaToOneEnable          = VK_FALSE;
+    multiSampleState_.alphaToCoverageEnable     = VK_FALSE;
+    multiSampleState_.minSampleShading          = 0.f;
+    multiSampleState_.pSampleMask               = nullptr;
+    multiSampleState_.sampleShadingEnable       = VK_FALSE;
+    multiSampleState_.rasterizationSamples      = VK_SAMPLE_COUNT_1_BIT;
+    colorBlendState_.logicOpEnable              = VK_FALSE;
+    colorBlendState_.logicOp                    = VK_LOGIC_OP_COPY;
+    colorBlendState_.attachmentCount            = 1;
+    colorBlendState_.pAttachments               = colorBlendAttachments_;
+    colorBlendState_.blendConstants[0]          = 0.f;
+    colorBlendState_.blendConstants[1]          = 0.f;
+    colorBlendState_.blendConstants[2]          = 0.f;
+    colorBlendState_.blendConstants[3]          = 0.f;
+
+    CleanUp();
+
+//    URHO3D_LOGDEBUGF("PipelineBuilder - Reset");
+}
+
+void PipelineBuilder::CleanUp(bool shadermodules, bool vertexinfo, bool dynamicstates, bool colorblending)
+{
+    viewportSetted_ = false;
+
+    if (shadermodules)
+    {
+        for (unsigned i=0; i < shaderModules_.Size(); i++)
+        {
+            if (shaderModules_[i] != VK_NULL_HANDLE)
+                vkDestroyShaderModule(impl_->device_, shaderModules_[i], pAllocator_);
+        }
+
+        shaderModules_.Clear();
+        numShaderStages_ = 0;
+    }
+    if (vertexinfo)
+    {
+        vertexElementsTable_.Clear();
+        numVertexBindings_ = 0;
+        numVertexAttributes_ = 0;
+
+        vertexInputState_.vertexBindingDescriptionCount   = 0;
+        vertexInputState_.pVertexBindingDescriptions      = nullptr;
+        vertexInputState_.vertexAttributeDescriptionCount = 0;
+        vertexInputState_.pVertexAttributeDescriptions    = nullptr;
+    }
+    if (dynamicstates)
+    {
+        numDynamicStates_ = 0;
+
+        dynamicState_.dynamicStateCount = 0;
+        dynamicState_.pDynamicStates    = nullptr;
+        dynamicState_.flags             = 0;
+        dynamicState_.pNext             = nullptr;
+    }
+    if (colorblending)
+    {
+        numColorAttachments_ = 1;
+
+        VkPipelineColorBlendAttachmentState& colorBlendAttachment = colorBlendAttachments_[0];
+        colorBlendAttachment.blendEnable    = VK_FALSE;
+        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    }
+
+//    URHO3D_LOGDEBUGF("PipelineBuilder - CleanUp");
+}
+
+void PipelineBuilder::AddShaderStage(ShaderVariation* variation, const String& entry)
+{
+    if (numShaderStages_ >= VULKAN_MAX_SHADER_STAGES)
+    {
+        URHO3D_LOGERRORF("Max Shader Stages !");
+        return;
+    }
+
+    // get the bytecode
+    const PODVector<unsigned char>& byteCode = variation->GetByteCode();
+    if (!byteCode.Size())
+    {
+        if (variation->Create())
+        {
+            URHO3D_LOGERRORF("Can't create shader module %s no bytecode !", variation->GetName().CString());
+            return;
+        }
+    }
+
+    // create shader module
+    VkShaderModule shaderModule;
+    VkShaderModuleCreateInfo shaderModuleInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+    shaderModuleInfo.codeSize = byteCode.Size();
+    shaderModuleInfo.pCode = reinterpret_cast<const uint32_t*>(byteCode.Buffer());
+    if (vkCreateShaderModule(impl_->GetDevice(), &shaderModuleInfo, pAllocator_, &shaderModule) != VK_SUCCESS)
+    {
+        URHO3D_LOGERRORF("Can't create shader module %s !", variation->GetName().CString());
+        return;
+    }
+    shaderModules_.Resize(shaderModules_.Size()+1);
+    shaderModules_.Back() = shaderModule;
+
+    // create the shader stage info
+    VkPipelineShaderStageCreateInfo& info = shaderStages_[numShaderStages_];
+    info.sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    info.stage               = variation->GetShaderType() == VS ? VK_SHADER_STAGE_VERTEX_BIT : VK_SHADER_STAGE_FRAGMENT_BIT;
+    info.module              = shaderModules_.Back();
+    info.pName               = "main";
+//    info.pName               = entry.CString();
+    info.pSpecializationInfo = nullptr;
+    info.flags               = 0;
+    info.pNext               = nullptr;
+
+    numShaderStages_++;
+}
+
+void PipelineBuilder::AddVertexBinding(unsigned binding, bool instance)
+{
+    if (binding >= VULKAN_MAX_VERTEX_BINDINGS)
+    {
+        URHO3D_LOGERRORF("Max Vertex Bindings !");
+        return;
+    }
+
+    if (binding >= numVertexBindings_)
+        numVertexBindings_ = binding+1;
+
+    VkVertexInputBindingDescription& bindingDesc = vertexBindings_[binding];
+    bindingDesc.binding   = static_cast<uint32_t>(binding);
+    bindingDesc.inputRate = !instance ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE;
+}
+
+void PipelineBuilder::AddVertexElement(unsigned binding, const VertexElement& element)
+{
+    if (binding >= VULKAN_MAX_VERTEX_BINDINGS)
+    {
+        URHO3D_LOGERRORF("Max Vertex Bindings !");
+        return;
+    }
+
+    if (binding >= vertexElementsTable_.Size())
+        vertexElementsTable_.Resize(binding+1);
+
+    PODVector<VertexElement>& elements = vertexElementsTable_[binding];
+    elements.Push(element);
+}
+
+void PipelineBuilder::AddVertexElements(unsigned binding, const PODVector<VertexElement>& elements)
+{
+    if (binding >= VULKAN_MAX_VERTEX_BINDINGS)
+    {
+        URHO3D_LOGERRORF("Max Vertex Bindings !");
+        return;
+    }
+
+    if (binding >= vertexElementsTable_.Size())
+        vertexElementsTable_.Resize(binding+1);
+
+    vertexElementsTable_[binding] = elements;
+}
+
+void PipelineBuilder::AddVertexElements(const Vector<PODVector<VertexElement> >& elementsTable, const bool* instanceTable)
+{
+    if (elementsTable.Size() >= VULKAN_MAX_VERTEX_BINDINGS)
+    {
+        URHO3D_LOGERRORF("Max Vertex Bindings !");
+        return;
+    }
+
+    vertexElementsTable_ = elementsTable;
+
+    if (vertexElementsTable_.Size() != numVertexBindings_)
+    {
+        numVertexBindings_ = vertexElementsTable_.Size();
+        for (unsigned binding=0; binding < numVertexBindings_; binding++)
+        {
+            VkVertexInputBindingDescription& bindingDesc = vertexBindings_[binding];
+            bindingDesc.binding = static_cast<uint32_t>(binding);
+            bindingDesc.inputRate = instanceTable && instanceTable[binding] ? VK_VERTEX_INPUT_RATE_INSTANCE : VK_VERTEX_INPUT_RATE_VERTEX;
+        }
+    }
+}
+
+void PipelineBuilder::SetTopology(unsigned primitive, bool primitiveRestartEnable, unsigned flags)
+{
+    inputAssemblyState_.topology               = VulkanPrimitiveTopologies[primitive];
+    inputAssemblyState_.primitiveRestartEnable = primitiveRestartEnable ? VK_TRUE : VK_FALSE;
+    inputAssemblyState_.flags                  = static_cast<uint32_t>(flags);
+    inputAssemblyState_.pNext                  = nullptr;
+}
+
+// TODO
+void PipelineBuilder::SetViewportStates()
+{
+    viewport_.x        = 0.f;
+    viewport_.y        = 0.f;
+    viewport_.width    = (float)impl_->swapChainExtent_.width;
+    viewport_.height   = (float)impl_->swapChainExtent_.height;
+    viewport_.minDepth = 0.f;
+    viewport_.maxDepth = 1.f;
+
+    scissor_.offset    = { 0, 0 };
+    scissor_.extent    = impl_->swapChainExtent_;
+
+    viewportState_.viewportCount = 1;
+    viewportState_.pViewports    = &viewport_;
+    viewportState_.scissorCount  = 1;
+    viewportState_.pScissors     = &scissor_;
+
+    viewportSetted_ = true;
+}
+
+void PipelineBuilder::SetRasterization(unsigned fillMode, CullMode cullMode, int linewidth)
+{
+    rasterizationState_.rasterizerDiscardEnable = VK_FALSE;
+    rasterizationState_.polygonMode             = VulkanPolygonMode[fillMode];
+    rasterizationState_.lineWidth               = LineWidthValues_[Clamp(linewidth, 0, 2)];
+//    rasterizationState_.cullMode                = VK_CULL_MODE_NONE;
+//    rasterizationState_.frontFace               = VK_FRONT_FACE_CLOCKWISE;
+    rasterizationState_.cullMode                = cullMode == CULL_NONE ? VK_CULL_MODE_NONE : cullMode == CULL_CW ? VK_CULL_MODE_BACK_BIT : VK_CULL_MODE_FRONT_BIT;
+    rasterizationState_.frontFace               = cullMode == CULL_CCW  ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE;
+    rasterizationState_.depthBiasEnable         = VK_FALSE;
+    rasterizationState_.depthBiasClamp          = 0.f;
+    rasterizationState_.depthBiasConstantFactor = 0.f;
+    rasterizationState_.depthBiasSlopeFactor    = 0.f;
+    rasterizationState_.depthClampEnable        = VK_FALSE;
+    rasterizationState_.flags                   = 0;
+}
+
+void PipelineBuilder::SetDepthStencil(bool enable, int compare, bool write, bool stencil, int stencilmode, unsigned stencilvalue)
+{
+    depthStencilState_.depthTestEnable       = enable ? VK_TRUE : VK_FALSE;
+    depthStencilState_.depthCompareOp        = enable ? VulkanCompareMode[compare] : VK_COMPARE_OP_ALWAYS;
+    depthStencilState_.depthWriteEnable      = enable && write ? VK_TRUE : VK_FALSE;
+
+    depthStencilState_.depthBoundsTestEnable = VK_FALSE;
+    depthStencilState_.minDepthBounds        = 0.f;       // Optional
+    depthStencilState_.maxDepthBounds        = 1.f;       // Optional
+    depthStencilState_.stencilTestEnable     = stencil ? VK_TRUE : VK_FALSE;
+
+    if (stencil)
+    {
+        CompareMode compare;
+        StencilOp pass, fail, zfail;
+        ExtractStencilMode(stencilmode, compare, pass, fail, zfail);
+        depthStencilState_.back.compareOp        = VulkanCompareMode[compare];
+        depthStencilState_.back.failOp           = VulkanStencilOp[fail];
+        depthStencilState_.back.depthFailOp      = VulkanStencilOp[zfail];
+        depthStencilState_.back.passOp           = VulkanStencilOp[pass];
+        depthStencilState_.back.compareMask      = 0xff;
+        depthStencilState_.back.writeMask        = 0xff;
+        depthStencilState_.back.reference        = stencilvalue;
+        depthStencilState_.front                 = depthStencilState_.back;
+    }
+}
+
+void PipelineBuilder::AddDynamicState(VkDynamicState state)
+{
+    if (numDynamicStates_+1 >= VULKAN_MAX_DYNAMIC_STATES)
+    {
+        URHO3D_LOGERRORF("Max Dynamic State added !");
+        return;
+    }
+
+    dynamicStates_[numDynamicStates_] = state;
+    numDynamicStates_++;
+
+    dynamicState_.dynamicStateCount = numDynamicStates_;
+    dynamicState_.pDynamicStates    = numDynamicStates_ ? dynamicStates_ : nullptr;
+}
+
+void PipelineBuilder::SetMultiSampleState(int samples)
+{
+    int p = RoundToInt(Sqrt(Clamp((float)samples, 1.f, 64.f))) - 1;
+    URHO3D_LOGDEBUGF("multisample = %d (%d)", samples, 1 << p);
+//    multiSampleState_.sampleShadingEnable  = samples > 1 ? VK_TRUE : VK_FALSE;
+//    multiSampleState_.rasterizationSamples = (VkSampleCountFlagBits)(1 << p);
+    multiSampleState_.sampleShadingEnable  = VK_FALSE;
+    multiSampleState_.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+}
+
+void PipelineBuilder::SetColorBlend(bool enable, VkLogicOp logicOp, float b0, float b1, float b2, float b3)
+{
+    colorBlendState_.logicOpEnable     = enable ? VK_TRUE : VK_FALSE;
+    colorBlendState_.logicOp           = logicOp;
+    colorBlendState_.blendConstants[0] = b0;
+    colorBlendState_.blendConstants[1] = b1;
+    colorBlendState_.blendConstants[2] = b2;
+    colorBlendState_.blendConstants[3] = b3;
+}
+
+void PipelineBuilder::AddColorBlendAttachment(int attachmentIndex, BlendMode blendMode, unsigned colormask)
+{
+    if (blendMode > BLEND_SUBTRACTALPHA)
+        return;
+
+    if (attachmentIndex+1 >= VULKAN_MAX_COLOR_ATTACHMENTS)
+    {
+        URHO3D_LOGERRORF("Max Color Attachments !");
+        return;
+    }
+
+    if (attachmentIndex >= numColorAttachments_)
+        numColorAttachments_ = attachmentIndex+1;
+
+    VkPipelineColorBlendAttachmentState& colorBlendAttachment = colorBlendAttachments_[attachmentIndex];
+
+    colorBlendAttachment.blendEnable = blendMode == BLEND_REPLACE ? VK_FALSE : VK_TRUE;
+
+    if (blendMode == BLEND_REPLACE)
+    {
+        colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
+        colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
+        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    }
+    else if (blendMode == BLEND_ADD)
+    {
+        colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
+        colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
+//        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+//        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+//        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+//        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    }
+    else if (blendMode == BLEND_MULTIPLY)
+    {
+        colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
+        colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
+        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_DST_COLOR;
+        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_DST_COLOR;
+        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    }
+    else if (blendMode == BLEND_ALPHA)
+    {
+        colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
+        colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
+        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    }
+    else if (blendMode == BLEND_ADDALPHA)
+    {
+        colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
+        colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
+        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    }
+    else if (blendMode == BLEND_PREMULALPHA)
+    {
+        colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
+        colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
+        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    }
+    else if (blendMode == BLEND_INVDESTALPHA)
+    {
+        colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
+        colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
+        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_DST_ALPHA;
+        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_DST_ALPHA;
+    }
+    else if (blendMode == BLEND_SUBTRACT)
+    {
+        colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_REVERSE_SUBTRACT;
+        colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_REVERSE_SUBTRACT;
+        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    }
+    else if (blendMode == BLEND_SUBTRACTALPHA)
+    {
+        colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_REVERSE_SUBTRACT;
+        colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_REVERSE_SUBTRACT;
+        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    }
+
+    colorBlendAttachment.colorWriteMask = colormask;//VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+    colorBlendState_.attachmentCount = static_cast<uint32_t>(numColorAttachments_);
+}
+
+/*
+    Create the descriptor sets for the pipeline : a layout set by binding
+
+    a descriptor set layout for camera        => it's not optimal : the camera just need to be bound two time in a frame (for the scene and for the ui)
+    a descriptor set layout for model matrix  => should be a dynamic uniform buffer for push all the model matrix in this buffer and only send the offset
+    a descriptor set layouts for the samplers => should adjust the number of samplers in the sampler array according to need
+
+    see https://zeux.io/2020/02/27/writing-an-efficient-vulkan-renderer/
+    see Graphics::PrepareDraw for the consommation of these descriptors
+*/
+bool PipelineBuilder::CreateDescriptors(PipelineInfo* info)
+{
+    unsigned setid = 0;
+
+    unsigned maxToAllocate = info->maxAllocatedDescriptorSets_;
+
+    for (Vector<DescriptorsGroup>::Iterator it = info->descriptorsGroups_.Begin(); it != info->descriptorsGroups_.End(); ++it)
+    {
+        DescriptorsGroup& d = *it;
+
+        const Vector<ShaderBind>& bindings = d.bindings_;
+
+        // Create the Descriptor Set Bindings
+        Vector<VkDescriptorSetLayoutBinding> layoutBindings;
+        layoutBindings.Resize(bindings.Size());
+        Vector<VkDescriptorPoolSize> poolSizes;
+        poolSizes.Resize(bindings.Size());
+
+        for (unsigned i = 0; i < bindings.Size(); i++)
+        {
+            const ShaderBind& bind = bindings[i];
+
+            VkDescriptorSetLayoutBinding& binding = layoutBindings[i];
+            binding.binding            = (uint32_t)bind.id_;
+            binding.descriptorCount    = (uint32_t)bind.unitRange_;
+            binding.descriptorType     = (VkDescriptorType)bind.type_;
+            binding.pImmutableSamplers = nullptr;
+            binding.stageFlags         = bind.stageFlag_;
+
+            VkDescriptorPoolSize& poolsize = poolSizes[i];
+            poolsize.descriptorCount = maxToAllocate * bind.unitRange_;
+            poolsize.type = (VkDescriptorType)bind.type_;
+        }
+
+        // Create Descriptor Set Layout
+        VkDescriptorSetLayoutCreateInfo layoutInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+        layoutInfo.bindingCount = layoutBindings.Size();
+        layoutInfo.pBindings    = layoutBindings.Buffer();
+        if (vkCreateDescriptorSetLayout(impl_->device_, &layoutInfo, pAllocator_, &d.layout_) != VK_SUCCESS)
+        {
+            URHO3D_LOGERRORF("Can't create descriptorSet layout !");
+            return false;
+        }
+
+        d.setsByFrame_.Resize(impl_->numFrames_);
+
+        for (unsigned frame=0; frame < impl_->numFrames_; frame++)
+        {
+            DescriptorsGroupAllocation& alloc = d.setsByFrame_[frame];
+
+            // Create Descriptor pools
+            {
+                VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+                poolInfo.maxSets       = maxToAllocate;
+                poolInfo.poolSizeCount = poolSizes.Size();
+                poolInfo.pPoolSizes    = poolSizes.Buffer();
+                if (vkCreateDescriptorPool(impl_->device_, &poolInfo, pAllocator_, &alloc.pool_) != VK_SUCCESS)
+                {
+                    URHO3D_LOGERRORF("Can't create ubo descriptor pool %d !", d.id_);
+                    return false;
+                }
+            }
+
+            // Allocate DescriptorSets
+            // maxToAllocate is the max consumed UBO descriptors during the preparation of a frame
+            {
+                Vector<VkDescriptorSetLayout> descriptorSetLayouts;
+                descriptorSetLayouts.Resize(maxToAllocate);
+                for (unsigned l=0; l < maxToAllocate; l++)
+                    descriptorSetLayouts[l] = d.layout_;
+
+                VkDescriptorSetAllocateInfo allocInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+                allocInfo.descriptorPool     = alloc.pool_;
+                allocInfo.descriptorSetCount = maxToAllocate;
+                allocInfo.pSetLayouts        = descriptorSetLayouts.Buffer();
+
+                alloc.sets_.Resize(maxToAllocate);
+                if (vkAllocateDescriptorSets(impl_->device_, &allocInfo, alloc.sets_.Buffer()) != VK_SUCCESS)
+                {
+                    URHO3D_LOGERRORF("Can't allocate descriptor sets !");
+                    return false;
+                }
+
+                // Initialize the descriptor index
+                alloc.index_ = maxToAllocate;
+
+//                URHO3D_LOGDEBUGF("Allocate descriptor sets for pipeline %s UBO at frame=%u binding=%u ...", info->vs_->GetName().CString(), frame, bindingpoint);
+            }
+        }
+    }
+
+    return true;
+}
+
+void PipelineBuilder::CreatePipeline(PipelineInfo* info)
+{
+    // Set Vertex Attributes
+    {
+        for (unsigned binding = 0; binding < numVertexBindings_; binding++)
+        {
+            const PODVector<VertexElement>& elements = vertexElementsTable_[binding];
+
+            if (numVertexAttributes_+elements.Size() >= VULKAN_MAX_VERTEX_ATTRIBUTES)
+            {
+                URHO3D_LOGERRORF("Max Vertex Attributes at binding=%u !", binding);
+                return;
+            }
+
+            unsigned int vertexSize = 0;
+            unsigned startAttribute = numVertexAttributes_;
+
+            for (unsigned int location=0; location < elements.Size(); location++)
+            {
+                VertexElementType elementType = elements[location].type_;
+
+                VkVertexInputAttributeDescription& attribute = vertexAttributes_[startAttribute+location];
+                attribute.binding  = binding;
+                attribute.location = static_cast<uint32_t>(location);    // one location = 16bytes
+                attribute.format   = ELEMENT_TYPE_VKFORMAT[elementType];
+                attribute.offset   = static_cast<uint32_t>(vertexSize);
+
+                vertexSize += ELEMENT_TYPESIZES[elementType];
+
+                URHO3D_LOGDEBUGF("  vertex attribute binding=%d location=%u type=%s size=%u location=%u offset=%u", binding, location, ELEMENT_TYPE_STR[elementType], ELEMENT_TYPESIZES[elementType],
+                                 attribute.location, attribute.offset);
+            }
+
+            // vertexsize must aligned by 16bytes (4floats)
+            if (vertexSize%16 != 0)
+                vertexSize = (vertexSize/16 + 1) * 16;
+
+            // Set Vertex Binding
+            VkVertexInputBindingDescription& bindingDesc = vertexBindings_[binding];
+            bindingDesc.binding   = static_cast<uint32_t>(binding);
+            bindingDesc.stride    = static_cast<uint32_t>(vertexSize);
+
+            URHO3D_LOGDEBUGF("  vertex size=%u", vertexSize);
+
+            numVertexAttributes_ += elements.Size();
+        }
+
+        // Update Vertex Input State
+        vertexInputState_.vertexBindingDescriptionCount   = static_cast<uint32_t>(numVertexBindings_);
+        vertexInputState_.pVertexBindingDescriptions      = numVertexBindings_ ? vertexBindings_ : nullptr;
+        vertexInputState_.vertexAttributeDescriptionCount = static_cast<uint32_t>(numVertexAttributes_);
+        vertexInputState_.pVertexAttributeDescriptions    = numVertexAttributes_ ? vertexAttributes_ : nullptr;
+    }
+
+    if (!viewportSetted_)
+    {
+        viewport_.x        = 0.f;
+        viewport_.y        = 0.f;
+        viewport_.width    = (float)impl_->swapChainExtent_.width;
+        viewport_.height   = (float)impl_->swapChainExtent_.height;
+        viewport_.minDepth = 0.f;
+        viewport_.maxDepth = 1.f;
+
+        scissor_.offset    = { 0, 0 };
+        scissor_.extent    = impl_->swapChainExtent_;
+
+        viewportState_.viewportCount = 1;
+        viewportState_.pViewports    = &viewport_;
+        viewportState_.scissorCount  = 1;
+        viewportState_.pScissors     = &scissor_;
+
+        viewportSetted_ = true;
+    }
+
+    // Create the descriptor before the pipeline layout
+    if (!CreateDescriptors(info))
+        return;
+
+    // Pipeline Layout
+    if (info->pipelineLayout_ == VK_NULL_HANDLE)
+    {
+        // Add DescripterLayoutSets
+        VkPipelineLayoutCreateInfo pipelineLayoutInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+        Vector<VkDescriptorSetLayout> layouts;
+        if (info->descriptorsGroups_.Size())
+        {
+            for (Vector<DescriptorsGroup>::Iterator set = info->descriptorsGroups_.Begin(); set != info->descriptorsGroups_.End(); ++set)
+            {
+                URHO3D_LOGDEBUGF("pipeline layout : add descriptorSet set=%u layout = %u !", set->id_, set->layout_);
+                layouts.Push(set->layout_);
+            }
+
+            pipelineLayoutInfo.setLayoutCount = layouts.Size();
+            pipelineLayoutInfo.pSetLayouts    = layouts.Buffer();
+
+        }
+        else
+        {
+            pipelineLayoutInfo.setLayoutCount = 0;
+        }
+        // Add PushContants
+        pipelineLayoutInfo.pushConstantRangeCount = 0;
+        if (vkCreatePipelineLayout(impl_->device_, &pipelineLayoutInfo, pAllocator_, &info->pipelineLayout_) != VK_SUCCESS)
+        {
+            URHO3D_LOGERRORF("Can't create pipeline layout !");
+            return;
+        }
+    }
+
+    VkGraphicsPipelineCreateInfo pipelineInfo{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
+    pipelineInfo.stageCount          = static_cast<uint32_t>(numShaderStages_);
+    pipelineInfo.pStages             = shaderStages_;
+    pipelineInfo.pVertexInputState   = &vertexInputState_;
+    pipelineInfo.pInputAssemblyState = &inputAssemblyState_;
+    pipelineInfo.pViewportState      = &viewportState_;
+    pipelineInfo.pRasterizationState = &rasterizationState_;
+    pipelineInfo.pDepthStencilState  = &depthStencilState_;
+    pipelineInfo.pDynamicState       = &dynamicState_;
+    pipelineInfo.pMultisampleState   = &multiSampleState_;
+    pipelineInfo.pColorBlendState    = &colorBlendState_;
+    pipelineInfo.layout              = info->pipelineLayout_;
+    pipelineInfo.renderPass          = impl_->GetRenderPassInfo(info->renderPassKey_)->renderPass_;
+    pipelineInfo.subpass             = 0;
+    pipelineInfo.basePipelineHandle  = VK_NULL_HANDLE;
+
+    VkResult result = vkCreateGraphicsPipelines(impl_->device_, impl_->pipelineCache_, 1, &pipelineInfo, pAllocator_, &info->pipeline_);
+
+    if (result != VK_SUCCESS)
+    {
+        URHO3D_LOGERRORF("Can't create pipeline !");
+    }
+    else
+    {
+        URHO3D_LOGDEBUGF("create pipeline : shaderStages=%u vertexBindings=%u vertexAttributes=%u dynamicStates=%u colorAttachments=%u !",
+                                            numShaderStages_, numVertexBindings_, numVertexAttributes_, numDynamicStates_, numColorAttachments_);
+        URHO3D_LOGDEBUGF("                  VkPipeline=%u VkPipelineLayout=%u", info->pipeline_, info->pipelineLayout_);
+    }
+
+    for (unsigned i=0; i < shaderModules_.Size(); i++)
+    {
+        if (shaderModules_[i] != VK_NULL_HANDLE)
+            vkDestroyShaderModule(impl_->device_, shaderModules_[i], pAllocator_);
+    }
+
+    shaderModules_.Clear();
+    numShaderStages_ = 0;
+}
+
+
+PipelineInfo* GraphicsImpl::pipelineInfo_ = nullptr;
+PhysicalDeviceInfo GraphicsImpl::physicalInfo_;
+VkSurfaceFormatKHR GraphicsImpl::swapChainInfo_;
+VkFormat GraphicsImpl::depthStencilFormat_;
+
+
+GraphicsImpl::GraphicsImpl() :
+    validationLayersEnabled_(true),
+#ifdef URHO3D_VMA
+    allocator_(VK_NULL_HANDLE),
+#endif
+    instance_(VK_NULL_HANDLE),
+    debugMsg_(VK_NULL_HANDLE),
+    surface_(VK_NULL_HANDLE),
+    oldSurface_(VK_NULL_HANDLE),
+    swapChain_(VK_NULL_HANDLE),
+    pipelineBuilder_(this),
+    pipelineCache_(VK_NULL_HANDLE),
+//    pipelineInfo_(nullptr),
+    numFrames_(1),
+    currentFrame_(0),
+    presentMode_(VK_PRESENT_MODE_IMMEDIATE_KHR),
+//    presentMode_(VK_PRESENT_MODE_FIFO_KHR),
+    frame_(nullptr),
+    renderPathInfo_(nullptr),
+    viewportTexture_(nullptr),
+    renderPassIndex_(-1)
+{
+    defaultPipelineStates_ = 0;
+
+    SetPipelineState(defaultPipelineStates_, PIPELINESTATE_PRIMITIVE, TRIANGLE_LIST);
+    SetPipelineState(defaultPipelineStates_, PIPELINESTATE_COLORMASK, 0xF);
+    SetPipelineState(defaultPipelineStates_, PIPELINESTATE_CULLMODE, CULL_NONE);
+    SetPipelineState(defaultPipelineStates_, PIPELINESTATE_DEPTHTEST, CMP_ALWAYS);//CMP_LESSEQUAL);
+    SetPipelineState(defaultPipelineStates_, PIPELINESTATE_DEPTHWRITE, false);
+    SetPipelineState(defaultPipelineStates_, PIPELINESTATE_FILLMODE, FILL_SOLID);
+    SetPipelineState(defaultPipelineStates_, PIPELINESTATE_STENCILTEST, false);
+    SetPipelineState(defaultPipelineStates_, PIPELINESTATE_STENCILMODE, 0);
+    SetPipelineState(defaultPipelineStates_, PIPELINESTATE_SAMPLES, 0);
+
+    pipelineStates_ = defaultPipelineStates_;
+    stencilValue_ = 0;
+
+    AddRenderPassInfo("PRESENTCLEAR_TARGETCLEAR_DEPTHCLEAR");
+//    AddRenderPassInfo("PRESENT_TARGET_DEPTH");
+    AddRenderPassInfo("PRESENT_DEPTH");
+    AddRenderPassInfo("FRAME_DEPTH");
+
+    SetRenderPath(0);
+}
+
+bool GraphicsImpl::CreateVulkanInstance(Context* context, const String& appname, SDL_Window* window, const Vector<String>& requestedLayers)
+{
+#ifdef URHO3D_VOLK
+    if (volkInitialize() != VK_SUCCESS)
+    {
+        URHO3D_LOGERRORF("Can't initialize Vulkan !");
+        return false;
+    }
+
+    URHO3D_LOGINFOF("Initialize Volk for Vulkan !");
+#endif
+
+    context_ = context;
+
+    // TODO memoryAllocator
+    const VkAllocationCallbacks* pAllocator = nullptr;
+
+    // get required extensions for the window context
+    unsigned int extensionCount = 0;
+    SDL_Vulkan_GetInstanceExtensions(window, &extensionCount, 0);
+    if (!extensionCount)
+    {
+        URHO3D_LOGERRORF("Unable to query the number of Vulkan instance extension names !");
+        return false;
+    }
+
+    PODVector<const char*> extensions(extensionCount);
+    SDL_Vulkan_GetInstanceExtensions(window, &extensionCount, extensions.Buffer());
+
+    // get available vulkan layers
+    unsigned int layerCount = 0;
+    vkEnumerateInstanceLayerProperties(&layerCount, 0);
+    if (!layerCount)
+        URHO3D_LOGINFOF("no vulkan layer enable !");
+
+    Vector<VkLayerProperties> availableLayers(layerCount);
+    if (layerCount)
+        vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.Buffer());
+
+    // validate required layers
+    PODVector<const char*> validatedLayers;
+    bool validateValidationLayers = false;
+    for (Vector<String>::ConstIterator it = requestedLayers.Begin(); it != requestedLayers.End(); ++it)
+    {
+        const String& layername = *it;
+        bool layerFound = false;
+
+        for (Vector<VkLayerProperties>::ConstIterator jt = availableLayers.Begin(); jt != availableLayers.End(); ++jt)
+        {
+            if (layername == String(jt->layerName))
+            {
+                layerFound = true;
+                break;
+            }
+        }
+
+        // check validation layer support
+        if (layerFound)
+        {
+            validatedLayers.Push(layername.CString());
+            if (validationLayersEnabled_ && layername.Contains("validation"))
+                validateValidationLayers = true;
+        }
+    }
+
+    validationLayersEnabled_ = validateValidationLayers;
+    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
+
+    // add validation layer support
+    if (validationLayersEnabled_)
+    {
+        debugCreateInfo.sType           = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+        debugCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+        debugCreateInfo.messageType     = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT     | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT  | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+        debugCreateInfo.pfnUserCallback = debugCallback;
+
+        extensions.Push(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    }
+
+    VkApplicationInfo appInfo{};
+    appInfo.sType                      = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    appInfo.pApplicationName           = appname.CString();
+    appInfo.applicationVersion         = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.pEngineName                = "URHO3D";
+    appInfo.engineVersion              = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.apiVersion                 = VK_API_VERSION_1_0;
+
+    VkInstanceCreateInfo instanceInfo{};
+    instanceInfo.sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    instanceInfo.pApplicationInfo        = &appInfo;
+    instanceInfo.enabledExtensionCount   = extensions.Size();
+    instanceInfo.enabledLayerCount       = validatedLayers.Size();
+    instanceInfo.ppEnabledExtensionNames = extensions.Size()       ? extensions.Buffer()      : nullptr;
+    instanceInfo.ppEnabledLayerNames     = validatedLayers.Size()  ? validatedLayers.Buffer() : nullptr;
+    instanceInfo.pNext                   = debugCreateInfo.sType   ? &debugCreateInfo         : nullptr;
+
+    if (vkCreateInstance(&instanceInfo, pAllocator, &instance_) != VK_SUCCESS)
+    {
+        URHO3D_LOGERRORF("Failed to create vulkan instance !");
+        return false;
+    }
+
+#ifdef URHO3D_VOLK
+    volkLoadInstance(instance_);
+    URHO3D_LOGDEBUGF("Volk Load Instance !");
+#endif
+
+    // add debug messenger
+    if (debugCreateInfo.sType)
+    {
+        auto vkCreateDebug = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance_, "vkCreateDebugUtilsMessengerEXT");
+
+        VkResult result = vkCreateDebug != nullptr ? vkCreateDebug(instance_, &debugCreateInfo, pAllocator, &debugMsg_) : VK_ERROR_EXTENSION_NOT_PRESENT;
+        if (result != VK_SUCCESS)
+        {
+            URHO3D_LOGERRORF("Failed to create debug messenger !");
+            return false;
+        }
+    }
+
+    // create the surface
+    if (!CreateWindowSurface(window))
+    {
+        URHO3D_LOGERRORF("Can't create SDL Surface for Vulkan !");
+        return false;
+    }
+
+    // get a valid physical devices
+    {
+        // get the physical devices
+        unsigned int physicalDeviceCount = 0;
+        vkEnumeratePhysicalDevices(instance_, &physicalDeviceCount, nullptr);
+        if (physicalDeviceCount == 0)
+        {
+            URHO3D_LOGERRORF("No physical devices found !");
+            return false;
+        }
+        Vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
+        vkEnumeratePhysicalDevices(instance_, &physicalDeviceCount, physicalDevices.Buffer());
+
+        // validate the physical devices
+        Vector<PhysicalDeviceInfo> validDevices;
+        Vector<unsigned int> validDeviceScores;
+        PODVector<unsigned int> grQueueIndexes;
+        PODVector<unsigned int> prQueueIndexes;
+        PODVector<unsigned int> cbQueueIndexes;
+        PODVector<unsigned int> unQueueIndexes;
+
+        // check the properties for each device
+        for (unsigned int deviceindex=0; deviceindex < physicalDeviceCount; deviceindex++)
+        {
+            grQueueIndexes.Clear();
+            prQueueIndexes.Clear();
+            cbQueueIndexes.Clear();
+            unQueueIndexes.Clear();
+
+            VkPhysicalDevice device = physicalDevices[deviceindex];
+
+            // get the device properties
+            VkPhysicalDeviceProperties deviceProperties;
+            vkGetPhysicalDeviceProperties(device, &deviceProperties);
+            URHO3D_LOGINFOF("found physical device [%u] : %s ", deviceindex, deviceProperties.deviceName);
+
+            // check for the required extensions
+            unsigned int extensionCount;
+            unsigned int numValidatedExtensions = 0;
+            vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+            if (extensionCount == 0)
+            {
+                URHO3D_LOGWARNINGF("No device extension found for this device ! Skip");
+                continue;
+            }
+            Vector<VkExtensionProperties> availableExtensions(extensionCount);
+            vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.Buffer());
+            for (unsigned int extindex = 0; extindex < NumDeviceExtensions; extindex++)
+            {
+                for (Vector<VkExtensionProperties>::ConstIterator extt = availableExtensions.Begin(); extt != availableExtensions.End(); ++extt)
+                {
+                    if (String(extt->extensionName) == String(deviceExtensions[extindex]))
+                        numValidatedExtensions++;
+                }
+            }
+            if (numValidatedExtensions != NumDeviceExtensions)
+            {
+                URHO3D_LOGWARNINGF("required device extensions not found for this device !");
+                continue;
+            }
+
+            // check for swapchain capabilities
+            VkSurfaceCapabilitiesKHR surfaceCapabilities;
+            vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface_, &surfaceCapabilities);
+
+            Vector<VkSurfaceFormatKHR> surfaceFormats;
+            unsigned int formatCount = 0;
+            vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface_, &formatCount, nullptr);
+            if (formatCount != 0)
+            {
+                surfaceFormats.Resize(formatCount);
+                vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface_, &formatCount, surfaceFormats.Buffer());
+            }
+
+            Vector<VkPresentModeKHR> presentModes;
+            unsigned int presentModeCount = 0;
+            vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface_, &presentModeCount, nullptr);
+            if (presentModeCount != 0)
+            {
+                presentModes.Resize(presentModeCount);
+                vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface_, &presentModeCount, presentModes.Buffer());
+            }
+
+            // check for surface format and present mode availability
+            if (!surfaceFormats.Size())
+            {
+                URHO3D_LOGWARNINGF("No surface format found for the device !");
+                continue;
+            }
+
+            if (!presentModes.Size())
+            {
+                URHO3D_LOGWARNINGF("No present mode found for the device !");
+                continue;
+            }
+
+            // get the queue families that this device supports
+            unsigned int queueFamilyCount = 0;
+            vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+            if (queueFamilyCount == 0)
+            {
+                URHO3D_LOGWARNINGF("No queues family found for the device !");
+                continue;
+            }
+            Vector<VkQueueFamilyProperties> familyProperties(queueFamilyCount);
+            vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, familyProperties.Buffer());
+
+            // get all the graphic and present queues
+            for (unsigned int familyindex = 0; familyindex < queueFamilyCount; familyindex++)
+            {
+                bool graphicOk = (familyProperties[familyindex].queueCount > 0 && familyProperties[familyindex].queueFlags & VK_QUEUE_GRAPHICS_BIT);
+                if (graphicOk)
+                    grQueueIndexes.Push(familyindex);
+
+                VkBool32 presentOk = false;
+                vkGetPhysicalDeviceSurfaceSupportKHR(device, familyindex, surface_, &presentOk);
+                if (presentOk)
+                    prQueueIndexes.Push(familyindex);
+
+                if (graphicOk && presentOk)
+                    cbQueueIndexes.Push(familyindex);
+
+                if (graphicOk || presentOk)
+                    unQueueIndexes.Push(familyindex);
+            }
+
+            // the device is validated if it has at least a queue with the graphic capability and another with the presentation capability
+            if (prQueueIndexes.Size() && grQueueIndexes.Size())
+            {
+                // preferably, get a queue with a combined graphical and presentation capability (more efficient)
+
+                validDevices.Resize(validDevices.Size()+1);
+                PhysicalDeviceInfo& validDevice = validDevices.Back();
+
+                validDevice.device_              = device;
+                validDevice.name_                = deviceProperties.deviceName;
+                validDevice.queueIndexes_        = unQueueIndexes;
+                validDevice.grQueueIndex_        = cbQueueIndexes.Size() ? cbQueueIndexes[0] : grQueueIndexes[0];
+                validDevice.prQueueIndex_        = cbQueueIndexes.Size() ? cbQueueIndexes[0] : prQueueIndexes[0];
+                validDevice.surfaceCapabilities_ = surfaceCapabilities;
+                validDevice.surfaceFormats_      = surfaceFormats;
+                validDevice.presentModes_        = presentModes;
+
+                // set a score
+                validDeviceScores.Push(grQueueIndexes.Size() + prQueueIndexes.Size() + 10 * cbQueueIndexes.Size());
+
+                URHO3D_LOGINFOF("validated physical device [%u] : %s score=%u !", deviceindex, validDevice.name_.CString(), validDeviceScores.Back());
+            }
+        }
+
+        if (!validDevices.Size())
+        {
+            URHO3D_LOGERRORF("No Physical Device found for the display !");
+            return false;
+        }
+
+        // get the best physical device
+        unsigned int deviceindex = 0;
+        unsigned int bestscore = 0;
+        for (unsigned int i=0; i < validDeviceScores.Size(); i++)
+        {
+            if (validDeviceScores[i] > bestscore)
+            {
+                bestscore = validDeviceScores[i];
+                deviceindex = i;
+            }
+        }
+
+        // store the physical device info for next uses
+        const PhysicalDeviceInfo& device = validDevices[deviceindex];
+        physicalInfo_.device_              = device.device_;
+        physicalInfo_.name_                = device.name_;
+        physicalInfo_.queueIndexes_        = device.queueIndexes_;
+        physicalInfo_.grQueueIndex_        = device.grQueueIndex_;
+        physicalInfo_.prQueueIndex_        = device.prQueueIndex_;
+        physicalInfo_.surfaceCapabilities_ = device.surfaceCapabilities_;
+        physicalInfo_.surfaceFormats_      = device.surfaceFormats_;
+        physicalInfo_.presentModes_        = device.presentModes_;
+
+        vkGetPhysicalDeviceProperties(physicalInfo_.device_, &physicalInfo_.properties_);
+
+    #ifndef URHO3D_VMA
+        // get the memory properties (necessary for creating buffers)
+		vkGetPhysicalDeviceMemoryProperties(physicalInfo_.device_, &physicalInfo_.memoryProperties_);
+    #endif
+    }
+
+    // get the optimal depth format (must have optimal Tiling features)
+    {
+		// get the highest quality first
+		// TODO : change this for mobile ?
+        depthStencilFormat_ = VK_FORMAT_UNDEFINED;
+        static const VkFormat preferedformats[5] =
+        {
+            VK_FORMAT_D32_SFLOAT_S8_UINT,
+            VK_FORMAT_D32_SFLOAT,
+            VK_FORMAT_D24_UNORM_S8_UINT,
+            VK_FORMAT_D16_UNORM_S8_UINT,
+            VK_FORMAT_D16_UNORM
+        };
+
+        for (unsigned int i=0; i < 5; i++)
+        {
+            VkFormatProperties props;
+            vkGetPhysicalDeviceFormatProperties(physicalInfo_.device_, preferedformats[i], &props);
+
+            if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
+            {
+                depthStencilFormat_ = preferedformats[i];
+                break;
+            }
+        }
+
+        if (depthStencilFormat_ == VK_FORMAT_UNDEFINED)
+            URHO3D_LOGWARNINGF("Can't find an optimal tiling image format for DepthStencil !");
+    }
+
+    // create the logical device
+
+    Vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+    float queuePriority = 1.0f;
+    for (unsigned int i=0; i < physicalInfo_.queueIndexes_.Size(); i++)
+    {
+        VkDeviceQueueCreateInfo queueCreateInfo{};
+        queueCreateInfo.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.queueFamilyIndex = physicalInfo_.queueIndexes_[i];
+        queueCreateInfo.queueCount       = 1;
+        queueCreateInfo.pQueuePriorities = &queuePriority;
+        queueCreateInfos.Push(queueCreateInfo);
+    }
+
+    // TODO : Device Features
+    VkPhysicalDeviceFeatures deviceFeatures{};
+//    deviceFeatures.logicOp = VK_TRUE;
+    VkDeviceCreateInfo deviceInfo{};
+    deviceInfo.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    deviceInfo.queueCreateInfoCount    = static_cast<uint32_t>(queueCreateInfos.Size());
+    deviceInfo.pQueueCreateInfos       = queueCreateInfos.Buffer();
+    deviceInfo.pEnabledFeatures        = &deviceFeatures;
+    deviceInfo.enabledExtensionCount   = NumDeviceExtensions;
+    deviceInfo.ppEnabledExtensionNames = deviceExtensions;
+    // Deprecated in Vulkan 1.3...
+    deviceInfo.enabledLayerCount       = validatedLayers.Size();
+    deviceInfo.ppEnabledLayerNames     = validatedLayers.Size() ? validatedLayers.Buffer() : nullptr;
+
+    if (vkCreateDevice(physicalInfo_.device_, &deviceInfo, pAllocator, &device_) != VK_SUCCESS)
+    {
+        URHO3D_LOGERRORF("Can't create Create Logical Device !");
+        return false;
+    }
+
+#ifdef URHO3D_VOLK
+    volkLoadDevice(device_);
+    URHO3D_LOGDEBUGF("Volk Load Device !");
+#endif
+
+    // Get the graphic queue
+    vkGetDeviceQueue(device_, physicalInfo_.grQueueIndex_, 0, &graphicQueue_);
+
+    // Get the presentation queue
+    vkGetDeviceQueue(device_, physicalInfo_.prQueueIndex_, 0, &presentQueue_);
+
+    // create the command pool
+    VkCommandPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+    poolInfo.queueFamilyIndex = physicalInfo_.grQueueIndex_;
+    if (vkCreateCommandPool(device_, &poolInfo, pAllocator, &commandPool_) != VK_SUCCESS)
+    {
+        URHO3D_LOGERRORF("Can't create command pool !");
+        return false;
+    }
+
+    // Create the Semaphore Pool
+//    unsigned int numsemaphores = MaxFrames * 2;
+//    semaphorePool_.Resize(numsemaphores);
+//    VkSemaphoreCreateInfo semaphoreInfo{};
+//    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+//    for (unsigned int i = 0; i < numsemaphores; i++)
+//    {
+//        VkResult result = vkCreateSemaphore(device_, &semaphoreInfo, pAllocator, &semaphorePool_[i]);
+//        if (result != VK_SUCCESS)
+//        {
+//            URHO3D_LOGERRORF("Can't create semaphore !");
+//            return false;
+//        }
+//    }
+	// Create synchronization objects
+	VkSemaphoreCreateInfo semaphoreInfo{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+	// Create a semaphore used to synchronize image presentation
+	// Ensures that the image is displayed before we start submitting new commands to the queue
+	VkResult result = vkCreateSemaphore(device_, &semaphoreInfo, pAllocator, &presentComplete_);
+    if (result != VK_SUCCESS)
+    {
+        URHO3D_LOGERRORF("Can't create semaphore !");
+        return false;
+    }
+	// Create a semaphore used to synchronize command submission
+	// Ensures that the image is not presented until all commands have been submitted and executed
+	result = vkCreateSemaphore(device_, &semaphoreInfo, pAllocator, &renderComplete_);
+    if (result != VK_SUCCESS)
+    {
+        URHO3D_LOGERRORF("Can't create semaphore !");
+        return false;
+    }
+
+    // Pipeline cache
+    VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
+    pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+    if (vkCreatePipelineCache(device_, &pipelineCacheCreateInfo, pAllocator, &pipelineCache_) != VK_SUCCESS)
+    {
+        URHO3D_LOGERRORF("Can't create Pipeline Cache !");
+        return false;
+    }
+
+#ifdef URHO3D_VMA
+    // Initialize the memory allocator
+    // TODO : can we move the code at the begin of CreateVulkanInstance and use pAllocator = &allocator_ ?
+    VmaAllocatorCreateInfo allocatorInfo = {};
+    allocatorInfo.physicalDevice = physicalInfo_.device_;
+    allocatorInfo.device         = device_;
+    allocatorInfo.instance       = instance_;
+    vmaCreateAllocator(&allocatorInfo, &allocator_);
+
+    URHO3D_LOGDEBUGF("Initialize Vma !");
+#endif
+
+    URHO3D_LOGDEBUGF("CreateVulkanInstance !");
+
+    return true;
+}
+
+bool GraphicsImpl::CreateWindowSurface(SDL_Window* window)
+{
+    if (!instance_ || !window)
+    {
+        URHO3D_LOGERRORF("Can't create SDL Surface for Vulkan : no instance or no window !");
+        return false;
+    }
+
+    window_ = window;
+
+    // create the surface
+    if (SDL_Vulkan_CreateSurface(window_, (SDL_vulkanInstance)instance_, (SDL_vulkanSurface*)&surface_) == SDL_FALSE)
+    {
+        URHO3D_LOGERRORF("Can't create SDL Surface for Vulkan !");
+        return false;
+    }
+
+    surfaceDirty_ = false;
+
+    return true;
+}
+
+void GraphicsImpl::CleanUpVulkan()
+{
+    URHO3D_LOGDEBUGF("CleanUpVulkan ... ");
+
+    if (instance_ == VK_NULL_HANDLE)
+        return;
+
+    CleanUpSwapChain();
+
+#ifdef URHO3D_VMA
+    if (allocator_ != VK_NULL_HANDLE)
+    {
+        vmaDestroyAllocator(allocator_);
+        allocator_ = VK_NULL_HANDLE;
+    }
+#endif
+
+    // TODO memoryAllocator
+    const VkAllocationCallbacks* pAllocator = nullptr;
+
+    if (pipelineCache_ != VK_NULL_HANDLE)
+    {
+        vkDestroyPipelineCache(device_, pipelineCache_, pAllocator);
+        pipelineCache_ = VK_NULL_HANDLE;
+    }
+
+    // clean the Semphore Pool
+//    for (unsigned int i = 0; i < semaphorePool_.Size(); i++)
+//        vkDestroySemaphore(device_, semaphorePool_[i], pAllocator);
+//    semaphorePool_.Clear();
+
+	vkDestroySemaphore(device_, presentComplete_, pAllocator);
+	vkDestroySemaphore(device_, renderComplete_, pAllocator);
+
+    vkDestroyCommandPool(device_, commandPool_, pAllocator);
+
+    // destroy device, surface and instance
+    vkDestroyDevice(device_, pAllocator);
+
+    if (surface_ != VK_NULL_HANDLE)
+    {
+        vkDestroySurfaceKHR(instance_, surface_, pAllocator);
+        surface_ = VK_NULL_HANDLE;
+    }
+
+    if (debugMsg_ != VK_NULL_HANDLE)
+    {
+        auto vkDestroyDebug = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance_, "vkDestroyDebugUtilsMessengerEXT");
+        if (vkDestroyDebug != nullptr)
+            vkDestroyDebug(instance_, debugMsg_, pAllocator);
+        debugMsg_ = VK_NULL_HANDLE;
+    }
+
+    vkDestroyInstance(instance_, pAllocator);
+    instance_ = VK_NULL_HANDLE;
+
+    URHO3D_LOGDEBUGF("CleanUpVulkan !");
+}
+
+bool GraphicsImpl::CreateSwapChain(int width, int height, bool* srgb, bool* vsync, bool* triplebuffer)
+{
+    vkDeviceWaitIdle(device_);
+
+    // TODO memoryAllocator
+    const VkAllocationCallbacks* pAllocator = nullptr;
+
+    URHO3D_LOGDEBUGF("Create swapchain w=%d h=%d ...", width, height);
+
+	if (surfaceDirty_)
+	{
+		if (surface_ != VK_NULL_HANDLE)
+        {
+        	vkDestroySurfaceKHR(instance_, surface_, pAllocator);
+			surface_ = VK_NULL_HANDLE;
+        }
+	}
+
+	if (surface_ == VK_NULL_HANDLE)
+	{
+		URHO3D_LOGERRORF("CreateSwapChain ... no windows surface => create it !");
+		// recreate the surface
+		if (!CreateWindowSurface(window_))
+			return false;
+	}
+
+    // find the srgb format
+    int srgbformat = -1;
+    for (unsigned int i=0; i < physicalInfo_.surfaceFormats_.Size(); i++)
+    {
+        const VkSurfaceFormatKHR& availableFormat = physicalInfo_.surfaceFormats_[i];
+        if ((availableFormat.format == VK_FORMAT_R8G8B8A8_SRGB || availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB)
+            && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        {
+            srgbformat = i;
+            break;
+        }
+    }
+
+    // find the unorm format
+    int unormformat = -1;
+    for (unsigned int i=0; i < physicalInfo_.surfaceFormats_.Size(); i++)
+    {
+        const VkSurfaceFormatKHR& availableFormat = physicalInfo_.surfaceFormats_[i];
+        if ((availableFormat.format == VK_FORMAT_R8G8B8A8_UNORM || availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM))
+        {
+            unormformat = i;
+            break;
+        }
+    }
+
+    // if srgb specified, try to get the required format
+    if (srgb)
+        swapChainInfo_ = physicalInfo_.surfaceFormats_[*srgb == true && srgbformat != -1 ? srgbformat : unormformat != -1 ? unormformat : 0];
+    // if not specified, in first use the unorm if exists (same behavior than OGL impl)
+    else if (unormformat != -1)
+        swapChainInfo_ = physicalInfo_.surfaceFormats_[unormformat];
+    // else use the srgb if exists
+#ifndef DISABLE_SRGB
+    else if (srgbformat != -1)
+        swapChainInfo_ = physicalInfo_.surfaceFormats_[srgbformat];
+#endif
+    // else get the first available format
+    else
+        swapChainInfo_ = physicalInfo_.surfaceFormats_[0];
+
+    // set the present mode.
+    if (vsync)
+    {
+        // default immediate mode : tearing
+        presentMode_ = VK_PRESENT_MODE_IMMEDIATE_KHR;
+        if (*vsync)
+        {
+            // pure vsync : high performance (desktop)
+            if (physicalInfo_.presentModes_.Contains(VK_PRESENT_MODE_MAILBOX_KHR))
+                presentMode_ = VK_PRESENT_MODE_MAILBOX_KHR;
+            // pure vsync : medium performance (mobile)
+            if (presentMode_ == VK_PRESENT_MODE_IMMEDIATE_KHR && physicalInfo_.presentModes_.Contains(VK_PRESENT_MODE_FIFO_KHR))
+                presentMode_ = VK_PRESENT_MODE_FIFO_KHR;
+            // vsync controlled tearing
+            if (presentMode_ == VK_PRESENT_MODE_IMMEDIATE_KHR && physicalInfo_.presentModes_.Contains(VK_PRESENT_MODE_FIFO_RELAXED_KHR))
+                presentMode_ = VK_PRESENT_MODE_FIFO_RELAXED_KHR;
+        }
+
+        *vsync = (presentMode_ != VK_PRESENT_MODE_IMMEDIATE_KHR);
+    }
+
+    // update the device swapchain capabilities.
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalInfo_.device_, surface_, &physicalInfo_.surfaceCapabilities_);
+
+    // set the swap surface extent if need.
+    swapChainExtent_ = physicalInfo_.surfaceCapabilities_.currentExtent;
+    if (swapChainExtent_.width != width && swapChainExtent_.height != height)
+    {
+//        swapChainExtent_.width  = Clamp((uint32_t)width, physicalInfo_.surfaceCapabilities_.minImageExtent.width, physicalInfo_.surfaceCapabilities_.maxImageExtent.width);
+//        swapChainExtent_.height = Clamp((uint32_t)height, physicalInfo_.surfaceCapabilities_.minImageExtent.height, physicalInfo_.surfaceCapabilities_.maxImageExtent.height);
+        if (width && height)
+        {
+            swapChainExtent_.width  = (uint32_t)width;
+            swapChainExtent_.height = (uint32_t)height;
+        }
+        else
+        {
+            swapChainExtent_.width  = Clamp(swapChainExtent_.width, physicalInfo_.surfaceCapabilities_.minImageExtent.width, physicalInfo_.surfaceCapabilities_.maxImageExtent.width);
+            swapChainExtent_.height = Clamp(swapChainExtent_.height, physicalInfo_.surfaceCapabilities_.minImageExtent.height, physicalInfo_.surfaceCapabilities_.maxImageExtent.height);
+        }
+    }
+
+    // set the required images in the swap chain.
+    unsigned int numimages = numFrames_;
+    if (triplebuffer)
+        numimages = *triplebuffer == true ? 3 : vsync && *vsync == true ? 2 : 1;
+
+    numimages = Clamp(numimages, (unsigned int)physicalInfo_.surfaceCapabilities_.minImageCount,
+                      (unsigned int)physicalInfo_.surfaceCapabilities_.maxImageCount);
+
+    URHO3D_LOGDEBUGF("Create swapchain numimages=%u (min=%u max=%u) required=%ux%u capabilities=%ux%u => %ux%u srgb=%s surfaceFormat=%u colorSpace=%u ...",
+                     numimages, physicalInfo_.surfaceCapabilities_.minImageCount, physicalInfo_.surfaceCapabilities_.maxImageCount,
+                     width, height, physicalInfo_.surfaceCapabilities_.maxImageExtent.width, physicalInfo_.surfaceCapabilities_.maxImageExtent.height,
+                     swapChainExtent_.width, swapChainExtent_.height, srgb && (*srgb == true) ? "true":"false", swapChainInfo_.format, swapChainInfo_.colorSpace);
+
+    // set the queue sharing mode.
+    VkSharingMode sharingmode = VK_SHARING_MODE_EXCLUSIVE;
+    unsigned int queuecount = 1;
+    const uint32_t* pqueues = nullptr;
+    if (physicalInfo_.grQueueIndex_ != physicalInfo_.prQueueIndex_)
+    {
+        sharingmode = VK_SHARING_MODE_CONCURRENT;
+        queuecount  = 2;
+        pqueues     = physicalInfo_.queueIndexes_.Buffer();
+    }
+
+    VkSurfaceTransformFlagBitsKHR transform    = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;//physicalInfo_.surfaceCapabilities_.currentTransform;
+    VkCompositeAlphaFlagBitsKHR compositeAlpha = (VkCompositeAlphaFlagBitsKHR)physicalInfo_.surfaceCapabilities_.supportedCompositeAlpha;
+
+    // create the swap chain.
+    VkSwapchainCreateInfoKHR createInfo{VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
+    createInfo.surface               = surface_;
+    createInfo.minImageCount         = numimages;
+    createInfo.imageFormat           = swapChainInfo_.format;
+    createInfo.imageColorSpace       = swapChainInfo_.colorSpace;
+    createInfo.imageExtent           = swapChainExtent_;
+    createInfo.imageArrayLayers      = 1;
+    createInfo.imageUsage            = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    createInfo.imageSharingMode      = sharingmode;
+    createInfo.queueFamilyIndexCount = queuecount;
+    createInfo.pQueueFamilyIndices   = pqueues;
+    createInfo.preTransform          = transform;
+    createInfo.compositeAlpha        = compositeAlpha;//VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;//VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    createInfo.presentMode           = presentMode_;
+    createInfo.clipped               = VK_TRUE;
+    createInfo.oldSwapchain          = swapChain_;
+
+    if (vkCreateSwapchainKHR(device_, &createInfo, pAllocator, &swapChain_) != VK_SUCCESS)
+    {
+        URHO3D_LOGERRORF("Can't create the Swap Chain !");
+        return false;
+    }
+
+    // get the images in the new swap chain.
+    if (vkGetSwapchainImagesKHR(device_, swapChain_, &numimages, 0) != VK_SUCCESS)
+    {
+        URHO3D_LOGERRORF("Can't get swapchain numimages !");
+        return false;
+    }
+
+    PODVector<VkImage> swapChainImages;
+    swapChainImages.Resize(numimages);
+    if (vkGetSwapchainImagesKHR(device_, swapChain_, &numimages, swapChainImages.Buffer()) != VK_SUCCESS)
+    {
+        URHO3D_LOGERRORF("Can't get swapchain images !");
+        return false;
+    }
+
+    // set the number of frames of the swap chain.
+    numFrames_ = numimages;
+    if (triplebuffer)
+        *triplebuffer = (numFrames_ >= 3);
+
+    // create the synchronization objects for each frame in the swap chain.
+    frames_.Resize(numFrames_);
+    VkFenceCreateInfo fenceInfo{};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    for (unsigned int i = 0; i < numFrames_; i++)
+    {
+        FrameData& frame = frames_[i];
+        frame.id_ = i;
+        frame.commandBufferBegun_ = false;
+        frame.textureDirty_ = true;
+        frame.renderPassIndex_ = -1;
+
+        // create the submit fence
+        VkResult result = vkCreateFence(device_, &fenceInfo, pAllocator, &frame.submitSync_);
+        if (result != VK_SUCCESS)
+        {
+            URHO3D_LOGERRORF("Can't create submit fence !");
+            return false;
+        }
+
+        // clean the semaphore handles
+//        frame.acquireSync_ = VK_NULL_HANDLE;
+//        frame.releaseSync_ = VK_NULL_HANDLE;
+    }
+
+    // create the command pools and buffers for each frame in the swap chain.
+    VkCommandPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+//    poolInfo.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    poolInfo.queueFamilyIndex = physicalInfo_.grQueueIndex_;
+    VkCommandBufferAllocateInfo bufferInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+    bufferInfo.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    bufferInfo.commandBufferCount = 1;
+    for (unsigned int i = 0; i < numFrames_; i++)
+    {
+        FrameData& frame = frames_[i];
+        if (vkCreateCommandPool(device_, &poolInfo, pAllocator, &frame.commandPool_) != VK_SUCCESS)
+        {
+            URHO3D_LOGERRORF("Can't create command pool !");
+            return false;
+        }
+        bufferInfo.commandPool = frame.commandPool_;
+        if (vkAllocateCommandBuffers(device_, &bufferInfo, &frame.commandBuffer_) != VK_SUCCESS)
+        {
+            URHO3D_LOGERRORF("Can't allocate command buffer !");
+            return false;
+        }
+    }
+
+    // create the frame datas needed for each frame in the swap chain.
+    for (unsigned int i = 0; i < numFrames_; i++)
+    {
+        FrameData& frame = frames_[i];
+        frame.image_ = swapChainImages[i];
+
+        // create the swap image view.
+        VkImageViewCreateInfo createInfo{};
+        createInfo.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        createInfo.image                           = frame.image_;
+        createInfo.viewType                        = VK_IMAGE_VIEW_TYPE_2D;
+        createInfo.format                          = swapChainInfo_.format;
+        createInfo.components.r                    = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.g                    = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.b                    = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.a                    = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        createInfo.subresourceRange.baseMipLevel   = 0;
+        createInfo.subresourceRange.levelCount     = 1;
+        createInfo.subresourceRange.baseArrayLayer = 0;
+        createInfo.subresourceRange.layerCount     = 1;
+
+        if (vkCreateImageView(device_, &createInfo, pAllocator, &frame.imageView_) != VK_SUCCESS)
+        {
+            URHO3D_LOGERRORF("Can't create the Swap Chain Image Views !");
+            return false;
+        }
+    }
+
+    // set defaults Viewport and Scissor
+    viewport_.x        = 0.f;
+    viewport_.y        = 0.f;
+    viewport_.width    = (float)swapChainExtent_.width;
+    viewport_.height   = (float)swapChainExtent_.height;
+    viewport_.minDepth = 0.f;
+    viewport_.maxDepth = 1.f;
+    screenScissor_.offset    = { 0, 0 };
+    screenScissor_.extent    = swapChainExtent_;
+
+    swapChainDirty_ = false;
+
+    URHO3D_LOGDEBUGF("Create swapchain ew=%d eh=%d presentmode=%u numframes=%u !", swapChainExtent_.width, swapChainExtent_.height, presentMode_, numFrames_);
+
+    return true;
+}
+
+void GraphicsImpl::CleanUpSwapChain()
+{
+    URHO3D_LOGDEBUGF("CleanUpSwapChain ... ");
+
+    swapChainDirty_ = true;
+
+    vkDeviceWaitIdle(device_);
+
+    // TODO : memoryAllocator
+    const VkAllocationCallbacks* pAllocator = nullptr;
+
+    // Destroy Pipelines Datas
+    for (HashMap<StringHash, PipelineInfo >::Iterator it = pipelinesInfos_.Begin(); it != pipelinesInfos_.End(); ++it)
+    {
+        PipelineInfo& info = it->second_;
+
+        if (info.pipeline_ != VK_NULL_HANDLE)
+        {
+            vkDestroyPipeline(device_, info.pipeline_, pAllocator);
+            info.pipeline_ = VK_NULL_HANDLE;
+        }
+        if (info.pipelineLayout_ != VK_NULL_HANDLE)
+        {
+            vkDestroyPipelineLayout(device_, info.pipelineLayout_, pAllocator);
+            info.pipelineLayout_ = VK_NULL_HANDLE;
+        }
+        for (Vector<DescriptorsGroup>::Iterator group = info.descriptorsGroups_.Begin(); group != info.descriptorsGroups_.End(); ++group)
+        {
+            if (group->layout_ != VK_NULL_HANDLE)
+            {
+                vkDestroyDescriptorSetLayout(device_, group->layout_, pAllocator);
+                group->layout_ = VK_NULL_HANDLE;
+            }
+
+            for (Vector<DescriptorsGroupAllocation>::Iterator alloc = group->setsByFrame_.Begin(); alloc != group->setsByFrame_.End(); ++alloc)
+            {
+                if (alloc->pool_ != VK_NULL_HANDLE)
+                {
+                    vkDestroyDescriptorPool(device_, alloc->pool_, pAllocator);
+                    alloc->pool_ = VK_NULL_HANDLE;
+                }
+                alloc->sets_.Clear();
+            }
+        }
+    }
+
+    // Destroy RenderPasses
+    for (HashMap<unsigned, RenderPassInfo >::Iterator it = renderPassInfos_.Begin(); it != renderPassInfos_.End(); ++it)
+    {
+        RenderPassInfo& renderPassInfo = it->second_;
+
+        if (renderPassInfo.renderPass_ != VK_NULL_HANDLE)
+        {
+            vkDestroyRenderPass(device_, renderPassInfo.renderPass_, pAllocator);
+            renderPassInfo.renderPass_ = VK_NULL_HANDLE;
+        }
+
+        for (Vector<VkFramebuffer>::Iterator kt = renderPassInfo.framebuffers_.Begin(); kt != renderPassInfo.framebuffers_.End(); ++kt)
+        {
+            vkDestroyFramebuffer(device_, *kt, pAllocator);
+            *kt = VK_NULL_HANDLE;
+        }
+
+        for (Vector<RenderAttachment>::Iterator kt = renderPassInfo.attachments_.Begin(); kt != renderPassInfo.attachments_.End(); ++kt)
+        {
+            DestroyAttachment(*kt);
+        }
+
+        if (renderPassInfo.viewportTexture_)
+        {
+            renderPassInfo.viewportTexture_->SetGPUObject(0, 0);
+            renderPassInfo.viewportTexture_->SetShaderResourceView(0);
+            renderPassInfo.viewportTexture_.Reset();
+        }
+    }
+
+    for (unsigned int i = 0; i < frames_.Size(); i++)
+    {
+        FrameData& frame = frames_[i];
+
+        if (frame.submitSync_  != VK_NULL_HANDLE)
+        {
+            vkWaitForFences(device_, 1, &frame.submitSync_, true, TIME_OUT);
+            vkDestroyFence(device_, frame.submitSync_, pAllocator);
+        }
+
+//        // restore to semaphore pool
+//        if (frame.acquireSync_  != VK_NULL_HANDLE)
+//            semaphorePool_.Push(frame.acquireSync_);
+//
+//        // restore to semaphore pool
+//        if (frame.releaseSync_  != VK_NULL_HANDLE)
+//            semaphorePool_.Push(frame.releaseSync_);
+
+        if (frame.commandPool_ != VK_NULL_HANDLE)
+        {
+            if (frame.commandBuffer_ != VK_NULL_HANDLE)
+                vkFreeCommandBuffers(device_, frame.commandPool_, 1, &frame.commandBuffer_);
+            vkDestroyCommandPool(device_, frame.commandPool_, pAllocator);
+        }
+
+//        if (frame.frameBuffer_ != VK_NULL_HANDLE)
+//            vkDestroyFramebuffer(device_, frame.frameBuffer_, pAllocator);
+
+        if (frame.imageView_ != VK_NULL_HANDLE)
+            vkDestroyImageView(device_, frame.imageView_, pAllocator);
+
+        frame.submitSync_    = VK_NULL_HANDLE;
+//        frame.acquireSync_   = VK_NULL_HANDLE;
+//        frame.releaseSync_   = VK_NULL_HANDLE;
+        frame.commandPool_   = VK_NULL_HANDLE;
+        frame.commandBuffer_ = VK_NULL_HANDLE;
+//        frame.frameBuffer_   = VK_NULL_HANDLE;
+        frame.imageView_     = VK_NULL_HANDLE;
+        frame.image_         = VK_NULL_HANDLE;
+        frame.textureDirty_  = true;
+
+        frame.lastPipelineBound_  = VK_NULL_HANDLE;
+    }
+
+    if (swapChain_ != VK_NULL_HANDLE)
+    {
+        vkDestroySwapchainKHR(device_, swapChain_, pAllocator);
+        swapChain_ = VK_NULL_HANDLE;
+    }
+
+    swapChainDirty_     = true;
+    viewportDirty_      = true;
+    scissorDirty_       = true;
+    vertexBuffersDirty_ = true;
+    pipelineDirty_      = true;
+
+    URHO3D_LOGDEBUGF("CleanUpSwapChain !");
+}
+
+void GraphicsImpl::UpdateSwapChain(int width, int height, bool* srgb, bool* vsync, bool* triplebuffer)
+{
+    if (!width || !height)
+        SDL_Vulkan_GetDrawableSize(window_, &width, &height);
+
+    URHO3D_LOGDEBUGF("UpdateSwapChain ... w=%d h=%d", width, height);
+
+    CleanUpSwapChain();
+
+    if (CreateSwapChain(width, height, srgb, vsync, triplebuffer))
+    {
+        if (CreateRenderPasses())
+        {
+            CreatePipelines();
+
+            URHO3D_LOGDEBUGF("UpdateSwapChain !");
+        }
+    }
+}
+
+
+// Render Pass
+
+unsigned GetKey(RenderPath* renderpath)
+{
+    // TODO : extract RenderPath unique key from RenderPathCommands Contents instead of a memory address.
+    String str;
+    return str.AppendWithFormat("%u", renderpath).ToHash();
+}
+
+const char* RenderAttachmentUsageStrings_[] =
+{
+    "PRESENT",
+    "TARGET",
+    "DEPTH"
+};
+
+const unsigned GraphicsImpl::DefaultRenderPassWithTarget = StringHash("PRESENTCLEAR_TARGETCLEAR_DEPTHCLEAR").Value();
+const unsigned GraphicsImpl::DefaultRenderPass = StringHash("PRESENTCLEAR_DEPTHCLEAR").Value();
+const unsigned GraphicsImpl::DefaultRenderPassWithTargetNoClear = StringHash("PRESENT_TARGET_DEPTH").Value();
+const unsigned GraphicsImpl::DefaultRenderPassNoClear = StringHash("FRAME_DEPTH").Value();
+const unsigned GraphicsImpl::DefaultRenderPassNoClear2 = StringHash("PRESENT_DEPTH").Value();
+
+unsigned GetPassKey(RenderPassInfo* passinfo)
+{
+    String str;
+    for (unsigned i=0; i < passinfo->attachments_.Size(); i ++)
+    {
+        str += RenderAttachmentUsageStrings_[passinfo->attachments_[i].usage_];
+        if (passinfo->clearColors_.Size())
+            str += "CLEAR";
+
+        if (i < passinfo->attachments_.Size()-1)
+            str += "_";
+    }
+
+    return StringHash(str).Value();
+}
+
+void GraphicsImpl::AddRenderPassInfo(const String& attachmentconfig)
+{
+    unsigned passkey = StringHash(attachmentconfig).Value();
+
+    if (!renderPassInfos_.Contains(passkey))
+    {
+        RenderPassInfo& renderPassInfo = renderPassInfos_[passkey];
+        renderPassInfo.key_ = passkey;
+        renderPassInfo.numColorAttachments_ = 0;
+        renderPassInfo.numDepthAttachments_ = 0;
+
+        Vector<String> attachmentstrs = attachmentconfig.Split('_', false);
+        for (unsigned i = 0; i < attachmentstrs.Size(); i++)
+        {
+            if (attachmentstrs[i].StartsWith("DEPTH"))
+                renderPassInfo.numDepthAttachments_++;
+            else
+                renderPassInfo.numColorAttachments_++;
+        }
+    }
+}
+
+/*
+void GraphicsImpl::SetRenderPath(RenderPath* renderPath)
+{
+    RenderPassInfo* renderPathInfo = 0;
+
+    unsigned key = GetKey(renderPath);
+
+    if (renderPathInfos_.Contains(key))
+    {
+        // Get existing RenderPathInfo
+        URHO3D_LOGWARNINGF("GraphicsImpl() - SetRenderPath : renderPath=%u use already registered renderpathinfo !");
+
+        renderPathInfo = &renderPathInfos_[key];
+    }
+    else
+    {
+        // Create new RenderPathInfo
+
+        RenderPathInfo& renderPI = renderPathInfos_[key];
+        renderPI.renderPath_ = renderPath;
+
+        Vector<String> inputs;
+        Vector<String> outputs;
+        for (unsigned i = 0; i < renderPath->commands_.Size(); ++i)
+        {
+            RenderPathCommand& cmd = renderPath->commands_[i];
+
+            bool newPass = false;
+
+            if (cmd.type_ == CMD_CLEAR)
+            {
+                // create a pass and add the clear colors
+                renderPI.renderPasses_.Resize(renderPI.renderPasses_.Size()+1);
+
+                // create a new pass for command clear
+    //            cmd.clearFlags_
+    //            cmd.clearColor
+    //            cmd.clearDepth_
+    //            cmd.clearStencil_
+
+                renderPI.renderPasses_.Back().renderPathCommandIndex_ = i;
+                continue;
+            }
+
+            // add the inputs render attachments
+            for (unsigned j = 0; j < MAX_TEXTURE_UNITS; ++j)
+            {
+                if (cmd.textureNames_[j].Empty())
+                    continue;
+
+                inputs.Push(cmd.textureNames_[j]);
+
+                // add newpass when using previous output attachments as input
+                newPass |= outputs.Contains(inputs.Back());
+            }
+
+            if (newPass)
+            {
+
+            }
+
+            // add the outputs render attachments
+            for (unsigned j = 0; j < cmd.outputs_.Size(); ++j)
+            {
+                outputs.Push(cmd.outputs_[j].name_);
+            }
+
+            if (!outputs.Size())
+                outputs.Push("viewport");
+
+            // setup the new subpass
+            if (newPass)
+            {
+                if (inputs.Size())
+                {
+
+                }
+
+            }
+        }
+
+        renderPathInfo = &renderPI;
+    }
+
+    // change the current renderPath
+    if (renderPathInfo_ != renderPathInfo)
+    {
+        renderPathInfo_ = renderPathInfo;
+//        renderPassDirty_ = true;
+    }
+}
+*/
+
+// TEST ONLY
+void GraphicsImpl::SetRenderPath(RenderPath* renderPath)
+{
+    URHO3D_LOGDEBUGF("GraphicsImpl() - SetRenderPath ...");
+
+    RenderPathInfo* renderPathInfo = 0;
+
+    unsigned key = GetKey(renderPath);
+
+    if (renderPathInfos_.Contains(key))
+    {
+        // Get existing RenderPathInfo
+        URHO3D_LOGWARNINGF("GraphicsImpl() - SetRenderPath : renderPath=%u use already registered renderpathinfo !");
+
+        renderPathInfo = &renderPathInfos_[key];
+    }
+    /*
+    else
+    {
+        RenderPathInfo& renderPI = renderPathInfos_[key];
+        renderPI.renderPath_ = renderPath;
+        renderPI.renderPathCommandIndexToRenderPassIndex_[0] = 0;
+
+        // add a default renderpathinfo
+        // add a unique pass with color+depth attachments
+        renderPI.renderPasses_.Resize(1);
+        RenderPassInfo& renderPassInfo = renderPI.renderPasses_.Back();
+        renderPassInfo.renderPathCommandIndex_ = 0;
+        renderPassInfo.clearColors_[0].color = { 0.f, 0.f, 0.f, 1.f };
+        renderPassInfo.clearColors_[1].depthStencil = { 1.f, 1U };
+
+        renderPassInfo.attachments_.Resize(2);
+        RenderAttachment& colorAttachment = renderPassInfo.attachments_[0];
+        colorAttachment.usage_ = RENDERATTACHMENT_PRESENT;
+        RenderAttachment& depthAttachment = renderPassInfo.attachments_[1];
+        depthAttachment.usage_ = RENDERATTACHMENT_DEPTH;
+
+        renderPathInfo = &renderPI;
+    }
+    */
+    else
+    {
+        RenderPathInfo& renderPI = renderPathInfos_[key];
+        renderPI.renderPath_ = renderPath;
+
+        const unsigned numPasses = 2;
+
+        renderPI.renderPassInfos_.Resize(numPasses);
+        int pass = 0;
+        // Render Pass 1 : clear to alpha
+        {
+            unsigned passkey = StringHash(DefaultRenderPassWithTarget).Value();
+
+            RenderPassInfo& renderPassInfo = renderPassInfos_[passkey];
+
+            renderPassInfo.key_ = passkey;
+            renderPassInfo.renderPathCommandIndex_ = 0;
+
+            renderPassInfo.attachments_.Resize(3);
+            renderPassInfo.attachments_[0].usage_ = RENDERATTACHMENT_PRESENT;
+            renderPassInfo.attachments_[1].usage_ = RENDERATTACHMENT_TARGET;
+            renderPassInfo.attachments_[2].usage_ = RENDERATTACHMENT_DEPTH;
+
+            renderPassInfo.clearColors_.Resize(3);
+            renderPassInfo.clearColors_[0].color = { 0.f, 0.f, 0.f, 1.f };
+            renderPassInfo.clearColors_[1].color = { 0.f, 0.f, 0.f, 1.f };
+            renderPassInfo.clearColors_[2].depthStencil = { 1.f, 1U };
+
+            renderPI.renderPassInfos_[pass] = &renderPassInfo;
+            renderPI.renderPathCommandIndexToRenderPassIndex_[renderPassInfo.renderPathCommandIndex_] = pass;
+        }
+        pass++;
+        // Render Pass 2 : refract to front
+        {
+            unsigned passkey = StringHash(DefaultRenderPassNoClear).Value();
+
+            RenderPassInfo& renderPassInfo = renderPassInfos_[passkey];
+
+            renderPassInfo.key_ = passkey;
+            renderPassInfo.renderPathCommandIndex_ = 11; // <= it's the index for water2d
+
+            renderPassInfo.attachments_.Resize(2);
+            renderPassInfo.attachments_[0].usage_ = RENDERATTACHMENT_PRESENT;
+            renderPassInfo.attachments_[1].usage_ = RENDERATTACHMENT_DEPTH;
+
+            renderPI.renderPassInfos_[pass] = &renderPassInfo;
+            renderPI.renderPathCommandIndexToRenderPassIndex_[renderPassInfo.renderPathCommandIndex_] = pass;
+        }
+        /*
+        pass++;
+        // Render Pass 3 : front
+        {
+            unsigned passkey = StringHash(DefaultRenderPassNoClear2).Value();
+
+            RenderPassInfo& renderPassInfo = renderPassInfos_[passkey];
+
+            renderPassInfo.key_ = passkey;
+            renderPassInfo.renderPathCommandIndex_ = 10;
+
+            renderPassInfo.attachments_.Resize(2);
+            renderPassInfo.attachments_[0].usage_ = RENDERATTACHMENT_PRESENT;
+            renderPassInfo.attachments_[1].usage_ = RENDERATTACHMENT_DEPTH;
+
+            renderPI.renderPassInfos_[pass] = &renderPassInfo;
+            renderPI.renderPathCommandIndexToRenderPassIndex_[renderPassInfo.renderPathCommandIndex_] = pass;
+        }
+        */
+        renderPathInfo = &renderPI;
+
+    }
+
+    renderPathInfo_ = renderPathInfo;
+}
+
+void GraphicsImpl::SetRenderPass(unsigned commandpassindex)
+{
+    if (renderPathInfo_)
+    {
+        HashMap<unsigned, unsigned>::ConstIterator it = renderPathInfo_->renderPathCommandIndexToRenderPassIndex_.Find(commandpassindex);
+        if (it != renderPathInfo_->renderPathCommandIndexToRenderPassIndex_.End())
+        {
+            unsigned renderPassIndex = it->second_;
+        #ifdef ACTIVE_FRAMELOGDEBUG
+            URHO3D_LOGDEBUGF("GraphicsImpl() - SetRenderPass : commandpassindex=%u renderpassIndex=%u implRenderPassIndex=%d", commandpassindex, renderPassIndex, renderPassIndex_);
+        #endif
+            if (renderPassIndex_ != renderPassIndex)
+            {
+                renderPassIndex_ = renderPassIndex;
+                // take the viewport texture generated at the previous pass.
+                viewportTexture_ = renderPassIndex > 0 && renderPathInfo_->renderPassInfos_[renderPassIndex-1]->viewportTexture_
+                                        ? renderPathInfo_->renderPassInfos_[renderPassIndex-1]->viewportTexture_ : 0;
+            }
+        }
+    }
+}
+
+const RenderPassInfo* GraphicsImpl::GetRenderPassInfo(unsigned renderPassKey) const
+{
+    HashMap<unsigned, RenderPassInfo > ::ConstIterator it = renderPassInfos_.Find(renderPassKey);
+    return it != renderPassInfos_.End() ? &it->second_ : nullptr;
+}
+
+void GraphicsImpl::CreateAttachment(RenderAttachment& attachment)
+{
+    // TODO : memoryAllocator
+    const VkAllocationCallbacks* pAllocator = nullptr;
+
+    // create  image
+
+    VkImageCreateInfo imageInfo{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    imageInfo.imageType     = VK_IMAGE_TYPE_2D;
+    if (attachment.usage_ == RENDERATTACHMENT_TARGET)
+        imageInfo.format    = swapChainInfo_.format;
+    else if (attachment.usage_ == RENDERATTACHMENT_DEPTH)
+        imageInfo.format    = depthStencilFormat_;
+    imageInfo.extent.width  = swapChainExtent_.width;
+    imageInfo.extent.height = swapChainExtent_.height;
+    imageInfo.extent.depth  = 1;
+    imageInfo.mipLevels     = 1;
+    imageInfo.arrayLayers   = 1;
+    imageInfo.samples       = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.tiling        = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    if (attachment.usage_ == RENDERATTACHMENT_TARGET)
+        imageInfo.usage     = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    else if (attachment.usage_ == RENDERATTACHMENT_DEPTH)
+        imageInfo.usage     = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    imageInfo.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+    imageInfo.flags         = 0;
+
+#ifndef URHO3D_VMA
+    if (vkCreateImage(device_, &imageInfo, pAllocator, &attachment.image_) != VK_SUCCESS)
+    {
+        URHO3D_LOGERRORF("Can't create image !");
+        return false;
+    }
+
+    VkMemoryRequirements memRequirements{};
+    vkGetImageMemoryRequirements(device_, attachment.image_, &memRequirements);
+    VkMemoryAllocateInfo memoryInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    memoryInfo.allocationSize = memRequirements.size;
+    uint32_t memorytypeindex;
+    if (!physicalInfo_.GetMemoryTypeIndex(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, memorytypeindex))
+    {
+        URHO3D_LOGERRORF("Can't get device memory type !");
+        return false;
+    }
+    memoryInfo.memoryTypeIndex = memorytypeindex;
+    if (vkAllocateMemory(device_, &memoryInfo, nullptr, &attachment.memory_)    != VK_SUCCESS ||
+            vkBindImageMemory(device_, attachment.image_, attachment.memory_, 0) != VK_SUCCESS)
+    {
+        URHO3D_LOGERRORF("Can't allocate/bind device memory !");
+        return false;
+    }
+#else
+    VmaAllocationCreateInfo allocationInfo{};
+    allocationInfo.usage         = VMA_MEMORY_USAGE_GPU_ONLY;
+    allocationInfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (vmaCreateImage(allocator_, &imageInfo, &allocationInfo, &attachment.image_, &attachment.memory_, nullptr) != VK_SUCCESS)
+    {
+        URHO3D_LOGERRORF("Can't create image !");
+        return;
+    }
+#endif
+
+    // create image view
+
+    VkImageViewCreateInfo imageViewInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+    imageViewInfo.viewType                        = VK_IMAGE_VIEW_TYPE_2D;
+    imageViewInfo.image                           = attachment.image_;
+    if (attachment.usage_ == RENDERATTACHMENT_TARGET)
+        imageViewInfo.format                      = swapChainInfo_.format;
+    else if (attachment.usage_ == RENDERATTACHMENT_DEPTH)
+        imageViewInfo.format                      = depthStencilFormat_;
+    imageViewInfo.subresourceRange.baseMipLevel   = 0;
+    imageViewInfo.subresourceRange.levelCount     = 1;
+    imageViewInfo.subresourceRange.baseArrayLayer = 0;
+    imageViewInfo.subresourceRange.layerCount     = 1;
+    if (attachment.usage_ == RENDERATTACHMENT_TARGET)
+        imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    else if (attachment.usage_ == RENDERATTACHMENT_DEPTH)
+        imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+
+    if (vkCreateImageView(device_, &imageViewInfo, pAllocator, &attachment.imageView_) != VK_SUCCESS)
+    {
+        URHO3D_LOGERRORF("Can't create image view !");
+        return;
+    }
+}
+
+void GraphicsImpl::DestroyAttachment(RenderAttachment& attachment)
+{
+    // TODO : memoryAllocator
+    const VkAllocationCallbacks* pAllocator = nullptr;
+
+    if (attachment.imageView_ != VK_NULL_HANDLE)
+    {
+        vkDestroyImageView(device_, attachment.imageView_, pAllocator);
+        attachment.imageView_ = VK_NULL_HANDLE;
+    }
+#ifndef URHO3D_VMA
+    if (attachment.image_ != VK_NULL_HANDLE)
+    {
+        vkDestroyImage(device_, attachment.image_, pAllocator);
+        attachment.image_  = VK_NULL_HANDLE;
+    }
+    if (attachment.memory_ != VK_NULL_HANDLE)
+    {
+        vkFreeMemory(device_, attachment.memory_, pAllocator);
+        attachment.memory_ = VK_NULL_HANDLE;
+    }
+#else
+    if (attachment.image_ != VK_NULL_HANDLE)
+    {
+        vmaDestroyImage(allocator_, attachment.image_, attachment.memory_);
+        attachment.image_  = VK_NULL_HANDLE;
+        attachment.memory_ = VK_NULL_HANDLE;
+    }
+#endif
+}
+
+bool GraphicsImpl::CreateRenderPasses()
+{
+    URHO3D_LOGDEBUGF("GraphicsImpl() - Create Render Passes ...");
+
+    const VkAllocationCallbacks* pAllocator = nullptr;
+
+    VkImageView depthStencil;
+
+    for (HashMap<unsigned, RenderPathInfo >::Iterator it = renderPathInfos_.Begin(); it != renderPathInfos_.End(); ++it)
+    {
+        RenderPathInfo& renderPathInfo = it->second_;
+
+        for (unsigned i = 0; i < renderPathInfo.renderPassInfos_.Size(); i++)
+        {
+            RenderPassInfo& renderPassInfo = *renderPathInfo.renderPassInfos_[i];
+
+            // Create Render Pass
+            if (renderPassInfo.renderPass_ == VK_NULL_HANDLE)
+            {
+                unsigned numColorAttachments = 0;
+                unsigned numDepthAttachments = 0;
+                for (unsigned j=0; j < renderPassInfo.attachments_.Size(); j++)
+                {
+                    if (renderPassInfo.attachments_[j].usage_ < RENDERATTACHMENT_DEPTH)
+                        numColorAttachments++;
+                    else
+                        numDepthAttachments++;
+                }
+
+                // Set Attachments Descriptions & References
+                PODVector<VkAttachmentDescription> attachmentDescriptions;
+                attachmentDescriptions.Resize(renderPassInfo.attachments_.Size());
+                PODVector<VkAttachmentReference> colorRefs;
+                colorRefs.Resize(numColorAttachments);
+                PODVector<VkAttachmentReference> depthRefs;
+                depthRefs.Resize(numDepthAttachments);
+                unsigned icolor = 0;
+                unsigned idepth = 0;
+                for (unsigned j=0; j < renderPassInfo.attachments_.Size(); j++)
+                {
+                    RenderAttachment& attachment = renderPassInfo.attachments_[j];
+                    VkAttachmentDescription& desc = attachmentDescriptions[j];
+
+                    // Color Attachment
+                    if (attachment.usage_ < RENDERATTACHMENT_DEPTH)
+                    {
+                        desc.format                   = swapChainInfo_.format;
+                        desc.samples                  = VK_SAMPLE_COUNT_1_BIT;
+                        desc.storeOp                  = VK_ATTACHMENT_STORE_OP_STORE;
+                        desc.stencilLoadOp            = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                        desc.stencilStoreOp           = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                        desc.flags                    = 0;
+
+                        if (attachment.usage_ == RENDERATTACHMENT_PRESENT)
+                        {
+                            desc.loadOp               = i == 0 ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+                            desc.initialLayout        = i == 0 ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_GENERAL; // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                            desc.finalLayout          = i == renderPassInfo.attachments_.Size()-1 ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_GENERAL; //VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                        }
+                        else
+                        {
+                            desc.loadOp               = i == 0 ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;//VK_ATTACHMENT_LOAD_OP_CLEAR;
+                            desc.initialLayout        = VK_IMAGE_LAYOUT_UNDEFINED;
+                            desc.finalLayout          = VK_IMAGE_LAYOUT_GENERAL;//VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                        }
+
+                        VkAttachmentReference& ref    = colorRefs[icolor++];
+                        ref.attachment                = j;
+                        ref.layout                    = VK_IMAGE_LAYOUT_GENERAL;//VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                    }
+                    // Depth Attachment
+                    else
+                    {
+                        desc.format                   = depthStencilFormat_;
+                        desc.samples                  = VK_SAMPLE_COUNT_1_BIT;
+                        desc.loadOp                   = i == 0 ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+                        desc.storeOp                  = i < renderPathInfo.renderPassInfos_.Size() - 1 ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                        desc.stencilLoadOp            = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                        desc.stencilStoreOp           = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                        desc.initialLayout            = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;//VK_IMAGE_LAYOUT_UNDEFINED;
+                        desc.finalLayout              = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                        desc.flags                    = 0;
+
+                        VkAttachmentReference& ref    = depthRefs[idepth++];
+                        ref.attachment                = j;
+                        ref.layout                    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                    }
+                }
+
+                // One Subpass Description
+                VkSubpassDescription subpassDescription = {};
+                {
+                    subpassDescription.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
+                    subpassDescription.colorAttachmentCount    = numColorAttachments;
+                    subpassDescription.pColorAttachments       = &colorRefs[0];
+                    subpassDescription.pDepthStencilAttachment = &depthRefs[0];
+                    subpassDescription.inputAttachmentCount    = 0;
+                    subpassDescription.pInputAttachments       = nullptr;
+                    subpassDescription.preserveAttachmentCount = 0;
+                    subpassDescription.pPreserveAttachments    = nullptr;
+                    subpassDescription.pResolveAttachments     = nullptr;
+                }
+
+                // Dependencies for layout transitions
+                PODVector<VkSubpassDependency> dependencies;
+                /*
+                {
+                    dependencies.Resize(2);
+                    // First dependency at the start of the renderpass
+                    // Does the transition from final to initial layout
+                    dependencies[0].srcSubpass      = VK_SUBPASS_EXTERNAL;
+                    dependencies[0].dstSubpass      = 0;
+                    dependencies[0].srcStageMask    = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+                    dependencies[0].dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+                    dependencies[0].srcAccessMask   = VK_ACCESS_MEMORY_READ_BIT;
+                    dependencies[0].dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+                    dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+                    // Second dependency at the end the renderpass
+                    // Does the transition from the initial to the final layout
+                    // Technically this is the same as the implicit subpass dependency, but we are gonna state it explicitly here
+                    dependencies[1].srcSubpass      = 0;
+                    dependencies[1].dstSubpass      = VK_SUBPASS_EXTERNAL;
+                    dependencies[1].srcStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+                    dependencies[1].dstStageMask    = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+                    dependencies[1].srcAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+                    dependencies[1].dstAccessMask   = VK_ACCESS_MEMORY_READ_BIT;
+                    dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+                }
+                */
+                // Pass Creation
+                VkRenderPassCreateInfo rpInfo   = {VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
+                rpInfo.attachmentCount  = attachmentDescriptions.Size();
+                rpInfo.pAttachments     = &attachmentDescriptions[0];
+                rpInfo.subpassCount     = 1;
+                rpInfo.pSubpasses       = &subpassDescription;
+                rpInfo.dependencyCount  = dependencies.Size();
+                rpInfo.pDependencies    = dependencies.Size() ? &dependencies[0] : nullptr;
+                if (vkCreateRenderPass(device_, &rpInfo, pAllocator, &renderPassInfo.renderPass_) != VK_SUCCESS)
+                {
+                    URHO3D_LOGERRORF("Can't create renderpass !");
+                    return false;
+                }
+            }
+
+            // Create Attachment Images, ImageViews & Viewport Texture (if need)
+            for (unsigned j = 0; j < renderPassInfo.attachments_.Size(); j++)
+            {
+                RenderAttachment& attachment = renderPassInfo.attachments_[j];
+                if (attachment.usage_ == RENDERATTACHMENT_TARGET)
+                {
+                    CreateAttachment(attachment);
+                    renderPassInfo.viewportTexture_ = SharedPtr<Texture2D>(new Texture2D(context_));
+                    renderPassInfo.viewportTexture_->SetName("viewport");
+                    renderPassInfo.viewportTexture_->SetGPUObject(attachment.image_, attachment.memory_);
+                    renderPassInfo.viewportTexture_->SetShaderResourceView(attachment.imageView_);
+                }
+                else if (attachment.usage_ == RENDERATTACHMENT_DEPTH && i == 0)
+                {
+                    CreateAttachment(attachment);
+                    depthStencil = attachment.imageView_;
+                }
+            }
+
+            // Create Frame Buffers by frame
+            renderPassInfo.framebuffers_.Resize(numFrames_);
+
+            PODVector<VkImageView> framebufferAttachments;
+            framebufferAttachments.Resize(renderPassInfo.attachments_.Size());
+
+            VkFramebufferCreateInfo framebufferInfo{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
+            framebufferInfo.renderPass      = renderPassInfo.renderPass_;
+            framebufferInfo.attachmentCount = renderPassInfo.attachments_.Size();
+            framebufferInfo.pAttachments    = &framebufferAttachments[0];
+            framebufferInfo.width           = swapChainExtent_.width;
+            framebufferInfo.height          = swapChainExtent_.height;
+            framebufferInfo.layers          = 1;
+
+            for (unsigned j = 0; j < numFrames_; j++)
+            {
+                FrameData& frame = frames_[j];
+
+                for (unsigned k = 0; k < renderPassInfo.attachments_.Size(); k++)
+                {
+                    const RenderAttachment& attachment = renderPassInfo.attachments_[k];
+
+                    if (attachment.usage_ == RENDERATTACHMENT_PRESENT)
+                        framebufferAttachments[k] = frame.imageView_;
+                    else if (attachment.usage_ == RENDERATTACHMENT_DEPTH)
+                        framebufferAttachments[k] = depthStencil;
+                    else
+                        framebufferAttachments[k] = attachment.imageView_;
+                }
+
+                if (vkCreateFramebuffer(device_, &framebufferInfo, pAllocator, &renderPassInfo.framebuffers_[j]) != VK_SUCCESS)
+                {
+                    URHO3D_LOGERRORF("Can't create framebuffer !");
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+
+// Pipeline
+
+void GraphicsImpl::SetPipelineState(unsigned& pipelineStates, PipelineState state, unsigned value)
+{
+    unsigned offset = PipelineStateMaskBits[state][0];
+    unsigned mask   = (PipelineStateMaskBits[state][1] << offset);
+    unsigned states = ((value << offset) & mask) + (pipelineStates & ~mask);
+
+    if (states != pipelineStates)
+    {
+        pipelineStates  = states;
+        pipelineDirty_  = true;
+    }
+}
+
+PipelineInfo* GraphicsImpl::RegisterPipelineInfo(unsigned renderPassKey, ShaderVariation* vs, ShaderVariation* ps, unsigned states, unsigned numVertexTables, const PODVector<VertexElement>* vertexTables)
+{
+    // Hash vertex elements
+    String elementstr;
+    for (unsigned i=0; i < numVertexTables; i++)
+    {
+        const PODVector<VertexElement>& elements = vertexTables[i];
+        elementstr += String(elements.Size());
+        for (PODVector<VertexElement>::ConstIterator it = elements.Begin(); it != elements.End(); ++it)
+            elementstr += String((int)it->type_);
+
+        if (i < numVertexTables-1)
+            elementstr += "_";
+    }
+
+    // Create PipelineInfo Key
+    StringHash elementHash(elementstr);
+    String keyname = String(renderPassKey) + "_" + vs->GetName() + "_" + String(elementHash.Value()) + "_" + String(vs->GetVariationHash().Value()) + "_" + String(ps->GetVariationHash().Value()) + "_" + String(states);
+    if (stencilValue_)
+        keyname += "_" + String(stencilValue_);
+
+    StringHash key(keyname);
+
+    // Register datas in the Pipeline Infos
+    PipelineInfo& info      = pipelinesInfos_[key];
+    info.key_               = key;
+    info.renderPassKey_     = renderPassKey;
+    info.vs_                = vs;
+    info.ps_                = ps;
+    info.pipelineStates_    = states;
+    info.stencilValue_      = stencilValue_;
+
+    // Load the bytecodes before getting ubo and samplers
+    if (!vs->GetByteCode().Size())
+        vs->Create();
+    if (!ps->GetByteCode().Size())
+        ps->Create();
+
+    // Merge the descriptor structures from the 2 shadervariations.
+    HashMap<unsigned, HashMap<unsigned, ShaderBind > > descriptorStruct;
+    for (unsigned v=0; v < 2; v++)
+    {
+        HashMap<unsigned, HashMap<unsigned, ShaderBind > >& ds = v == 0 ? info.vs_->descriptorStructure_ : info.ps_->descriptorStructure_;
+        for (HashMap<unsigned, HashMap<unsigned, ShaderBind > >::ConstIterator it = ds.Begin(); it != ds.End(); ++it)
+        {
+            unsigned setid = it->first_;
+            if (descriptorStruct.Contains(setid))
+            {
+                HashMap<unsigned, ShaderBind >& mergedBindings = descriptorStruct[setid];
+                const HashMap<unsigned, ShaderBind >& bindings = it->second_;
+                for (HashMap<unsigned, ShaderBind >::ConstIterator jt = bindings.Begin(); jt != bindings.End(); ++jt)
+                {
+                    unsigned bind = jt->first_;
+                    if (mergedBindings.Contains(bind))
+                    {
+                        URHO3D_LOGERRORF("RegisterPipelineInfo : DescriptorSet : set=%u.%u already existing !", setid, bind);
+                        continue;
+                    }
+
+                    const ShaderBind& binding = jt->second_;
+                    ShaderBind& mergeBinding = mergedBindings[bind];
+                    mergeBinding.id_ = bind;
+                    mergeBinding.type_ = binding.type_;
+                    mergeBinding.stageFlag_ = v == 0 ? VK_SHADER_STAGE_VERTEX_BIT : VK_SHADER_STAGE_FRAGMENT_BIT;
+                    mergeBinding.unitStart_ = binding.unitStart_;
+                    mergeBinding.unitRange_ = binding.unitRange_;
+                }
+            }
+            else
+            {
+                descriptorStruct.Insert(it);
+            }
+        }
+    }
+
+    // Create the descriptor Sets Structure
+    URHO3D_LOGDEBUG("RegisterPipelineInfo : DescriptorSet - Structure ...");
+
+    info.descriptorsGroups_.Resize(descriptorStruct.Size());
+    int i = 0;
+    for (HashMap<unsigned, HashMap<unsigned, ShaderBind > >::ConstIterator it = descriptorStruct.Begin(); it != descriptorStruct.End(); ++it, ++i)
+    {
+        const HashMap<unsigned, ShaderBind >& b = it->second_;
+
+        DescriptorsGroup& descriptorSet = info.descriptorsGroups_[i];
+        descriptorSet.id_ = it->first_;
+        descriptorSet.bindings_.Resize(b.Size());
+
+        URHO3D_LOGDEBUGF("  . Set=%u ...", descriptorSet.id_);
+        int j = 0;
+        for (HashMap<unsigned, ShaderBind >::ConstIterator jt = b.Begin(); jt != b.End(); ++jt, ++j)
+        {
+            ShaderBind& binding = descriptorSet.bindings_[j];
+            binding = jt->second_;
+            URHO3D_LOGDEBUGF("    -> Bind=%u stage=%u type=%u unit=%u to %u ...", binding.id_, binding.stageFlag_, binding.type_, binding.unitStart_, binding.unitStart_+binding.unitRange_-1);
+        }
+    }
+
+    // Copy the Vertex Elements
+    info.vertexElementsTable_.Resize(numVertexTables);
+    for (unsigned i=0; i < numVertexTables; i++)
+        info.vertexElementsTable_[i] = vertexTables[i];
+
+    // Link in hashtables
+    Vector<PipelineInfo*>& table = pipelineInfoTable_[renderPassKey][vs->GetVariationHash()][ps->GetVariationHash()][states];
+    if (table.Size() <= stencilValue_)
+        table.Resize(stencilValue_+1);
+    table[stencilValue_] = &info;
+
+    URHO3D_LOGDEBUGF("RegisterPipelineInfo name=%s key=%u keyname=%s ...", vs->GetName().CString(), key.Value(), keyname.CString());
+    URHO3D_LOGDEBUGF("                     renderPassKey=%u ...", renderPassKey);
+    URHO3D_LOGDEBUGF("                     %s vs=%s(%u)", vs->GetCachedFileName().CString(), vs->GetDefines().CString(), vs->GetVariationHash().Value());
+    URHO3D_LOGDEBUGF("                     %s ps=%s(%u)", ps->GetCachedFileName().CString(), ps->GetDefines().CString(), ps->GetVariationHash().Value());
+    URHO3D_LOGDEBUGF("                     states=%u(%s) stencilValue=%u", states, DumpPipelineStates(states).CString(), stencilValue_);
+
+    return &info;
+}
+
+PipelineInfo* GraphicsImpl::RegisterPipelineInfo(unsigned renderPassKey, ShaderVariation* vs, ShaderVariation* ps, unsigned states, VertexBuffer** buffers)
+{
+    const PODVector<VertexElement>* elements[MAX_VERTEX_STREAMS];
+
+    unsigned numVertexTables=0;
+    while (numVertexTables < MAX_VERTEX_STREAMS && buffers[numVertexTables])
+        numVertexTables++;
+
+    for (unsigned i=0; i < numVertexTables; i++)
+        elements[i] = &(buffers[i]->GetElements());
+
+    return RegisterPipelineInfo(renderPassKey, vs, ps, states, numVertexTables, elements[0]);
+}
+
+bool GraphicsImpl::SetPipeline(unsigned renderPassKey, ShaderVariation* vs, ShaderVariation* ps, unsigned pipelineStates, VertexBuffer** vertexBuffers)
+{
+    if (!vs || !ps)
+        return false;
+
+    PipelineInfo* info = GetPipelineInfo(renderPassKey, vs, ps, pipelineStates, stencilValue_);
+    if (!info)
+    {
+        URHO3D_LOGDEBUGF("Can't find pipeline info for shader=%s vs=%s ps=%s pipelineStates=%u => Register new pipeline",
+                          vs->GetName().CString(), vs->GetDefines().CString(), ps->GetDefines().CString(), pipelineStates);
+
+        info = RegisterPipelineInfo(renderPassKey, vs, ps, pipelineStates, vertexBuffers);
+        if (!info)
+        {
+            URHO3D_LOGERRORF("Can't create pipeline info for shader=%s vs=%s ps=%s pipelineStates=%u !",
+                              vs->GetName().CString(), vs->GetDefines().CString(), ps->GetDefines().CString(), pipelineStates);
+            return false;
+        }
+    }
+
+    if (pipelineInfo_ != info)
+        pipelineInfo_ = info;
+
+    if (pipelineInfo_->pipeline_ == VK_NULL_HANDLE)
+        pipelineInfo_->pipeline_ = CreatePipeline(pipelineInfo_);
+
+    pipelineDirty_ = false;
+
+    return true;
+}
+
+VkPipeline GraphicsImpl::CreatePipeline(PipelineInfo* info)
+{
+    // check if pipeline exists already
+    if (info->pipeline_ != VK_NULL_HANDLE)
+    {
+//        URHO3D_LOGDEBUGF("GetPipeline %s vs=%s ps=%s alpha=%s", info->shaderName_.CString(), info->vs_->GetDefines().CString(), info->ps_->GetDefines().CString(), info->blendAlpha_ ? "true":"false");
+        return info->pipeline_;
+    }
+
+    vkDeviceWaitIdle(device_);
+
+    PrimitiveType primitive = (PrimitiveType)GetPipelineStateInternal(info, PIPELINESTATE_PRIMITIVE);
+    FillMode fillmode = (FillMode)GetPipelineStateInternal(info, PIPELINESTATE_FILLMODE);
+    CullMode cullmode = (CullMode)GetPipelineStateInternal(info, PIPELINESTATE_CULLMODE);
+    unsigned linewidth = Clamp(GetPipelineStateInternal(info, PIPELINESTATE_LINEWIDTH), 0U, 2U);
+    BlendMode blendmode = (BlendMode)GetPipelineStateInternal(info, PIPELINESTATE_BLENDMODE);
+    unsigned colormask = GetPipelineStateInternal(info, PIPELINESTATE_COLORMASK);
+    int depthtest = GetPipelineStateInternal(info, PIPELINESTATE_DEPTHTEST);
+    bool depthwrite = GetPipelineStateInternal(info, PIPELINESTATE_DEPTHWRITE);
+    bool depthenable = depthtest != CMP_ALWAYS || depthwrite != 0;
+    bool stenciltest = GetPipelineStateInternal(info, PIPELINESTATE_STENCILTEST);
+    int stencilmode = GetPipelineStateInternal(info, PIPELINESTATE_STENCILMODE);
+
+    URHO3D_LOGDEBUGF("CreatePipeline name=%s key=%u vs=%s ps=%s prim=%d fill=%d cull=%d linew=%F blend=%u colorwrite=%s depthtest=%d depthwrite=%s depthenable=%s stencil=%s stencilvalue=%u",
+                     info->vs_->GetName().CString(), info->key_.Value(), info->vs_->GetDefines().CString(),
+                     info->ps_->GetDefines().CString(), primitive, fillmode, cullmode, LineWidthValues_[linewidth], blendmode, colormask ? "true":"false", depthtest, depthwrite ? "true":"false",
+                     depthenable ? "true":"false", stenciltest ? "true":"false", info->stencilValue_);
+
+    pipelineBuilder_.CleanUp();
+    pipelineBuilder_.AddShaderStage(info->vs_);
+    pipelineBuilder_.AddShaderStage(info->ps_);
+    pipelineBuilder_.AddVertexElements(info->vertexElementsTable_);
+    pipelineBuilder_.SetTopology(primitive);
+    pipelineBuilder_.SetRasterization(fillmode, cullmode, linewidth);
+    pipelineBuilder_.SetDepthStencil(depthenable, depthtest, depthwrite, stenciltest, stencilmode, info->stencilValue_);
+    pipelineBuilder_.AddDynamicState(VK_DYNAMIC_STATE_VIEWPORT);
+    pipelineBuilder_.AddDynamicState(VK_DYNAMIC_STATE_SCISSOR);
+//    pipelineBuilder_.SetMultiSampleState(1);
+//    pipelineBuilder_.SetColorBlend(true);
+    const RenderPassInfo* renderPassInfo = GetRenderPassInfo(info->renderPassKey_);
+    if (!renderPassInfo)
+    {
+        URHO3D_LOGERRORF("CreatePipeline name=%s no RenderPassInfo ! ");
+        return (VkPipeline)nullptr;
+    }
+
+    for (unsigned i=0; i < renderPassInfo->numColorAttachments_; i++)
+        pipelineBuilder_.AddColorBlendAttachment(i, blendmode, colormask);
+    pipelineBuilder_.CreatePipeline(info);
+
+    // Update current Pipeline Infos
+    pipelineInfo_ = info;
+
+    return pipelineInfo_->pipeline_;
+}
+
+void GraphicsImpl::CreatePipelines()
+{
+    if (!pipelinesInfos_.Size())
+        return;
+
+    for (HashMap<StringHash, PipelineInfo>::Iterator it = pipelinesInfos_.Begin(); it != pipelinesInfos_.End(); ++it)
+    {
+        CreatePipeline(&it->second_);
+    }
+}
+
+
+unsigned GraphicsImpl::GetPipelineState(unsigned pipelineStates, PipelineState state) const
+{
+    unsigned stateValue = (pipelineStates >> PipelineStateMaskBits[state][0]) & PipelineStateMaskBits[state][1];
+    return stateValue;
+}
+
+unsigned GraphicsImpl::GetDefaultPipelineStates() const
+{
+    return defaultPipelineStates_;
+}
+
+unsigned GraphicsImpl::GetDefaultPipelineStates(PipelineState stateToModify, unsigned value)
+{
+    unsigned modifiedStates = defaultPipelineStates_;
+    SetPipelineState(modifiedStates, stateToModify, value);
+    return modifiedStates;
+}
+
+PipelineInfo* GraphicsImpl::GetPipelineInfo(unsigned renderPassKey, ShaderVariation* vs, ShaderVariation* ps, unsigned states, unsigned stencilvalue) const
+{
+    HashMap<unsigned, HashMap<StringHash, HashMap<StringHash, HashMap<unsigned, Vector<PipelineInfo*> > > > >::ConstIterator ht = pipelineInfoTable_.Find(renderPassKey);
+    if (ht != pipelineInfoTable_.End())
+    {
+        const HashMap<StringHash, HashMap<StringHash, HashMap<unsigned, Vector<PipelineInfo*> > > >& vstable = ht->second_;
+        HashMap<StringHash, HashMap<StringHash, HashMap<unsigned, Vector<PipelineInfo*> > > >::ConstIterator it = vstable.Find(vs->GetVariationHash());
+        if (it != pipelineInfoTable_.End())
+        {
+            const HashMap<StringHash, HashMap<unsigned, Vector<PipelineInfo*> > >& pstable = it->second_;
+            HashMap<StringHash, HashMap<unsigned, Vector<PipelineInfo*> > >::ConstIterator jt = pstable.Find(ps->GetVariationHash());
+            if (jt != pstable.End())
+            {
+                const HashMap<unsigned, Vector<PipelineInfo*> >& statestable = jt->second_;
+                HashMap<unsigned, Vector<PipelineInfo*> >::ConstIterator kt = statestable.Find(states);
+                if (kt != statestable.End())
+                {
+                    const Vector<PipelineInfo*>& table = kt->second_;
+                    if (table.Size() > stencilvalue)
+                    {
+                        PipelineInfo* info = table[stencilvalue];
+                        if (info)
+                        {
+                            if (!info->vs_)
+                                info->vs_ = vs;
+                            if (!info->ps_)
+                                info->ps_ = ps;
+                            return info;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return nullptr;
+}
+
+PipelineInfo* GraphicsImpl::GetPipelineInfo(const StringHash& key) const
+{
+    HashMap<StringHash, PipelineInfo>::ConstIterator it = pipelinesInfos_.Find(key);
+    if (it != pipelinesInfos_.End())
+    {
+        const PipelineInfo& info = it->second_;
+//        URHO3D_LOGDEBUGF("GetPipelineInfo : %s vs=%s ps=%s blendalpha=%s", info.shaderName_.CString(), info.vs_->GetDefines().CString(), info.ps_->GetDefines().CString(), info.blendAlpha_ ? "true":"false");
+        return (PipelineInfo*)&info;
+    }
+
+    return nullptr;
+}
+
+VkPipeline GraphicsImpl::GetPipeline(const StringHash& key) const
+{
+    HashMap<StringHash, PipelineInfo>::ConstIterator it = pipelinesInfos_.Find(key);
+    return it != pipelinesInfos_.End() ? it->second_.pipeline_ : VK_NULL_HANDLE;
+}
+
+
+String GraphicsImpl::DumpPipelineStates(unsigned pipelineStates) const
+{
+    String str;
+    for (int state=0; state < PIPELINESTATE_MAX; state++)
+    {
+        unsigned value = GetPipelineState(pipelineStates, (PipelineState)state);
+        str.AppendWithFormat("%s=%u", PipelineStateNames_[state], value);
+        if (state < PIPELINESTATE_MAX-1)
+            str += ",";
+    }
+    return str;
+}
+
+void GraphicsImpl::DumpRegisteredPipelineInfo() const
+{
+    String s;
+
+    s.AppendWithFormat("DumpRegisteredPipelineInfo : num=%u \n", pipelinesInfos_.Size());
+
+    for (HashMap<StringHash, PipelineInfo >::ConstIterator it = pipelinesInfos_.Begin(); it != pipelinesInfos_.End(); ++it)
+    {
+        const PipelineInfo& info = it->second_;
+        s.AppendWithFormat("key=%u states=%u(%s) stencilValue=%u %s vs=%s ps=%s \n", info.key_.Value(), info.pipelineStates_,
+                           DumpPipelineStates(info.pipelineStates_).CString(), info.stencilValue_,
+                           info.vs_ ? info.vs_->GetName().CString() : "null", info.vs_ ? info.vs_->GetDefines().CString() : "null",
+                           info.ps_ ? info.ps_->GetDefines().CString() : "null");
+    }
+
+    for (HashMap<unsigned, HashMap<StringHash, HashMap<StringHash, HashMap<unsigned, Vector<PipelineInfo*> > > > >::ConstIterator it = pipelineInfoTable_.Begin(); it != pipelineInfoTable_.End(); ++it)
+    {
+
+    }
+
+    URHO3D_LOGERRORF("%s", s.CString());
+}
+
+
+// Presentation
+
+bool GraphicsImpl::AcquireFrame()
+{
+    if (swapChain_ == VK_NULL_HANDLE)
+    {
+        URHO3D_LOGERRORF("AcquireFrame : can't get image no swapchain !");
+        return false;
+    }
+
+//    if (semaphorePool_.Size() == 0)
+//    {
+//        URHO3D_LOGDEBUGF("AcquireFrame : no more Semaphore in the pool !");
+//        return false;
+//    }
+
+    // for the acquiring of the frame, get a semaphore in the pool.
+//    VkSemaphore acquiresync = semaphorePool_.Back();
+//    semaphorePool_.Resize(semaphorePool_.Size()-1);
+
+    // try to get the next image in the swap chain.
+//    VkResult result = vkAcquireNextImageKHR(device_, swapChain_, UINT64_MAX, acquiresync, VK_NULL_HANDLE, &currentFrame_);
+    VkResult result = vkAcquireNextImageKHR(device_, swapChain_, TIME_OUT, presentComplete_, VK_NULL_HANDLE, &currentFrame_);
+    if (result != VK_SUCCESS)
+    {
+        if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_ERROR_SURFACE_LOST_KHR)
+        {
+			URHO3D_LOGERRORF("Graphics() - AcquireFrame ... VK_ERROR=%d ...", result);
+
+			if (result == VK_ERROR_SURFACE_LOST_KHR)
+				surfaceDirty_ = true;
+
+            bool sRGB = graphics_->GetSRGB();
+            UpdateSwapChain(0, 0, &sRGB);
+            result = vkAcquireNextImageKHR(device_, swapChain_, TIME_OUT, presentComplete_, VK_NULL_HANDLE, &currentFrame_);
+        }
+
+        // can't get the image, restore semaphore and skip this frame.
+        if (result != VK_SUCCESS)
+        {
+//            semaphorePool_.Push(acquiresync);
+            vkQueueWaitIdle(presentQueue_);
+            URHO3D_LOGERRORF("AcquireFrame : can't get image !");
+//            exit(-1);
+            return false;
+        }
+    }
+
+    FrameData& frame = frames_[currentFrame_];
+    frame_ = &frame;
+
+    // to be ready to begin this frame, we must reset the last submitfence and the command pool.
+//    if (frame.submitSync_ != VK_NULL_HANDLE)
+//    {
+//        vkWaitForFences(device_, 1, &frame.submitSync_, true, TIME_OUT);
+//        vkResetFences(device_, 1, &frame.submitSync_);
+//    }
+
+    if (frame.commandPool_ != VK_NULL_HANDLE)
+        vkResetCommandPool(device_, frame.commandPool_, 0);
+
+//    // for the release of the frame, reserve a semaphore in the pool
+//    if (frame.releaseSync_ == VK_NULL_HANDLE)
+//    {
+//        frame.releaseSync_ = semaphorePool_.Back();
+//        semaphorePool_.Resize(semaphorePool_.Size()-1);
+//    }
+//
+//    // restore the last semaphore to the pool and replace by the new acquired one.
+//    if (frame.acquireSync_ != VK_NULL_HANDLE)
+//        semaphorePool_.Push(frame.acquireSync_);
+//    frame.acquireSync_ = acquiresync;
+
+    if (!frame.commandBufferBegun_)
+    {
+        VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        VkResult result = vkBeginCommandBuffer(frame.commandBuffer_, &beginInfo);
+    }
+
+//    if (renderPassIndex_ != -1 && frame.renderPassIndex_ != renderPassIndex_)
+//    {
+//        RenderPassInfo& renderPassInfo = renderPathInfo_->renderPasses_[renderPassIndex_];
+//
+//        // Begin the render pass.
+//        VkRenderPassBeginInfo renderPassBI{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+//        renderPassBI.renderPass         = renderPassInfo.renderPass_;
+//        renderPassBI.framebuffer        = frame.frameBuffer_;
+//        renderPassBI.renderArea.offset  = { 0, 0 };
+//        renderPassBI.renderArea.extent  = swapChainExtent_;
+//        renderPassBI.clearValueCount    = 2;
+//        renderPassBI.pClearValues       = renderPassInfo.clearColors_;
+//        vkCmdBeginRenderPass(frame.commandBuffer_, &renderPassBI, VK_SUBPASS_CONTENTS_INLINE);
+//
+//        frame.renderPassIndex_ = renderPassIndex_;
+//    }
+
+    frame.commandBufferBegun_ = true;
+    frame.renderPassIndex_ = -1;
+    renderPassIndex_ = 0;
+
+    return true;
+}
+
+bool GraphicsImpl::PresentFrame()
+{
+    if (swapChain_ == VK_NULL_HANDLE)
+        return false;
+
+    VkResult result = VK_NOT_READY;
+
+    FrameData& frame = frames_[currentFrame_];
+
+    if (!frame.commandBufferBegun_)
+    {
+        VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        VkResult result = vkBeginCommandBuffer(frame.commandBuffer_, &beginInfo);
+    }
+
+    if (renderPassIndex_ == -1 || frame.renderPassIndex_ != renderPassIndex_)
+    {
+        URHO3D_LOGDEBUGF("PresentFrame : Empty Frame : passindex=%d", renderPassIndex_);
+
+        RenderPassInfo* renderPassInfo = renderPathInfo_->renderPassInfos_[0];
+
+        VkRenderPassBeginInfo renderPassBI{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+        renderPassBI.renderPass         = renderPassInfo->renderPass_;
+        renderPassBI.framebuffer        = renderPassInfo->framebuffers_[frame.id_];
+        renderPassBI.renderArea.offset  = { 0, 0 };
+        renderPassBI.renderArea.extent  = swapChainExtent_;
+        renderPassBI.clearValueCount    = renderPassInfo->clearColors_.Size();
+        renderPassBI.pClearValues       = renderPassInfo->clearColors_.Size() ? &renderPassInfo->clearColors_[0] : 0;
+        vkCmdBeginRenderPass(frame.commandBuffer_, &renderPassBI, VK_SUBPASS_CONTENTS_INLINE);
+    }
+
+    vkCmdEndRenderPass(frame.commandBuffer_);
+
+    // Complete the command buffer.
+    result = vkEndCommandBuffer(frame.commandBuffer_);
+
+    frame.renderPassIndex_ = -1;
+    frame.commandBufferBegun_ = false;
+    renderPassIndex_ = 0;
+
+    // Submit command buffer to graphics queue
+    if (result == VK_SUCCESS)
+    {
+        VkPipelineStageFlags waitStage{VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+        VkSubmitInfo submitinfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+        submitinfo.commandBufferCount   = 1;
+        submitinfo.pCommandBuffers      = &frame.commandBuffer_;
+        submitinfo.waitSemaphoreCount   = 1;
+//        submitinfo.pWaitSemaphores      = &frame.acquireSync_;
+        submitinfo.pWaitSemaphores      = &presentComplete_;
+        submitinfo.pWaitDstStageMask    = &waitStage;
+        submitinfo.signalSemaphoreCount = 1;
+//        submitinfo.pSignalSemaphores    = &frame.releaseSync_;
+        submitinfo.pSignalSemaphores    = &renderComplete_;
+//        result = vkQueueSubmit(graphicQueue_, 1, &submitinfo, frame.submitSync_);
+        result = vkQueueSubmit(graphicQueue_, 1, &submitinfo, VK_NULL_HANDLE);
+    }
+
+    if (result == VK_SUCCESS)
+    {
+        VkPresentInfoKHR presentInfo{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
+        presentInfo.swapchainCount     = 1;
+        presentInfo.pSwapchains        = &swapChain_;
+        presentInfo.pImageIndices      = &currentFrame_;
+        presentInfo.waitSemaphoreCount = 1;
+//        presentInfo.pWaitSemaphores    = &frame.releaseSync_;
+        presentInfo.pWaitSemaphores    = &renderComplete_;
+        result = vkQueuePresentKHR(presentQueue_, &presentInfo);
+
+        vkQueueWaitIdle(presentQueue_);
+    }
+
+    frame.lastPipelineBound_ = VK_NULL_HANDLE;
+
+    frame_ = nullptr;
+
+//    if (result != VK_SUCCESS)
+//    {
+//        URHO3D_LOGERRORF("PresentFrame : can't present !");
+//        DumpRegisteredPipelineInfo();
+//    }
+
+//    pipelineStates_ = defaultPipelineStates_;
+
+    return result == VK_SUCCESS;
+}
+
+
+unsigned GraphicsImpl::GetUBOPaddedSize(unsigned size)
+{
+    size_t minalign = physicalInfo_.properties_.limits.minUniformBufferOffsetAlignment;
+    if (minalign > 0)
+        size = (size + minalign - 1) & ~(minalign - 1);
+    return size;
+}
+
+int GraphicsImpl::GetLineWidthIndex(float width)
+{
+    unsigned index = 0;
+    float distance, mindistance = 1000.f;
+
+    for (int i=0; i < 3; i++)
+    {
+        distance = Abs(LineWidthValues_[i] - width);
+        if (distance < mindistance)
+        {
+            mindistance = distance;
+            index = i;
+        }
+    }
+
+    return index;
+}
+
+}

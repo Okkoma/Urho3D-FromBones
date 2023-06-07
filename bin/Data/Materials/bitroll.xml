@@ -1,0 +1,6 @@
+<material>
+    <technique name="Techniques/DiffLitParticleAlpha.xml" quality="1" />
+	<technique name="Techniques/Urho2D.xml" quality="0" />
+	<texture unit="diffuse" name="2D/Textures/bitroll.png" />
+	<cull value="none" />	
+</material>

@@ -1,0 +1,11 @@
+<material>
+    <technique name="Techniques/TechActorsLit.xml" quality="1" />
+	<technique name="Techniques/TechActors.xml" quality="0" />
+<!--	<texture unit="0" name="RenderTarget2D" /> -->
+	<texture unit="0" name="2D/Textures/spritesheet1.png" />
+	<texture unit="1" name="2D/Textures/spritesheet2.png" />
+    <texture unit="2" name="2D/Textures/spritesheet3.png" />
+	<parameter name="UOffset" value="1 0 0 0" />
+	<parameter name="VOffset" value="0 1 0 0" />
+	<cull value="none" />
+</material>

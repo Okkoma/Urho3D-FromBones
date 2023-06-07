@@ -1,0 +1,5 @@
+<material>
+    <technique name="Techniques/Urho2D.xml" psdefines="CROPALPHA" />
+	<texture unit="diffuse" name="Urho2DTexture" />
+	<cull value="none" />
+</material>

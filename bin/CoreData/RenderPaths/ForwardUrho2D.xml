@@ -1,0 +1,38 @@
+<renderpath>
+    <command type="clear" color="fog" depth="1.0" stencil="0" />
+    <command type="forwardlights" pass="light" />
+    <command type="scenepass" pass="alpha" vertexlights="true" sort="backtofront" metadata="alpha"/>
+    <command type="scenepass" pass="refract">
+        <texture unit="0" name="viewport" />
+    </command>
+</renderpath>
+<!--
+<renderpath>
+    <rendertarget name="RTName" tag="TagName" enabled="true|false" cubemap="true|false" size="x y"|sizedivisor="x y"|sizemultiplier="x y"
+        format="rgb|rgba|l|a|r32f|rgba16|rgba16f|rgba32f|rg16|rg16f|rg32f|lineardepth|readabledepth|d24s8" filter="true|false" srgb="true|false" persistent="true|false"
+        multisample="x" autoresolve="true|false" />
+    <command type="clear" tag="TagName" enabled="true|false" color="r g b a|fog" depth="x" stencil="y" output="viewport|RTName" face="0|1|2|3|4|5" depthstencil="DSName" />
+    <command type="scenepass" pass="PassName" vsdefines="DEFINE1 DEFINE2" psdefines="DEFINE3 DEFINE4" sort="fronttoback|backtofront" marktostencil="true|false" vertexlights="true|false"
+             metadata="base|alpha|gbuffer" depthstencil="DSName">
+        <output index="0" name="RTName1" face="0|1|2|3|4|5" />
+        <output index="1" name="RTName2" />
+        <output index="2" name="RTName3" />
+        <texture unit="unit" name="viewport|RTName|TextureName" />
+        <parameter name="ParameterName" value="x y z w" />
+    </command>
+    <command type="quad" vs="VertexShaderName" ps="PixelShaderName" vsdefines="DEFINE1 DEFINE2" psdefines="DEFINE3 DEFINE4" blend="replace|add|multiply|alpha|addalpha|premulalpha|invdestalpha|subtract|subtractalpha" output="viewport|RTName" depthstencil="DSName" />
+        <texture unit="unit" name="viewport|RTName|TextureName" />
+        <parameter name="ParameterName" value="x y z w" />
+    </command>
+    <command type="forwardlights" pass="PassName" vsdefines="DEFINE1 DEFINE2" psdefines="DEFINE3 DEFINE4" uselitbase="true|false" output="viewport|RTName" depthstencil="DSName">
+        <texture unit="unit" name="viewport|RTName|TextureName" />
+        <parameter name="ParameterName" value="x y z w" />
+    </command
+    <command type="lightvolumes"  vs="VertexShaderName" ps="PixelShaderName" vsdefines="DEFINE1 DEFINE2" psdefines="DEFINE3 DEFINE4" output="viewport|RTName" depthstencil="DSName" />
+        <texture unit="unit" name="viewport|RTName|TextureName" />
+        <parameter name="ParameterName" value="x y z w" />
+    </command>
+    <command type="renderui" output="viewport|RTName" depthstencil="DSName" />
+    <command type="sendevent" name="EventName" />
+</renderpath>
+-->

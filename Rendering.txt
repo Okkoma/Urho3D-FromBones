@@ -1,0 +1,520 @@
+
+Urho3D Rendering - Simplified Process
+
+Engine::RunFrame()
+{
+	Engine::Update()
+    {
+        // UPDATE
+        Material::Update()
+        Scene::Update()
+        {
+            // SCENE UPDATE
+            // ATTRIBUTE ANIMATION UPDATE
+            // SCENE SUBSYSTEM UPDATE
+            // UPDATE SMOOTHING
+            // SCENE POST UPDATE
+        }
+
+        // POST UPDATE
+        UI::Update()
+        UIElement::UpdateAttributeAnimations()
+
+        // RENDER UPDATE
+        Audio::Update()
+        Octree::Update()
+        {
+            // Drawable Updates
+        }
+        Renderer::Update(FrameInfo)
+        {
+            LoadShaders()
+            {
+
+            }
+            for each i Viewport in viewports_
+            {
+                UpdateQueuedViewports(i)
+                {
+                    Octree::Update() // Again ?
+                    View = Viewport::GetView()
+                    View::Update(FrameInfo)
+                    {
+                        // Begin View Update
+
+                        // Renderer2D collects SourceBatchesToRender from Drawables
+
+                        View::GetDrawables()
+                        {
+                            Put Visible Drawables in View::geometries_
+                            Put Visible Lights in View::lights_
+                            Sort View::lights_
+                        }
+
+                        View::GetBatches()
+                        {
+                            View::ProcessLights()
+                            {
+                                for each i Light in View::lights_
+                                {
+                                    ProcessLightWork()
+                                    {
+                                        Query = lightQueryResults_[i].light_ = View::lights_[i]
+                                        View::ProcessLight(Query)
+                                        {
+                                            TempDrawables = View::octree_->GetDrawables(DRAWABLE_GEOMETRY)
+                                            for each Drawable in TempDrawables
+                                            {
+                                                if ((GetLightMask(Drawable) & Query.light_->GetLightMask()))
+                                                    lightQueryResults_[i].litGeometries_.Push(Drawable)
+                                            }
+                                        }
+
+                                        // ... Shadow Cast
+                                    }
+                                }
+
+                            }
+                            View::GetLightBatches()
+                            {
+                                for each Query in View::lightQueryResults_
+                                {
+                                    Light = Query.light_
+                                    if (Light is PerPixel)
+                                    {
+                                        for each Drawable in Query.litGeometries_
+                                        {
+                                            Drawable->AddLight(Light)
+
+                                            LightQueue = Light->GetLightQueue()
+                                            View::GetLitBatches(Drawable, LightQueue)
+                                            {
+                                                for each Batch in Drawable
+                                                {
+                                                    View::AddBatchToQueue(LightQueue.litBatches_, Batch)
+                                                    {
+                                                        Renderer::SetBatchShaders(Batch, Technique, LightQueue)
+                                                        {
+                                                            pass = Batch.pass_
+                                                            vertexShaders = pass->GetVertexShaders(LightQueue->Defines)
+                                                            pixelShaders = pass->GetPixelShaders(LightQueue->Defines)
+
+                                                            if (!vertexShaders || !pixelShaders)
+                                                                Renderer::LoadPassShaders(pass, vertexShaders, pixelShaders)
+
+                                                            if (pass has Light PERPIXEL)
+                                                            {
+                                                                set vsi (GeometryType + LightType + Shadow + NumVertexLights)
+                                                                set psi (Specular + LightType + Shadow + HeightFog)
+                                                                Batch.vertexShader_ = vertexShaders[vsi]
+                                                                Batch.pixelShader_ = vertexShaders[psi]
+                                                            }
+                                                            else if (pass has Light PERVERTEX)
+                                                            {
+                                                                set vsi (GeometryType + NumVertexLights)
+                                                                set psi (HeightFog)
+                                                                Batch.vertexShader_ = vertexShaders[vsi]
+                                                                Batch.pixelShader_ = vertexShaders[psi]
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    else if (Light is PerVertex)
+                                    {
+                                        for each Drawable in Query.litGeometries_
+                                        {
+                                            Drawable->AddVertexLight(Light)
+                                        }
+                                    }
+                                }
+                            }
+
+                            View::GetBaseBatches()
+                            {
+                                for each Drawable in View::geometries_
+                                {
+                                    for each Batch in Drawable
+                                    {
+                                        Technique = Drawable->GetTechnique()
+
+                                        for each View::scenePasses_
+                                        {
+                                            if Technique::GetSupportedPass()
+                                            {
+                                                View::AddBatchToQueue(Queue, Batch, Technique)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Renderer::StorePreparedView(View)
+
+                        // End View Update
+                    }
+                }
+            }
+        }
+        Network::PostUpdate()
+        UI::RenderUpdate()
+
+        // POST RENDER UPDATE
+
+    }
+
+	Engine::Render()
+	{
+		Graphics::BeginFrame()
+
+		Renderer::Render()
+		{
+			for (each View)
+			{
+				Engine::PrepareViewRender()
+				{
+					// Nothing here
+				}
+
+				View::Render()
+				{
+					View::UpdateGeometries()
+					{
+						for each Drawable
+						{
+							Drawable::UpdateGeometry()
+						}
+					}
+
+					View::AllocateScreenBuffers()
+					{
+					    // Get or Allocate the viewport textures and the rendertarget textures.
+                        Renderer::GetScreenBuffer()
+					}
+
+					Graphics::ClearParameterSources()
+
+					View::PrepareInstancingBuffer()
+					{
+
+					}
+
+					View::ExecuteRenderPathCommands()
+					{
+						for (each LightBatchQueue)
+						{
+							View::RenderShadowMap(LightBatchQueue)
+						}
+
+						for (each Command in RenderPath)
+						{
+							CMD_CLEAR :
+                            {
+								View::SetRenderTargets(Command)
+
+								Graphics::Clear(Command)
+                                {
+                                    Graphics::PrepareDraw()
+                                    Graphics::SetScissorTest()
+                                    Graphics::SetColorWrite()
+                                    Graphics::SetDepthWrite()
+                                }
+                            }
+							CMD_SCENEPASS :
+                            {
+                                BatchQueue at Command.passIndex
+								View::SetRenderTargets(Command)
+                                {
+                                    for (each Target In Command.outputs[i])
+                                    {
+                                        if (Target.name == "viewport")
+                                        {
+                                            Graphics::SetRenderTarget(i, View::CurrenRenderTarget)
+                                        }
+                                        else
+                                        {
+                                            Texture = View::FindNamedTexture(Target.name)
+
+                                            if (Depth Only Rendering)
+                                            {
+                                                Graphics::SetRenderTarget(0, View::GetRenderSurfaceFromTexture(View::DepthOnlyDummyTexture, 0))
+                                                Graphics::SetDepthStencil(View::GetRenderSurfaceFromTexture(Texture, 0))
+                                            }
+                                            else
+                                            {
+                                                Graphics::SetRenderTarget(i, View::GetRenderSurfaceFromTexture(Texture, Target.face))
+                                            }
+                                        }
+                                    }
+
+									Graphics::SetDepthStencil()
+									Graphics::SetViewport()
+									Graphics::SetColorWrite()
+								}
+								View::SetTextures(Command)
+								{
+									for (each name in Command.textureNames[i])
+									{
+										if (name == "viewport")
+										{
+											Graphics::SetRenderTarget(i, View::CurrentViewportTexture)
+										}
+										else
+										{
+											Texture = View::FindNamedTexture(name)
+											Graphics::SetTexture(i, Texture)
+										}
+									}
+								}
+								Graphics::SetClipPlane(camera)
+								Graphics::ClearParameterSources()
+
+                                BatchQueue::Draw()
+                                {
+                                    for (each Instanced BatchGroup)
+                                    {
+                                        Graphics::SetStencilTest()
+
+                                        BatchGroup::Draw(View, Camera)
+                                        {
+                                            if (Instances And Geometry)
+                                            {
+                                                if (Draw Individual)
+                                                {
+                                                    Batch::Prepare(View, Camera)
+                                                    {
+                                                        Graphics::SetShaders()
+                                                        Graphics::SetBlendMode()
+                                                        Graphics::SetLineAntiAlias()
+                                                        Renderer::SetCullMode()
+                                                        Graphics::SetDepthBias()
+                                                        Graphics::SetFillMode()
+                                                        Graphics::SetDepthTest()
+                                                        Graphics::SetDepthWrite()
+                                                        View::SetGlobalShaderParameters()
+                                                        View::SetCameraShaderParameters()
+                                                        View::SetGBufferShaderParameters()
+
+                                                        Graphics::SetShaderParameter(...)
+                                                        Graphics::SetTexture(...)
+                                                    }
+
+                                                    Graphics::SetIndexBuffer()
+                                                    Graphics::SetVertexBuffers()
+
+                                                    for (each Instance)
+                                                    {
+                                                        Graphics::SetShaderParameter()
+                                                        Graphics::Draw(Geometry Info)
+                                                        {
+                                                            Graphics::PrepareDraw()
+                                                            glDrawArrays or glDrawElements(indexbuffer)
+                                                        }
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    Batch::Prepare(View, Camera)
+                                                    Graphics::SetIndexBuffer()
+                                                    Graphics::SetVertexBuffers()
+                                                    Graphics::DrawInstanced(Geometry Info)
+                                                    {
+                                                        Graphics::PrepareDraw()
+                                                        glDrawElementsInstanced
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    for (each Sorted Batch)
+                                    {
+                                        Graphics::SetStencilTest(true)
+                                        Renderer::OptimizeLightByScissor(Light, Camera)
+                                        Graphics::SetStencilTest(false)
+                                        Batch::Draw(View, Camera)
+                                    }
+                                }
+                            }
+							CMD_QUAD :
+                            {
+								View::SetRenderTargets(Command)
+								View::SetTextures(Command)
+								View::RenderQuad(Command)
+								{
+									Graphics::SetShaders(ShaderVariation vs, ShaderVariation ps)
+
+									View::SetGlobalShaderParameters();
+									View::SetCameraShaderParameters(Camera);
+									View::SetGBufferShaderParameters();
+
+									for each RenderTarget in RenderPath
+									{
+
+									}
+
+									View::SetCommandShaderParameters(Command);
+
+									Graphics::SetBlendMode(Command.BlendMode)
+									Graphics::SetDepthTest(CMP_ALWAYS)
+									Graphics::SetDepthWrite(depthWrite)
+									Graphics::SetFillMode(FILL_SOLID)
+									Graphics::SetLineAntiAlias(false)
+									Graphics::SetClipPlane(false)
+									Graphics::SetScissorTest(false)
+									Graphics::SetStencilTest(false)
+									View::DrawFullscreenQuad(false)
+								}
+                            }
+							CMD_FORWARDLIGHTS :
+                            {
+								View::SetRenderTargets(Command)
+								for each LightBatchQueue
+								{
+									View::RenderShadowMap(LightBatchQueue)
+									{
+										View::SetRenderTargets(Command)
+									}
+									Graphics::SetClipPlane(camera)
+									Graphics::ClearParameterSources()
+									LightBatchQueue::LitBaseBatches::BatchQueue::Draw()
+									Renderer::OptimizeLightByScissor(Light, Camera)
+									Renderer::OptimizeLightByStencil(Light, Camera)
+									LightBatchQueue::LitBatches::BatchQueue::Draw()
+								}
+								Graphics::SetScissorTest(false)
+								Graphics::SetStencilTest(false)
+                            }
+							CMD_LIGHTVOLUMES :
+                            {
+								View::SetRenderTargets(Command)
+								for each LightBatchQueue
+								{
+									View::RenderShadowMap(LightBatchQueue)
+									View::SetRenderTargets(Command)
+									View::SetTextures(Command)
+									Graphics::ClearParameterSources()
+									for each LightVolumeBatch
+									{
+										View::SetupLightVolumeBatch(LightVolumeBatch)
+										LightVolumeBatch::Draw()
+										{
+
+										}
+									}
+								}
+								Graphics::SetScissorTest(false)
+								Graphics::SetStencilTest(false)
+                            }
+							CMD_RENDERUI :
+                            {
+								View::SetRenderTargets(Command)
+								UI::Render()
+								{
+
+								}
+                            }
+							CMD_SENDEVENT :
+                            {
+								Renderer::SendEvent(Command.EventName)
+                            }
+						}
+					}
+
+					// Reset Graphics States after Commands
+					Graphics::SetFillMode(SOLID)
+					Graphics::SetLineAntiAlias(false)
+					Graphics::SetClipPlane(false)
+					Graphics::SetColorWrite(true)
+					Graphics::SetDepthBias(0,0)
+					Graphics::SetScissorTest(false)
+					Graphics::SetStencilTest(false)
+
+					View::BlitFrameBuffer(source, destination)
+					{
+						Graphics::SetBlendMode(BLEND_REPLACE)
+						Graphics::SetDepthTest(CMP_ALWAYS)
+						Graphics::SetDepthWrite(depthWrite)
+						Graphics::SetFillMode(FILL_SOLID)
+						Graphics::SetLineAntiAlias(false)
+						Graphics::SetClipPlane(false)
+						Graphics::SetScissorTest(false)
+						Graphics::SetStencilTest(false)
+						Graphics::SetRenderTarget(0, destination)
+						Graphics::SetRenderTarget(otherindexes, 0)
+						Graphics::SetDepthStencil()
+						Graphics::SetViewport()
+						Graphics::SetShaders("CopyFrameBuffer")
+						View::SetGBufferShaderParameters()
+						{
+
+						}
+						Graphics::SetTexture(TU_DIFFUSE, source)
+						View::DrawFullscreenQuad(true)
+						{
+							Geometry = Renderer::GetQuadGeometry()
+							Graphics::SetShaderParameter(MVP)
+							Graphics::SetCullMode(CULL_NONE)
+							Graphics::ClearTransformSources()
+							Geometry::Draw(Graphics)
+							{
+								Graphics::SetIndexBuffer(IndexBuffer)
+								Graphics::SetVertexBuffers(Vector<VertexBuffer>)
+								Graphics::Draw()
+							}
+						}
+					}
+				}
+			}
+		}
+
+		UI::Render()
+		{
+            UI::SetVertexData(data)
+            {
+                VertexBuffer::SetSize(MASK_POSITION | MASK_COLOR | MASK_TEXCOORD1)
+                VertexBuffer::SetData(data)
+            }
+
+            UI::Render(VertexBuffer, Batches)
+            {
+                Graphics::ResetRenderTargets()
+                {
+                    for (each RenderTarget)
+                        RenderTarget = 0
+                    Graphics::ResetDepthStencil()
+                    Graphics::SetViewport()
+                    {
+                        Graphics::PrepareDraw()
+                    }
+                }
+
+                Graphics::ClearParameterSources()
+                Graphics::SetColorWrite(true)
+                Graphics::SetCullMode(CULL_CCW)
+                Graphics::SetDepthTest(CMP_ALWAYS)
+                Graphics::SetDepthWrite(false)
+                Graphics::SetFillMode(FILL_SOLID)
+                Graphics::SetStencilTest(false)
+                Graphics::SetVertexBuffer(buffer)
+
+                for (each Batch in Batches)
+                {
+                    Graphics::SetShaders()
+                    Graphics::SetShaderParameter(...)
+                    Graphics::SetBlendMode(Batch.blendMode_);
+                    Graphics::SetScissorTest(true, Batch.scissor_);
+                    Graphics::SetTexture(0, Batch.texture_);
+                    Graphics::Draw()
+                }
+            }
+		}
+
+		Graphics::EndFrame()
+	}
+
+	Engine::ApplyFrameLimit()
+}

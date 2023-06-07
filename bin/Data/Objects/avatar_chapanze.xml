@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<node>
+	<attribute name="Is Enabled" value="true" />
+	<attribute name="Name" value="avatar" />
+	<attribute name="Position" value="0.0 0.0 0" />
+	<attribute name="Rotation" value="1 0 0 0" />
+	<attribute name="Scale" value="0.2 0.2 1" />
+	<attribute name="Variables">
+	</attribute>
+	<component type="AnimatedSprite2D">
+		<attribute name="Layer" value="5" />		
+		<attribute name="Animation Set" value="AnimationSet2D;2D/chapanze.scml" />
+		<attribute name="Animation" value="idle" />
+	</component>
+	<component type="RigidBody2D">
+		<attribute name="Body Type" value="Dynamic" />
+		<attribute name="Mass" value="5" />
+		<attribute name="Use Fixture Mass" value="true" />	
+		<attribute name="Fixed Rotation" value="true" />
+		<attribute name="Allow Sleep" value="false" />
+	</component>
+	<component type="CollisionCircle2D">
+		<attribute name="Radius" value="0.4" />
+		<attribute name="Center" value="0.0 0.55" />
+		<attribute name="Density" value="50" />		
+		<attribute name="Friction" value="0.5" />	
+		<attribute name="Collider Stability" value="true" />		
+	</component>
+	<component type="GOC_PlayerController">
+	</component>
+	<component type="GOC_Attack" >
+		<attribute name="Damage" value="-0.3" />
+	</component>
+	<component type="GOC_Life" >
+	</component>	
+	<component type="GOC_Animator2D" >
+		<attribute name="Template" value="AnimatorTemplate_Avatar" />
+		<attribute name="State" value="State_Default" />
+		<attribute name="Auto Switch Attack" value="false" />
+	</component>
+	<component type="GOC_Destroyer" />
+	<component type="GOC_Move2D" />
+	<component type="GOC_Collide2D" />
+	<component type="Light">
+		<attribute name="Light Type" type="Enum" value="Point" />
+		<attribute name="Color" value="0.5 0.5 0.5 1" />
+		<attribute name="Specular Intensity" value="0" />
+		<attribute name="Range" value="2" />
+		<attribute name="Spot FOV" value="30" />
+		<attribute name="Spot Aspect Ratio" value="1" />
+		<attribute name="Can Be Occluded" value="true" />
+		<attribute name="Cast Shadows" value="false" />
+		<attribute name="Per Vertex" value="true" />
+	</component>	
+</node>

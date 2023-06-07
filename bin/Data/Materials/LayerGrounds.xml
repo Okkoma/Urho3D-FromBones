@@ -1,0 +1,11 @@
+<material>
+	<technique name="Techniques/TechGroundsLit.xml" quality="1" />
+	<technique name="Techniques/TechGrounds.xml" quality="0" />
+	<texture unit="0" name="2D/Textures/tile_terrains_g.png" />
+	<texture unit="1" name="2D/Textures/weathereffects.png" />
+    <texture unit="2" name="2D/Textures/backshape.png" />
+	<texture unit="3" name="2D/Textures/furnituresdung01.png" />
+	<parameter name="UOffset" value="1 0 0 0" />
+	<parameter name="VOffset" value="0 1 0 0" />
+	<cull value="none" />
+</material>

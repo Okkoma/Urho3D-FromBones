@@ -1,0 +1,4 @@
+<technique vs="Water2D" ps="Water2D" >
+    <pass name="refract" depthtest="less" depthwrite="false" />
+<!--    <pass name="refract" depthtest="false" depthwrite="false" /> -->
+</technique>

@@ -1,0 +1,1124 @@
+#!/bin/bash
+
+# Bake script for FromBones Project by C.VILLE 2020-2023
+
+# ex: bake config linux android vulkan validation (configuration linux & android vulkan avec les validationLayers)
+# ex: bake android vulkan install (build+install Debug on an android device)
+# ex: bake linux build vulkan   (build pour linux vulkan Debug+Release)
+# ex: bake linux install        (build Release Only et install pour linux opengl)
+# ex: bake linux vulkan shaders (compilation des shaders pour vulkan)
+# ex: bake android samples build (build+install pour android d'urho3d launcher+player+samples)
+# ex: windows PowerShell : bash ./script/bake config win vulkan
+# ex: windows UbuntuShell (WSL) : ./script/bake config win vulkan
+# ex: bake config build rpi4 (sous linux cross compile config et build Debug+Release pour rpi4)
+# ex: bake all vulkan build (sous linux build tout les crossplatform android,rpi + linux natif)
+# ex: bake android vulkan install release (sous linux, build et install la version release sur android device)
+# ex: bake win config install release (sous linux, config crosscompile pour windows et install)
+
+U_GRAPHICS_OPENGL="-DURHO3D_OPENGL=1 -DURHO3D_VULKAN=0"
+U_GRAPHICS_VULKAN="-DURHO3D_OPENGL=0 -DURHO3D_VULKAN=1 -DURHO3D_VMA=1 -DURHO3D_VOLK=1"
+U_GRAPHICS=$U_GRAPHICS_OPENGL
+
+U_LINUX_OPT="-DURHO3D_OPENGL=1 -DURHO3D_C++11=1 -DURHO3D_PHYSICS=0 -DURHO3D_LUA=0 -DURHO3D_LUAJIT=0 -DURHO3D_LUAJIT_AMALG=0 -DURHO3D_FILEWATCHER=0 -DURHO3D_IK=0 -DURHO3D_NAVIGATION=0 -DURHO3D_PCH=0 -DURHO3D_PLAYER=0 -DURHO3D_SAMPLES=0 -DURHO3D_WEBP=0"
+F_LINUX_OPT="-DURHO3D_OPENGL=1 -DURHO3D_WIN32_CONSOLE=0 -DURHO3D_PHYSICS=0 -DURHO3D_LUA=0 -DURHO3D_NAVIGATION=0 -DURHO3D_IK=0"
+
+EDITOR_OPT="-DURHO3D_ANGELSCRIPT=0"
+
+DIR_SHADERS="Shaders/Vulkan"
+
+NUMPROC=`echo $(nproc)`
+
+# Temporary Patch remove ./local/bin from the PATH (if Python is installed, it have install all cmake stuff in, so that's not the good cmake we use)
+PATH=`echo $PATH | sed -e 's/\/home\/chris\/\.local\/bin://'`
+
+# Parse Arguments
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+	key="$1"
+
+	case $key in
+		all)
+		ALL=1
+		shift
+		;;
+		android)
+		ANDROID=1
+		shift # past argument
+		;;
+		linux)
+		LINUX=1
+		shift # past argument
+		;;
+		win)
+		WINDOWS=1
+		shift # past argument
+		;;
+		rpi|rpi3)
+		RPI3CROSS=1
+		shift # past argument
+		;;	
+		rpi4)
+		RPI4CROSS=1
+		shift # past argument
+		;;		
+		vulkan)
+		VULKAN=1
+		U_GRAPHICS="$U_GRAPHICS_VULKAN"
+		shift # past argument
+		;;
+		validation)
+		VALIDATIONLAYERS=1
+		shift # past argument
+		;;	
+		shaders)
+		SHADERS=1
+		shift # past argument
+		;;	
+		tool)
+		TOOL=1
+		shift # past argument
+		;;
+		samples)
+		SAMPLES=1
+		shift
+		;;
+		editor)
+		EDITOR=1
+		shift # past argument
+		;;	
+		rel|release)
+		RELEASE=1
+		shift
+		;;	
+		config)
+		CONFIG=1
+		shift # past argument
+		;;
+		shared)
+		LIBSHARED=1
+		shift
+		;;
+		build)
+		BUILD=1
+		shift # past argument
+		;;
+		install)
+		INSTALL=1
+		shift # past argument
+		;;
+		deploy)
+		INSTALL=1
+		DEPLOY=1
+		shift # past argument
+		;;		
+		logcat)
+		LOGCAT=1
+		shift
+		;;
+		info)
+		INFO=--stacktrace
+		shift
+		;;		
+		clean)
+		CLEANBUILD=clean
+		shift # past argument
+		;;		
+		cleanall)
+		CLEANENGINE=clean
+		CLEANBUILD=clean
+		CLEANLOG=1		
+		shift # past argument
+		;;
+		studio)
+		STUDIO=1
+		shift # past argument
+		;;
+		nvme)
+		BUILDONNVME=1
+		shift # past argument
+		;;		
+		*)    # unknown option
+		POSITIONAL+=("$1") # save it in an array for later
+		shift # past argument
+		;;
+	esac
+
+<< 'Commentaire'
+			-l|--lib)
+			LIBPATH="$2"
+			shift # past argument
+			shift # past value
+			;;
+			--default)
+			DEFAULT=YES
+			shift # past argument
+			;;
+Commentaire
+
+done
+
+# restore positional parameters
+set -- "${POSITIONAL[@]}"
+
+
+# checks the platform
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+	PLATFORM=linux
+	if [[ $WINDOWS -eq 1 ]]; then
+		WINCROSS=1
+	fi
+	WINDOWS=0
+	LINUX=1
+	# check for WSL 
+	WSL=`uname -r | grep Microsoft`
+	if [[ "$WSL" != "" ]]; then
+		PLATFORM=win64
+		WINDOWS=1
+		LINUX=0
+	elif [[ -e "/etc/apt/sources.list.d/raspi.list" ]]; then
+		# detects native rpi
+		# see https://raspberrytips.com/which-raspberry-pi-os-is-running/
+		LINUX=0
+		RPINATIVE=1
+		RPI3CROSS=0
+		RPI4CROSS=0
+		DEVPATH=/home/pi/Dev
+	else
+		if [[ $ALL -eq 1 ]]; then
+			ANDROID=1		
+			RPI3CROSS=1
+			RPI4CROSS=1
+			WINCROSS=1
+		else
+			if [[ $ANDROID -eq 1 ]] || [[ $RPI3CROSS -eq 1 ]] || [[ $RPI4CROSS -eq 1 ]]; then
+				LINUX=0
+			fi	
+		fi
+		if [[ $BUILDONNVME -eq 1 ]]; then
+			DEVPATH=~/Dev
+		else
+			DEVPATH=/media/DATA/Dev
+		fi
+		DEVCROSSPATH=/media/DATA/Dev
+		ANDROIDSTUDIO=/media/DATA/Dev/android-studio-2020/bin
+	fi
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+	PLATFORM=macosx
+elif [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "msys" ]]; then
+	PLATFORM=win64
+	WINDOWS=0
+	LINUX=1	
+fi
+
+if [[ "$PLATFORM" == "linux" ]]; then
+	U_HOME=$DEVPATH/Urho3D/Urho3D-Vulkan
+	F_HOME=$DEVPATH/Projets/FromBones-Vulkan
+
+elif [[ "$PLATFORM" == "win64" ]]; then
+	MINGW_DRIVE=/mnt/d
+	DRIVE="D:"
+	U_HOME=$MINGW_DRIVE/DEV/Urho3D/Urho3D-Vulkan
+	F_HOME=$MINGW_DRIVE/DEV/Projets/FromBones-Vulkan
+	U_HOME_WIN=$DRIVE/DEV/Urho3D/Urho3D-Vulkan
+fi
+		
+HOME=`pwd`
+
+if [[ $HOME != $U_HOME ]]; then
+	HOME=$F_HOME
+fi
+
+SCRIPT=./script
+
+
+SaveConfig()
+{
+	SAVED_OSVERSION=$OSVERSION
+	SAVED_TOOL=$TOOL
+	SAVED_VULKAN=$VULKAN
+	SAVED_U_GRAPHICS=$U_GRAPHICS
+	SAVED_EDITOR=$EDITOR
+	SAVED_EDITOR_OPT=$EDITOR_OPT
+	SAVED_LIBSHARED=$LIBSHARED
+}
+
+RestoreConfig()
+{
+	OSVERSION=$SAVED_OSVERSION
+	TOOL=$SAVED_TOOL
+	VULKAN=$SAVED_VULKAN
+	U_GRAPHICS=$SAVED_U_GRAPHICS
+	EDITOR=$SAVED_EDITOR
+	EDITOR_OPT=$SAVED_EDITOR_OPT
+	LIBSHARED=$SAVED_LIBSHARED
+}
+
+LaunchLinuxBuild()
+{
+	EXE=""
+
+	if [[ $LIBSHARED -eq 1 ]]; then
+	    LIBTYPE_FLAG="-DURHO3D_LIB_TYPE=SHARED"
+	    LIBTYPE="shared"
+	else
+		LIBTYPE_FLAG="-DURHO3D_LIB_TYPE=STATIC"
+		LIBTYPE="static"	    	
+	fi
+
+	if [[ $VULKAN -eq 1 ]]; then
+		OSVERSION=$OSVERSION-vulkan
+    fi
+    
+	if [[ $EDITOR -eq 1 ]]; then
+		OSVERSION=$OSVERSION-editorinside
+		EDITOR_OPT="-DURHO3D_ANGELSCRIPT=1"
+	else
+		EDITOR_OPT="-DURHO3D_ANGELSCRIPT=0"
+	fi
+	    	
+	if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
+		
+		DIR_DEBUG="build/$OSVERSION/$LIBTYPE/debug"
+		DIR_RELEASE="build/$OSVERSION/$LIBTYPE/release"
+			
+		if [[ $RELEASE -eq 0 ]]; then
+			if [[ $BUILD -eq 1 ]] || [[ $CONFIG -eq 1 ]]; then
+				
+				echo ""
+				echo "---------------------------------------------------------------------------------------------"
+				echo "... BUILDING LINUX URHO3D DEBUG $U_HOME/$DIR_DEBUG ..."
+				echo "---------------------------------------------------------------------------------------------"
+
+				cd $U_HOME
+				
+				if [[ $CONFIG -eq 1 ]]; then
+					$CMAKESCRIPT $DIR_DEBUG -DCMAKE_BUILD_TYPE=Debug $U_LINUX_OPT $U_GRAPHICS $EDITOR_OPT $U_OPT $LIBTYPE_FLAG
+				fi
+
+				if [[ $BUILD -eq 1 ]] || [[ $U_HOME != $HOME ]]; then
+					cd $DIR_DEBUG
+					make -j $NUMPROC
+				fi
+			fi
+		fi
+        
+        if [[ $RELEASE -eq 1 ]]; then
+		    echo ""
+		    echo "---------------------------------------------------------------------------------------------"
+		    echo "... BUILDING LINUX URHO3D RELEASE $U_HOME/$DIR_RELEASE ..."
+		    echo "---------------------------------------------------------------------------------------------"
+
+		    cd $U_HOME
+		    if [[ $CONFIG -eq 1 ]]; then
+			    $CMAKESCRIPT $DIR_RELEASE -DCMAKE_BUILD_TYPE=Release $U_LINUX_OPT $U_GRAPHICS $EDITOR_OPT $U_OPT $LIBTYPE_FLAG
+		    fi
+
+		    if [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $U_HOME != $HOME ]]; then
+			    cd $DIR_RELEASE
+			    make -j $NUMPROC
+		    fi
+		fi
+	fi
+
+	if [[ $TOOL -eq 1 ]] && [[ $INSTALL -eq 1 ]]; then
+		mkdir -p $U_HOME/tools
+		cp $U_HOME/$DIR_RELEASE/bin/tool/* $U_HOME/tools
+	fi
+
+	if [[ $VULKAN -eq 1 ]] && [[ $SHADERS -eq 1 ]]; then
+
+		echo ""
+		echo "---------------------------------------------------------------------------------------------"
+		echo "... COMPILING URHO3D VULKAN SHADERS to bin/CoreData/$DIR_SHADERS ..."
+		echo "---------------------------------------------------------------------------------------------"
+	
+		cd $U_HOME
+	
+		$SCRIPT/compile_shaders.sh $U_HOME/Source/$DIR_SHADERS $U_HOME/bin/CoreData/$DIR_SHADERS
+	fi
+
+	if [[ $U_HOME != $HOME ]]; then
+	
+		if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
+		
+			if [[ $RELEASE -eq 0 ]]; then
+				if [[ $BUILD -eq 1 ]] || [[ $CONFIG -eq 1 ]]; then
+				
+					echo ""
+					echo "---------------------------------------------------------------------------------------------"
+					echo "... BUILDING LINUX FROMBONES DEBUG $HOME/$DIR_DEBUG ..."
+					echo "---------------------------------------------------------------------------------------------"
+				
+					cd $HOME
+				
+					if [[ $CONFIG -eq 1 ]]; then
+						$CMAKESCRIPT $DIR_DEBUG -DURHO3D_HOME=$U_HOME/$DIR_DEBUG -DCMAKE_BUILD_TYPE=Debug $F_LINUX_OPT $U_GRAPHICS $EDITOR_OPT $LIBTYPE_FLAG
+					fi
+
+					if [[ $BUILD -eq 1 ]]; then
+						cd $DIR_DEBUG
+						make -j $NUMPROC
+					fi
+				fi
+			fi
+			
+			if [[ $RELEASE -eq 1 ]]; then
+			    echo ""
+			    echo "---------------------------------------------------------------------------------------------"
+			    echo "... BUILDING LINUX FROMBONES RELEASE $HOME/$DIR_RELEASE ..."
+			    echo "---------------------------------------------------------------------------------------------"
+
+			    cd $HOME
+		    
+			    if [[ $CONFIG -eq 1 ]]; then
+				    $CMAKESCRIPT $DIR_RELEASE -DURHO3D_HOME=$U_HOME/$DIR_RELEASE -DCMAKE_BUILD_TYPE=Release $F_LINUX_OPT $U_GRAPHICS $EDITOR_OPT $LIBTYPE_FLAG
+			    fi
+
+			    if [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
+				    cd $DIR_RELEASE
+				    make -j $NUMPROC
+			    fi
+
+			    if [[ $INSTALL -eq 1 ]]; then
+
+				    cd $HOME/$DIR_RELEASE
+
+	                if [[ $LIBSHARED -eq 1 ]]; then
+	                    LIBTYPETAG="-shared"
+	                else
+	                    LIBTYPETAG="-static"
+	                fi
+	                if [[ $EDITOR -eq 1 ]]; then
+	                    EDTAG="-ed"
+	                else
+	                    EDTAG="-noed"
+	                fi
+	                if [[ $VULKAN -eq 1 ]]; then
+	                    APITAG="Vk"
+	                    APILIB="vk"
+	                else
+	                	APITAG="Gl"
+	                	APILIB="gl"
+	                fi     
+
+	                cp bin/FromBones$EXE $HOME/exe/FromBones$VERSION$APITAG$EDTAG$LIBTYPETAG$EXE      
+
+	                if [[ $LIBSHARED -eq 1 ]]; then
+					    cp $U_HOME/$DIR_RELEASE/lib/libUrho3D.so $HOME/lib/$APILIB
+					    cp $HOME/$DIR_RELEASE/app/src/main/cpp/libFromBonesLib.so $HOME/lib/$APILIB
+					    cp $HOME/$DIR_RELEASE/app/src/main/cppeditor/libFromBonesEditor.so $HOME/lib/$APILIB
+				    fi				
+			    fi
+			fi				
+		fi
+	
+		if [[ $VULKAN -eq 1 ]] && [[ $SHADERS -eq 1 ]]; then
+
+			echo ""
+			echo "---------------------------------------------------------------------------------------------"
+			echo "... COMPILING FROMBONES VULKAN SHADERS to bin/Data/$DIR_SHADERS ..."
+			echo "---------------------------------------------------------------------------------------------"	
+		
+			cd $HOME					
+		
+			$SCRIPT/compile_shaders.sh $HOME/app/src/$DIR_SHADERS $HOME/bin/Data/$DIR_SHADERS
+		fi		
+
+		if [[ $TOOL -eq 1 ]]; then
+
+			BUILDTOOL=build/tool
+			SRCTOOL=../../source-tool
+
+			echo ""
+			echo "---------------------------------------------------------------------------------------------"
+			echo "... BUILDING FROMBONES TOOL $HOME/$BUILDTOOL ..."
+			echo "---------------------------------------------------------------------------------------------"
+
+			cd $HOME
+
+			if [[ $CONFIG -eq 1 ]]; then
+				mkdir -p $HOME/$BUILDTOOL
+				cd $HOME/$BUILDTOOL
+				$CMAKESCRIPT $CROSSPREFIX -DURHO3D_HOME=$U_HOME/$DIR_RELEASE -DCMAKE_BUILD_TYPE=Release $SRCTOOL
+			fi
+
+			if [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
+				cd $HOME/$BUILDTOOL
+				make -j $NUMPROC
+			fi
+
+			if [[ $INSTALL -eq 1 ]]; then
+				mkdir -p $HOME/bin-tool
+				cd $HOME/$BUILDTOOL
+				cp bin/tool/* $HOME/bin-tool
+			fi
+		fi
+		
+		if [[ $DEPLOY -eq 1 ]]; then
+		    # prerequis : avoir installer la keygen password sur le remote
+			# cf https://www.tecmint.com/ssh-passwordless-login-using-ssh-keygen-in-5-easy-steps/
+			# => ssh-keygen -t rsa (sans passphrase pas besoin car utilise une image aleatoire)
+			# => ssh-copy-id pi@19.168.1.191 (utiliser le password raspdorian)
+			# et c'est bon plus besoin de fournir le password
+            echo ""		
+            echo "... DEPLOYING TO DORED HOST ..."		
+            rsync -avk $HOME/$DIR_RELEASE/bin dorian@192.168.1.156:~/Dev/FromBones_2023
+        fi				
+	fi
+}
+
+if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL -eq 1 ]] || [[ $SHADERS -eq 1 ]]; then
+
+	echo "... run on a $PLATFORM platform ..."
+	
+	U_OPT="-DURHO3D_TOOLS=$TOOL -DURHO3D_VULKAN_VALIDATION=$VALIDATIONLAYERS"
+
+	if [[ $LINUX -eq 1 ]]; then
+
+		OS=`cat /etc/os-release | grep ^NAME= | cut -d '"' -f 2`
+		VERSION=`cat /etc/os-release | grep ^VERSION_ID= | cut -d '"' -f 2`
+		OSVERSION=$OS$VERSION
+	
+		CMAKESCRIPT=$SCRIPT/cmake_codeblocks.sh
+
+		if [[ $ALL -eq 1 ]]; then
+
+			SaveConfig
+
+			# GL Static
+			VULKAN=0
+			U_GRAPHICS="$U_GRAPHICS_OPENGL"
+			LIBSHARED=0
+			OSVERSION=$SAVED_OSVERSION
+			LaunchLinuxBuild
+
+			# GL Shared
+			LIBSHARED=1
+			OSVERSION=$SAVED_OSVERSION			
+			LaunchLinuxBuild
+
+			# Vk Static
+			VULKAN=1
+			U_GRAPHICS="$U_GRAPHICS_VULKAN"
+			LIBSHARED=0
+			OSVERSION=$SAVED_OSVERSION			
+			LaunchLinuxBuild
+
+			# Vk Shared
+			LIBSHARED=1
+			OSVERSION=$SAVED_OSVERSION
+			LaunchLinuxBuild
+
+			RestoreConfig
+		else
+			# build avec la configuration définie
+			LaunchLinuxBuild
+		fi
+	fi
+
+	if [[ $RPINATIVE -eq 1 ]] && [[ $VULKAN -eq 0 ]]; then
+		
+		OS=`cat /etc/os-release | grep ^NAME= | cut -d '"' -f 2`
+		VERSION=`cat /etc/os-release | grep ^VERSION_ID= | cut -d '"' -f 2`
+		OSVERSION=$OS$VERSION
+
+		DIR_RELEASE="build/$OSVERSION/release"
+				
+		echo ""
+		echo "---------------------------------------------------------------------------------------------"
+		echo "... BUILDING RPI URHO3D RELEASE $U_HOME/$DIR_RELEASE ..."
+		echo "---------------------------------------------------------------------------------------------"
+
+		cd $U_HOME
+		if [[ $CONFIG -eq 1 ]]; then
+			$SCRIPT/cmake_codeblocks.sh $DIR_RELEASE -DCMAKE_BUILD_TYPE=Release $U_LINUX_OPT $U_GRAPHICS $EDITOR_OPT $U_OPT 
+		fi
+
+		if [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
+			cd $DIR_RELEASE
+			make
+		fi
+		
+		if [[ $U_HOME != $HOME ]]; then
+				
+			echo ""
+			echo "---------------------------------------------------------------------------------------------"
+			echo "... BUILDING RPI FROMBONES RELEASE $HOME/$DIR_RELEASE ..."
+			echo "---------------------------------------------------------------------------------------------"
+
+			cd $HOME
+			
+			if [[ $CONFIG -eq 1 ]]; then
+				$SCRIPT/cmake_codeblocks.sh $DIR_RELEASE -DURHO3D_HOME=$U_HOME/$DIR_RELEASE -DCMAKE_BUILD_TYPE=Release $F_LINUX_OPT $U_GRAPHICS $EDITOR_OPT
+			fi
+
+			if [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
+				cd $DIR_RELEASE
+				make
+			fi
+		fi		
+	fi
+	
+	if [[ $RPI3CROSS -eq 1 ]] && [[ $VULKAN -eq 0 ]]; then
+
+		OSVERSION=rpi3
+
+		if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
+			
+			DIR_RELEASE="build/$OSVERSION/release"
+			
+			RPICROSSTOOLS=$DEVCROSSPATH/Cross/RPI/tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64/bin
+			RPIPREFIX=arm-linux-gnueabihf
+			RPIROOTSYS=$DEVCROSSPATH/Cross/RPI/sysroot
+			
+			# New Sysroot for Raspbian bulleye (11)
+			#RPICROSSTOOLS=$DEVCROSSPATH/Cross/RPI/tools-11/arm-bcm2708/armv8-rpi3-linux-gnueabihf/bin/
+			#RPIPREFIX=armv8-rpi3-linux-gnueabihf
+			#RPIROOTSYS=$DEVCROSSPATH/Cross/RPI/sysroot-11
+			
+			RPIABI=armeabi-v7a
+			
+			export PATH=$RPICROSSTOOLS:$PATH
+		
+			echo ""
+			echo "---------------------------------------------------------------------------------------------"
+			echo "... BUILDING RPI3 CROSS URHO3D RELEASE $U_HOME/$DIR_RELEASE ..."
+			echo "---------------------------------------------------------------------------------------------"
+
+			cd $U_HOME
+			if [[ $CONFIG -eq 1 ]]; then
+				$SCRIPT/cmake_generic.sh $DIR_RELEASE -DRPI=1 -DRPI_PREFIX=$RPICROSSTOOLS/$RPIPREFIX -DRPI_SYSROOT=$RPIROOTSYS -DRPI_ABI=$RPIABI -DCMAKE_BUILD_TYPE=Release $U_LINUX_OPT $U_GRAPHICS $EDITOR_OPT $U_OPT
+			fi
+
+			if [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
+				cd $DIR_RELEASE
+				make -j $NUMPROC
+			fi
+		
+			if [[ $U_HOME != $HOME ]]; then
+				
+				echo ""
+				echo "---------------------------------------------------------------------------------------------"
+				echo "... BUILDING RPI3 CROSS FROMBONES RELEASE $HOME/$DIR_RELEASE ..."
+				echo "---------------------------------------------------------------------------------------------"
+
+				cd $HOME
+			
+				if [[ $CONFIG -eq 1 ]]; then
+					$SCRIPT/cmake_generic.sh $DIR_RELEASE -DURHO3D_HOME=$U_HOME/$DIR_RELEASE -DRPI=1 -DRPI_PREFIX=$RPICROSSTOOLS/$RPIPREFIX -DRPI_SYSROOT=$RPIROOTSYS -DRPI_ABI=$RPIABI -DCMAKE_BUILD_TYPE=Release $F_LINUX_OPT $U_GRAPHICS $EDITOR_OPT
+				fi
+
+				if [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
+					cd $DIR_RELEASE
+					make -j $NUMPROC
+				fi
+				
+				if [[ $INSTALL -eq 1 ]]; then
+				    # prerequis : avoir installer la keygen password sur le remote
+				    # cf https://www.tecmint.com/ssh-passwordless-login-using-ssh-keygen-in-5-easy-steps/
+				    # => ssh-keygen -t rsa (sans passphrase pas besoin car utilise une image aleatoire)
+				    # => ssh-copy-id pi@19.168.1.191 (utiliser le password raspdorian)
+				    # et c'est bon plus besoin de fournir le password
+				    echo ""		
+				    echo "... DEPLOYING TO RPI3 HOST ..."		
+                    rsync -avk $HOME/$DIR_RELEASE/bin pi@192.168.1.102:~/Dev/Projets/FromBones_2022_RPI3 
+				fi				
+			fi
+		fi
+	fi
+
+	if [[ $RPI4CROSS -eq 1 ]] && [[ $VULKAN -eq 0 ]]; then
+
+		OSVERSION=rpi4	
+		#if [[ $VULKAN -eq 1 ]]; then
+		#	OSVERSION=$OSVERSION-vulkan
+		#fi
+
+		if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
+			
+			DIR_RELEASE="build/$OSVERSION/release"
+			
+			# if need make a RPI4 sysroot see https://medium.com/@stonepreston/how-to-cross-compile-a-cmake-c-application-for-the-raspberry-pi-4-on-ubuntu-20-04-bac6735d36df
+
+			RPICROSSTOOLS=$DEVCROSSPATH/Cross/RPI4/tools/arm-bcm2711/armv8-rpi4-linux-gnueabihf/bin/
+			RPIPREFIX=armv8-rpi4-linux-gnueabihf
+			RPIROOTSYS=$DEVCROSSPATH/Cross/RPI4/sysroot
+			RPIABI=armv8
+			
+			export PATH=$RPICROSSTOOLS:$PATH
+			
+			echo ""
+			echo "---------------------------------------------------------------------------------------------"
+			echo "... BUILDING RPI4 CROSS URHO3D RELEASE $U_HOME/$DIR_RELEASE ..."
+			echo "---------------------------------------------------------------------------------------------"
+
+			cd $U_HOME
+			if [[ $CONFIG -eq 1 ]]; then
+				$SCRIPT/cmake_generic.sh $DIR_RELEASE -DRPI=1 -DRPI_PREFIX=$RPICROSSTOOLS/$RPIPREFIX -DRPI_SYSROOT=$RPIROOTSYS -DRPI_ABI=$RPIABI -DCMAKE_BUILD_TYPE=Release $U_LINUX_OPT $U_GRAPHICS $EDITOR_OPT $U_OPT
+			fi
+
+			if [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
+				cd $DIR_RELEASE
+				make -j $NUMPROC
+			fi
+		
+			if [[ $U_HOME != $HOME ]]; then
+				
+				echo ""
+				echo "---------------------------------------------------------------------------------------------"
+				echo "... BUILDING RPI4 CROSS FROMBONES RELEASE $HOME/$DIR_RELEASE ..."
+				echo "---------------------------------------------------------------------------------------------"
+
+				cd $HOME
+			
+				if [[ $CONFIG -eq 1 ]]; then
+					$SCRIPT/cmake_generic.sh $DIR_RELEASE -DURHO3D_HOME=$U_HOME/$DIR_RELEASE -DRPI=1 -DRPI_PREFIX=$RPICROSSTOOLS/$RPIPREFIX -DRPI_SYSROOT=$RPIROOTSYS -DRPI_ABI=$RPIABI -DCMAKE_BUILD_TYPE=Release $F_LINUX_OPT $U_GRAPHICS $EDITOR_OPT
+				fi
+
+				if [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
+					cd $DIR_RELEASE
+					make -j $NUMPROC
+				fi
+				
+				if [[ $INSTALL -eq 1 ]]; then
+				    # prerequis : avoir installer la keygen password sur le remote
+				    # cf https://www.tecmint.com/ssh-passwordless-login-using-ssh-keygen-in-5-easy-steps/
+				    # => ssh-keygen -t rsa (sans passphrase pas besoin car utilise une image aleatoire)
+				    # => ssh-copy-id pi@19.168.1.191 (utiliser le password raspdorian)
+				    # et c'est bon plus besoin de fournir le password
+				    echo ""		
+				    echo "... DEPLOYING TO DORIAN's RPI4 HOST ..."		
+                    # scp -r $HOME/$DIR_RELEASE/bin pi@192.168.1.191:~/Dev/Projets/FromBones_2022_RPI4
+                    rsync -avk $HOME/$DIR_RELEASE/bin pi@192.168.1.191:~/Dev/Projets/FromBones_2022_RPI4 
+				fi
+			fi
+		fi
+	fi
+	
+	if [[ $ANDROID -eq 1 ]]; then
+
+		OSVERSION=android
+
+		#export ANDROID_SDK=$DEVCROSSPATH/android-sdk
+		#export ANDROID_NDK=$ANDROID_SDK/ndk-r16b
+		# TODO check the path if the android_sdk is already included
+		#export PATH=$ANDROID_NDK/prebuilt/linux-x86_64/bin:$ANDROID_SDK/tools:$PATH
+
+		export URHO3D_HOME="$U_HOME"
+
+		cd $U_HOME
+
+		if [[ "$CLEANENGINE" == "clean" ]]; then
+			echo ""
+			echo "---------------------------------------------------------------------------------------------"
+			echo "... CLEANING URHO3D MAVEN LOCAL REPOSITORY ..."
+			echo "---------------------------------------------------------------------------------------------"
+			rm -Rf ~/.m2/repository/io/urho3d
+		fi
+		
+		if [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then	
+			echo ""
+			echo "---------------------------------------------------------------------------------------------"
+			echo "... BUILDING ANDROID URHO3D $U_HOME ..."		
+			echo "---------------------------------------------------------------------------------------------"
+			echo "... EXECUTING GRADLE TASKS ..."	
+			echo "---------------------------------------------------------------------------------------------"
+		
+			if [[ $BUILD -eq 1 ]]; then
+				if [[ $SAMPLES -eq 1 ]]; then
+					ANDROIDBUILD=compileSamplesDebugSources
+				elif [[ $VULKAN -eq 1 ]]; then
+					if [[ $RELEASE -eq 1 ]]; then
+						ANDROIDBUILD="compileVkReleaseSources assembleVkRelease"
+						#ANDROIDBUILD="assembleVkRelease"
+					else
+    					ANDROIDBUILD="compileVkDebugSources compileVkReleaseSources assembleVkDebug assembleVkRelease"
+						#ANDROIDBUILD="assembleVkDebug assembleVkRelease"
+					fi
+				else
+					if [[ $RELEASE -eq 1 ]]; then			
+						ANDROIDBUILD="compileGlReleaseSources assembleGlRelease"
+						#ANDROIDBUILD="assembleGlRelease"
+					else
+						ANDROIDBUILD="compileGlDebugSources compileGlReleaseSources assembleGlDebug assembleGlRelease"
+						#ANDROIDBUILD="assembleGlDebug assembleGlRelease"
+					fi
+				fi			
+			fi
+		
+			if [[ $SAMPLES -eq 1 ]]; then
+				./gradlew $CLEANENGINE $ANDROIDBUILD publishUrhoSamplesDebugPublicationToMavenLocal installSamplesDebug
+				exit
+			elif [[ $VULKAN -eq 1 ]]; then
+				if [[ $RELEASE -eq 1 ]]; then
+					./gradlew $INFO $CLEANENGINE $ANDROIDBUILD publishUrhoVkReleasePublicationToMavenLocal
+				else
+					./gradlew $INFO $CLEANENGINE $ANDROIDBUILD publishUrhoVkDebugPublicationToMavenLocal publishUrhoVkReleasePublicationToMavenLocal
+				fi
+
+			else
+				if [[ $RELEASE -eq 1 ]]; then
+					./gradlew $INFO $CLEANENGINE $ANDROIDBUILD publishUrhoGlReleasePublicationToMavenLocal
+				else
+					./gradlew $INFO $CLEANENGINE $ANDROIDBUILD publishUrhoGlDebugPublicationToMavenLocal publishUrhoGlReleasePublicationToMavenLocal
+				fi				
+					
+			fi
+		fi
+
+		if [[ $U_HOME != $HOME ]]; then
+
+			cd $HOME
+			export URHO3D_HOME="$U_HOME"
+
+		    if [[ "$CLEANBUILD" == "clean" ]]; then
+			    echo ""
+			    echo "---------------------------------------------------------------------------------------------"
+			    echo "... CLEANING FROMBONES ANDROID BUILD ..."
+			    echo "---------------------------------------------------------------------------------------------"
+			    rm -Rf ./app/.cxx
+		    fi
+		
+			if [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
+				if [[ $BUILD -eq 1 ]]; then
+					if [[ $VULKAN -eq 1 ]]; then
+						if [[ $RELEASE -eq 1 ]]; then
+							ANDROIDBUILD="compileVkReleaseSources buildVkRelease assembleVkRelease"
+							#ANDROIDBUILD="assembleVkRelease"
+						else						
+							ANDROIDBUILD="compileVkDebugSources buildVkDebug assembleVkDebug"
+							#ANDROIDBUILD="assembleVkDebug"
+						fi
+					else
+						if [[ $RELEASE -eq 1 ]]; then						
+							ANDROIDBUILD="compileGlReleaseSources buildGlRelease assembleGlRelease"
+							#ANDROIDBUILD="assembleGlRelease"
+						else
+							ANDROIDBUILD="compileGlDebugSources buildGlDebug assembleGlDebug"
+							#ANDROIDBUILD="assembleGlDebug"
+						fi
+					fi						
+				fi						
+				if [[ $INSTALL -eq 1 ]]; then
+					if [[ $VULKAN -eq 1 ]]; then
+						if [[ $RELEASE -eq 1 ]]; then
+							ANDROIDINSTALL=installVkRelease
+						else
+							ANDROIDINSTALL=installVkDebug
+						fi
+					else
+						if [[ $RELEASE -eq 1 ]]; then
+							ANDROIDINSTALL=installGlRelease
+						else
+							ANDROIDINSTALL=installGlDebug
+						fi								
+					fi			
+				fi
+				echo ""
+				echo "---------------------------------------------------------------------------------------------"
+				echo "... BUILDING ANDROID FROMBONES $HOME ..."		
+				echo "---------------------------------------------------------------------------------------------"
+				echo "... EXECUTING GRADLE TASKS ..."
+				echo "---------------------------------------------------------------------------------------------"		
+				./gradlew $INFO $CLEANBUILD $ANDROIDBUILD $ANDROIDINSTALL
+			fi
+		fi
+	fi
+
+	if [[ $WINDOWS -eq 1 ]]; then
+
+		EXE=".exe"
+
+		if [[ $LIBSHARED -eq 1 ]]; then
+		    LIBTYPE_FLAG="-DURHO3D_LIB_TYPE=SHARED"
+		    LIBTYPE="shared"
+		else
+			LIBTYPE_FLAG="-DURHO3D_LIB_TYPE=STATIC"
+			LIBTYPE="static"	    	
+		fi
+
+		CMAKE=/mnt/c/DEV/cmake-3.13.0-rc1-win64-x64/bin/cmake.exe
+
+		OSVERSION=win64
+		if [[ $VULKAN -eq 1 ]]; then
+			OSVERSION=win64-vulkan
+		fi
+		if [[ $EDITOR -eq 1 ]]; then
+			OSVERSION=$OSVERSION-editorinside			
+		fi
+		
+		DIR_DEBUG="build/$OSVERSION/$LIBTYPE/debug"
+		DIR_RELEASE="build/$OSVERSION/$LIBTYPE/release"
+		
+		cd $U_HOME
+		
+		if [[ $RELEASE -eq 0 ]]; then			
+			if [[ $BUILD -eq 1 ]] || [[ $CONFIG -eq 1 ]]; then
+			
+				echo ""
+				echo "-------------------------------------------------------------------------------"
+				echo "... BUILDING URHO3D DEBUG $U_HOME/$DIR_DEBUG ..."
+				echo "-------------------------------------------------------------------------------"
+
+				if [[ $CONFIG -eq 1 ]]; then
+					$CMAKE -S . -B $DIR_DEBUG -G "CodeBlocks - MinGW Makefiles" -DCMAKE_BUILD_TYPE=Debug $U_LINUX_OPT $U_GRAPHICS $EDITOR_OPT $U_OPT $LIBTYPE_FLAG
+				fi
+
+				if [[ $BUILD -eq 1 ]]; then
+					$CMAKE --build $DIR_DEBUG -j $NUMPROC
+					#--target Urho3D
+				fi
+			fi
+		fi
+		
+		echo ""
+		echo "-------------------------------------------------------------------------------"
+		echo "... BUILDING URHO3D RELEASE $U_HOME/$DIR_RELEASE ..."
+		echo "-------------------------------------------------------------------------------"
+
+		if [[ $CONFIG -eq 1 ]]; then
+			$CMAKE -S . -B $DIR_RELEASE -G "CodeBlocks - MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release $U_LINUX_OPT $U_GRAPHICS $EDITOR_OPT $U_OPT $LIBTYPE_FLAG
+		fi
+
+		if [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
+			$CMAKE --build $DIR_RELEASE -j $NUMPROC
+		fi
+		
+		if [[ $TOOL -eq 1 ]] && [[ $INSTALL -eq 1 ]]; then
+			cd $U_HOME
+			mkdir -p tools
+			cp $DIR_RELEASE/bin/tool/*.exe tools
+		fi
+		
+		if [[ $VULKAN -eq 1 ]] && [[ $SHADERS -eq 1 ]]; then
+	
+			echo ""
+			echo "---------------------------------------------------------------------------------------------"
+			echo "... COMPILING URHO3D VULKAN SHADERS to bin/CoreData/$DIR_SHADERS ..."
+			echo "---------------------------------------------------------------------------------------------"
+		
+			cd $U_HOME
+		
+			$SCRIPT/compile_shaders.sh Source/$DIR_SHADERS $U_HOME/bin/CoreData/$DIR_SHADERS
+		fi
+		
+		if [[ $U_HOME != $HOME ]]; then
+		
+			cd $HOME
+			
+			if [[ $RELEASE -eq 0 ]]; then			
+				if [[ $BUILD -eq 1 ]] || [[ $CONFIG -eq 1 ]]; then
+					echo ""
+					echo "---------------------------------------------------------------------------------------------"
+					echo "... BUILDING FROMBONES DEBUG $HOME/$DIR_DEBUG ..."
+					echo "---------------------------------------------------------------------------------------------"
+
+					if [[ $CONFIG -eq 1 ]]; then
+						$CMAKE -S . -B $DIR_DEBUG -G "CodeBlocks - MinGW Makefiles" -DCMAKE_BUILD_TYPE=Debug -DURHO3D_HOME=$U_HOME_WIN/$DIR_DEBUG $F_LINUX_OPT $U_GRAPHICS $EDITOR_OPT $LIBTYPE_FLAG
+					fi
+
+					if [[ $BUILD -eq 1 ]]; then
+						$CMAKE --build $DIR_DEBUG -j $NUMPROC
+					fi
+				fi
+			fi
+			
+			echo ""
+			echo "---------------------------------------------------------------------------------------------"
+			echo "... BUILDING FROMBONES RELEASE $HOME/$DIR_RELEASE ..."
+			echo "---------------------------------------------------------------------------------------------"
+
+			if [[ $CONFIG -eq 1 ]]; then
+				$CMAKE -S . -B $DIR_RELEASE -G "CodeBlocks - MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DURHO3D_HOME=$U_HOME_WIN/$DIR_RELEASE $F_LINUX_OPT $U_GRAPHICS $EDITOR_OPT $LIBTYPE_FLAG
+			fi
+
+			if [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
+				$CMAKE --build $DIR_RELEASE -j $NUMPROC
+			fi
+
+			if [[ $INSTALL -eq 1 ]]; then
+
+				cd $HOME/$DIR_RELEASE
+
+	            if [[ $LIBSHARED -eq 1 ]]; then
+	                LIBTYPETAG="-shared"
+	            else
+	                LIBTYPETAG="-static"
+	            fi
+	            if [[ $EDITOR -eq 1 ]]; then
+	                EDTAG="-ed"
+	            else
+	                EDTAG="-noed"
+	            fi
+	            if [[ $VULKAN -eq 1 ]]; then
+	                APITAG="Vk"
+	                APILIB="vk"
+	            else
+	            	APITAG="Gl"
+	            	APILIB="gl"
+	            fi     
+
+	            cp bin/FromBones$EXE $HOME/exe/FromBones$VERSION$APITAG$EDTAG$LIBTYPETAG$EXE      
+
+	            if [[ $LIBSHARED -eq 1 ]]; then
+					cp $U_HOME/$DIR_RELEASE/lib/libUrho3D.so $HOME/lib/$APILIB
+					cp $HOME/$DIR_RELEASE/app/src/main/cpp/libFromBonesLib.so $HOME/lib/$APILIB
+					cp $HOME/$DIR_RELEASE/app/src/main/cppeditor/libFromBonesEditor.so $HOME/lib/$APILIB
+				fi				
+			fi	
+
+			if [[ $VULKAN -eq 1 ]] && [[ $SHADERS -eq 1 ]]; then
+
+				echo ""
+				echo "---------------------------------------------------------------------------------------------"
+				echo "... COMPILING FROMBONES VULKAN SHADERS to bin/Data/$DIR_SHADERS ..."
+				echo "---------------------------------------------------------------------------------------------"	
+			
+				cd $HOME				
+			
+				$SCRIPT/compile_shaders.sh app/src/$DIR_SHADERS $HOME/bin/Data/$DIR_SHADERS
+			fi			
+		fi
+
+		sleep 5
+	fi
+
+	if [[ $WINCROSS -eq 1 ]]; then
+
+		# use Mingw compiler
+		OSVERSION="Win64-Mingw"
+		CMAKESCRIPT=$SCRIPT/cmake_mingw.sh
+		CROSSPREFIX="-D MINGW_PREFIX=/usr/bin/i686-w64-mingw32"
+		LIBTYPE="static"
+		LIBTYPETAG="-static"
+		LIBTYPE_FLAG="-DURHO3D_LIB_TYPE=STATIC"
+		EXE=".exe"
+
+		if [[ $EDITOR -eq 1 ]]; then
+			OSVERSION=$OSVERSION-editorinside
+			EDITOR_OPT="-DURHO3D_ANGELSCRIPT=1"
+		fi
+		
+		if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
+			
+			DIR_DEBUG="build/$OSVERSION/$LIBTYPE/debug"
+			DIR_RELEASE="build/$OSVERSION/$LIBTYPE/release"
+
+			echo ""
+			echo "---------------------------------------------------------------------------------------------"
+			echo "... BUILDING MINGW URHO3D RELEASE $U_HOME/$DIR_RELEASE ..."
+			echo "---------------------------------------------------------------------------------------------"
+
+			cd $U_HOME
+			if [[ $CONFIG -eq 1 ]]; then
+				$CMAKESCRIPT $DIR_RELEASE $CROSSPREFIX -DCMAKE_BUILD_TYPE=Release $U_LINUX_OPT $U_GRAPHICS $EDITOR_OPT $U_OPT $LIBTYPE_FLAG
+			fi
+
+			if [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $U_HOME != $HOME ]]; then
+				cd $DIR_RELEASE
+				make -j $NUMPROC
+			fi
+		fi
+	
+		if [[ $TOOL -eq 1 ]] && [[ $INSTALL -eq 1 ]]; then
+			mkdir -p $U_HOME/tools
+			cp $U_HOME/$DIR_RELEASE/bin/tool/* $U_HOME/tools
+		fi
+		
+		if [[ $U_HOME != $HOME ]]; then
+		
+			if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
+							
+				echo ""
+				echo "---------------------------------------------------------------------------------------------"
+				echo "... BUILDING MINGW FROMBONES RELEASE $HOME/$DIR_RELEASE ..."
+				echo "---------------------------------------------------------------------------------------------"
+
+				cd $HOME
+			
+				if [[ $CONFIG -eq 1 ]]; then
+					$CMAKESCRIPT $DIR_RELEASE $CROSSPREFIX -DURHO3D_HOME=$U_HOME/$DIR_RELEASE -DCMAKE_BUILD_TYPE=Release $F_LINUX_OPT $U_GRAPHICS $EDITOR_OPT $LIBTYPE_FLAG
+				fi
+
+				if [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
+					cd $DIR_RELEASE
+					make -j $NUMPROC
+				fi
+
+				if [[ $INSTALL -eq 1 ]]; then
+
+					cd $HOME/$DIR_RELEASE
+
+	                if [[ $EDITOR -eq 1 ]]; then
+	                    EDTAG="-ed"
+	                else
+	                	EDTAG="-noed"
+	                fi
+	                if [[ $VULKAN -eq 1 ]]; then
+	                    APITAG="Vk"
+	                    APILIB="vk"
+	                else
+	                	APITAG="Gl"
+	                	APILIB="gl"
+	                fi     
+
+	                cp bin/FromBones$EXE $HOME/exe/FromBones$VERSION$APITAG$EDTAG$LIBTYPETAG$EXE      			
+				fi						
+			fi	
+
+			if [[ $TOOL -eq 1 ]]; then
+
+				BUILDTOOL=build/tool
+				SRCTOOL=../../source-tool
+
+				echo ""
+				echo "---------------------------------------------------------------------------------------------"
+				echo "... BUILDING MINGW FROMBONES TOOL $HOME/$BUILDTOOL ..."
+				echo "---------------------------------------------------------------------------------------------"
+
+				cd $HOME
+
+				if [[ $CONFIG -eq 1 ]]; then
+					mkdir -p $HOME/$BUILDTOOL
+					cd $HOME/$BUILDTOOL
+					$CMAKESCRIPT $CROSSPREFIX -DURHO3D_HOME=$U_HOME/$DIR_RELEASE -DCMAKE_BUILD_TYPE=Release $SRCTOOL $LIBTYPE_FLAG
+				fi
+
+				if [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
+					cd $HOME/$BUILDTOOL
+					make -j $NUMPROC
+				fi
+
+				if [[ $INSTALL -eq 1 ]]; then
+					mkdir -p $HOME/bin-tool
+					cd $HOME/$BUILDTOOL
+					cp bin/tool/* $HOME/bin-tool
+				fi
+			fi			
+		fi
+	fi	
+fi
+
+if [[ $STUDIO -eq 1 ]]; then
+
+	export URHO3D_HOME="$U_HOME"
+	export URHO3D_LIB_TYPE=STATIC
+
+	echo "... LAUNCHING ANDROID STUDIO ..."
+	echo "... SETTING ${URHO3D_LIB_TYPE} BUILD ENV ..."
+
+	cd $ANDROIDSTUDIO
+	./studio.sh
+fi
+
+if [[ "$PLATFORM" == "linux" ]]  && [[ $LOGCAT -eq 1 ]]; then
+	cd $HOME
+	echo "... ADB LOGCAT ..."
+	if [[ $CLEANLOG -eq 1 ]]; then
+		echo "... Clean  ..."
+		adb logcat -c
+	fi
+	echo "... Start Capture Press Ctrl+c to finish."
+	adb logcat -s "SDL" -s "Urho3D" > AndroidLog.txt
+	echo "... Log Captured in $HOME/AndroidLog.txt !"
+fi

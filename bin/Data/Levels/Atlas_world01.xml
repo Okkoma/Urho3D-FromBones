@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TerrainAtlas>
+	<TileSheet name="Levels/tileset01.xml" />
+	<TileSheet name="Levels/tilesetwater.xml" />
+</TerrainAtlas>

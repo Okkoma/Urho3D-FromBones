@@ -1,0 +1,11 @@
+**/build
+**/.android
+**/.idea
+**/.lldb
+**/.cxx
+**/.cache
+**/.gradle
+/bin-tool/Output
+/exe/*.log
+/lib/*/*.so
+/Local

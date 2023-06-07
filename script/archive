@@ -1,0 +1,190 @@
+#!/bin/bash
+
+# Archive script for FromBones Project by C.VILLE 2022
+# use Script Zipper
+#
+# example : "archive all World2DVisibilityPatch" => archive Urho3D FromBones and Resource with Comment World2DVisibilityPatch and copy to DiskStation
+#
+
+DISKSTATIONPATH="Users/chris/Dev/Frombones"
+URHO=Urho3D-Vulkan
+FB=FromBones-Vulkan
+RES=FromBones-Ressources
+U_HOME=Urho3D/$URHO
+
+F_HOME=Projets/$FB
+R_HOME=Projets/$RES
+
+# checks the platform
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+	PLATFORM=linux
+	# check for WSL
+	WSL=`uname -r | grep Microsoft`
+	if [[ "$WSL" != "" ]]; then
+		PLATFORM=win64
+	fi
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+	PLATFORM=macosx
+elif [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "msys" ]]; then
+	PLATFORM=win64
+fi
+
+# Be sure that the DiskStation is mounted
+echo ..
+echo .. Mounting DiskStation ..
+echo ..
+
+if [[ "$PLATFORM" == "linux" ]]; then
+	NVME=~/Dev
+	DEVPATH=/media/DATA/Dev
+	ZIPPER=zipper
+	
+#	DISKSTATION=afp://admin@DiskStation.local/Disque/
+#	gio mount $DISKSTATION
+#	DISKSTATION=`gio info $DISKSTATION -a path | grep host | cut -d ' ' -f 3`
+	
+	DISKSTATION=/media/DiskStation
+	sudo mount 192.168.1.175:/volume1/Disque /media/DiskStation
+
+elif [[ "$PLATFORM" == "win64" ]]; then
+	DEVPATH=/mnt/d/DEV
+	ZIPPER=$DEVPATH/$U_HOME/script/zipper
+	
+	DISKSTATION=/mnt/DiskStation
+	sudo mkdir $DISKSTATION
+	sudo mount -t drvfs '\\DISKSTATION\Disque' $DISKSTATION
+fi
+
+DISKSTATION=$DISKSTATION/$DISKSTATIONPATH
+	
+DATE=`date +"%Y%m%d"`
+
+echo "..."
+echo "... Archive from $PLATFORM"
+echo "..."
+
+cd "$DISKSTATION"
+echo ".... DiskStation Folder : `pwd`"
+
+# Parse Arguments
+COMMENTARIES=()
+while [[ $# -gt 0 ]]; do
+	key="$1"
+
+	case $key in
+		all|All|ALL)
+		ALL=1
+		shift
+		;;
+		ur|urho|URHO|Urho3D)
+		URHO3D=1
+		shift # past argument
+		;;		
+		fb|frombones|FromBones)
+		FROMBONES=1
+		shift # past argument
+		;;		
+		res|ressources|Resources)
+		RESSOURCES=1
+		shift # past argument
+		;;
+		nvme)
+		COPYNVME=1
+		shift
+		;;
+		*)    # unknown option => commentary
+		COMMENTARIES+=("$1") # save it in an array for later
+		shift # past argument
+		;;		
+	esac
+done
+
+# Get the first commentary only
+if [[ ${#COMMENTARIES[@]} -gt 0 ]]; then
+	COMMENT="${COMMENTARIES[0]}"
+fi
+
+if [[ $ALL -eq 1 ]] || [[ $URHO3D -eq 1 ]] || [[ $FROMBONES -eq 1 ]] || [[ $RESSOURCES -eq 1 ]]; then
+	if [[ $ALL -eq 1 ]] || [[ $URHO3D -eq 1 ]]; then
+		FOLDER=$URHO
+		if [[ "$COMMENT" != "" ]]; then
+			NAME="../$FOLDER-$DATE-BCv2-$COMMENT.zip"
+		else
+			NAME="../$FOLDER-$DATE-BCv2.zip"
+		fi
+		if [[ $COPYNVME -eq 1 ]]; then
+			echo ..
+			echo ".. Copying Engine $NVME/$U_HOME to $DEVPATH/$U_HOME"
+			echo ..
+			rm -Rf $DEVPATH/$U_HOME/Source
+			cp -Rf $NVME/$U_HOME/Source $DEVPATH/$U_HOME/Source
+		fi
+		echo ..
+		echo ".. Archiving Engine $FOLDER to $NAME and copy on DiskStation"
+		echo ..
+		cd "$DEVPATH/$U_HOME"
+		$ZIPPER . "$COMMENT"
+		
+    	cp "$NAME" "$DISKSTATION/"
+    	
+		echo ..
+	fi
+
+	if [[ $ALL -eq 1 ]] || [[ $FROMBONES -eq 1 ]]; then
+		FOLDER=$FB
+		if [[ "$COMMENT" != "" ]]; then
+			NAME="../$FOLDER-$DATE-BCv2-$COMMENT.zip"
+		else
+			NAME="../$FOLDER-$DATE-BCv2.zip"
+		fi
+		if [[ $COPYNVME -eq 1 ]]; then
+			echo ..
+			echo ".. Copying FromBones $NVME/$F_HOME to $DEVPATH/$F_HOME"
+			echo ..
+			rm -Rf $DEVPATH/$F_HOME/app/src/main/cpp
+			rm -Rf $DEVPATH/$F_HOME/bin
+			cp -Rf $NVME/$F_HOME/app/src/main/cpp $DEVPATH/$F_HOME/app/src/main/cpp
+			cp -Rf $NVME/$F_HOME/bin $DEVPATH/$F_HOME/bin
+			cp -u $NVME/$F_HOME/exe/* $DEVPATH/$F_HOME/exe
+		fi		
+		echo ..
+		echo ".. Archiving Project $FOLDER to $NAME and copy on DiskStation"
+		echo ..	
+		cd "$DEVPATH/$F_HOME"
+		$ZIPPER . "$COMMENT"
+        
+    	cp "$NAME" "$DISKSTATION/"
+    	
+		echo ..
+	fi
+
+	if [[ $ALL -eq 1 ]] || [[ $RESSOURCES -eq 1 ]]; then
+		FOLDER=$RES
+		if [[ "$COMMENT" != "" ]]; then
+			NAME="../$FOLDER-$DATE-$COMMENT.zip"
+		else
+			NAME="../$FOLDER-$DATE.zip"
+		fi	
+		echo ..
+		echo ".. Archiving Resources $FOLDER to $NAME and copy on DiskStation"
+		echo ..	
+		cd "$DEVPATH/$R_HOME"
+		
+		$ZIPPER . "$COMMENT"
+		
+    	cp "$NAME" "$DISKSTATION/"
+	fi
+else
+	echo "Need arguments !"
+	echo ""
+	echo "Use syntax : archive source1 ... sourceN commentary"
+	echo ""
+	echo " sources can be :"
+	echo "   all,All,ALL               => archive engine, project and resources"
+	echo "   ur,urho,URHO,Urho3D       => archive engine"
+	echo "   fb,frombones,FromBones    => archive project"
+	echo "   res,ressources,Resources  => archive resources"
+	echo ""
+	echo " commentary is optional and the purpose is to add a note in the name of the zip file."
+	echo ""
+fi

@@ -1,0 +1,17 @@
+#version 450
+
+layout(location=0) in vec4 vColor;
+layout(location=1) in vec2 vTextCoord;
+
+layout(set=2, binding=0) uniform sampler2D uidiffMap;
+
+layout(location=0) out vec4 fragColor;
+layout(location=1) out vec4 fragColor2;
+
+void main()
+{
+    fragColor.rgb = vColor.rgb;
+    fragColor.a = vColor.a * texture(uidiffMap, vTextCoord).r;
+//    fragColor2 = fragColor; 
+}
+

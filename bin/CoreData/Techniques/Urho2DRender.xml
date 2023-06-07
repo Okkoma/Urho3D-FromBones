@@ -1,0 +1,4 @@
+<technique vs="Unlit" ps="Unlit" psdefines="DIFFMAP">
+    <pass name="base" />
+    <pass name="alpha" psdefines="DIFFMAP ALPHAMASK" depthwrite="false" blend="alpha" />
+</technique>
