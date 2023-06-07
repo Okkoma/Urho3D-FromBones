@@ -290,6 +290,7 @@ void SpriterInstance::UpdateTimelineKeys()
 
         if (timeline->objectType_ == Spriter::SPRITE)
         {
+            tKey->color_ = ref->color_;
             spriteKeys_.Push(tKey);
         }
         else if (timeline->objectType_ == Spriter::POINT)

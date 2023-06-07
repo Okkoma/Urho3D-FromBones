@@ -7,8 +7,8 @@
 #
 
 DISKSTATIONPATH="Users/chris/Dev/Frombones"
-URHO=Urho3D-Vulkan
-FB=FromBones-Vulkan
+URHO=Urho3D
+FB=FromBones
 RES=FromBones-Ressources
 U_HOME=Urho3D/$URHO
 

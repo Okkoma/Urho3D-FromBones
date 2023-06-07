@@ -36,6 +36,8 @@ namespace Urho3D
 
 namespace Spriter
 {
+    struct Entity;
+    struct Ref;
     struct SpriterData;
     struct CharacterMap;
 }
@@ -60,6 +62,13 @@ public:
     virtual bool BeginLoad(Deserializer& source);
     /// Finish resource loading. Always called from the main thread. Return true if successful.
     virtual bool EndLoad();
+
+    virtual bool Save(const String& fileName) const;
+    virtual bool Save(Serializer& dest) const;
+
+    void GetEntityObjectRefs(Spriter::Entity* entity, const String& name, const String& parentname, PODVector<Spriter::Ref*>& objrefs);
+    void SetEntityObjectRefAttr(const String& entityname, const String& name, const String& parentname, const Color& color=Color::WHITE, const Vector2& offset=Vector2::ZERO, float angle=0.f);
+    void SetObjectRefAttr(const PODVector<Spriter::Ref*>& objrefs, const Color& color=Color::WHITE, const Vector2& offset=Vector2::ZERO, float angle=0.f);
 
     /// Get number of animations.
     unsigned GetNumAnimations() const;
@@ -104,6 +113,9 @@ private:
     bool BeginLoadSpriter(Deserializer& source);
     /// Finish load scml.
     bool EndLoadSpriter();
+
+    bool SaveSpriter(Serializer& dest) const;
+
     /// Dispose all data.
     void Dispose();
 

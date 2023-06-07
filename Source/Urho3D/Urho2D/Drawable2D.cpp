@@ -82,6 +82,8 @@ Drawable2D::Drawable2D(Context* context) :
 {
     worldBoundingBox_.min_.z_ = 0.f;
     worldBoundingBox_.max_.z_ = 1.f;
+
+    enableDebugLog_ = false;
 }
 
 Drawable2D::~Drawable2D()

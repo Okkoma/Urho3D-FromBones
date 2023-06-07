@@ -211,8 +211,8 @@ elif [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "msys" ]]; then
 fi
 
 if [[ "$PLATFORM" == "linux" ]]; then
-	U_HOME=$DEVPATH/Urho3D/Urho3D-Vulkan
-	F_HOME=$DEVPATH/Projets/FromBones-Vulkan
+	U_HOME=$DEVPATH/Urho3D/Urho3D
+	F_HOME=$DEVPATH/Projets/FromBones
 
 elif [[ "$PLATFORM" == "win64" ]]; then
 	MINGW_DRIVE=/mnt/d

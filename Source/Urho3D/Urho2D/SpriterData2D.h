@@ -25,6 +25,7 @@
 namespace pugi
 {
 class xml_node;
+class xml_document;
 }
 
 //#define USE_KEYPOOLS
@@ -91,6 +92,7 @@ struct URHO3D_API SpriterData
     void Reset();
     bool Load(const pugi::xml_node& node);
     bool Load(const void* data, size_t size);
+    bool Save(pugi::xml_document& document) const;
     void UpdateKeyInfos();
 
 #ifdef USE_KEYPOOLS
@@ -114,6 +116,7 @@ struct URHO3D_API Folder
 
     void Reset();
     bool Load(const pugi::xml_node& node);
+    bool Save(pugi::xml_node& node) const;
 
     int id_;
     String name_;
@@ -127,6 +130,7 @@ struct URHO3D_API File
     ~File();
 
     bool Load(const pugi::xml_node& node);
+    bool Save(pugi::xml_node& node) const;
 
     Folder* folder_;
     int id_;
@@ -146,6 +150,7 @@ struct URHO3D_API Entity
 
     void Reset();
     bool Load(const pugi::xml_node& node);
+    bool Save(pugi::xml_node& node) const;
 
     int id_;
     String name_;
@@ -163,6 +168,7 @@ struct URHO3D_API ObjInfo
     ~ObjInfo();
 
     static bool Load(const pugi::xml_node& node, ObjInfo& objinfo);
+    bool Save(pugi::xml_node& node, const String& name) const;
 
     ObjectType type_;
     float width_;
@@ -179,6 +185,7 @@ struct URHO3D_API CharacterMap
 
     void Reset();
     bool Load(const pugi::xml_node& node);
+    bool Save(pugi::xml_node& node) const;
 
     int id_;
     String name_;
@@ -193,6 +200,7 @@ struct MapInstruction
     ~MapInstruction();
 
     bool Load(const pugi::xml_node& node);
+    bool Save(pugi::xml_node& node) const;
 
     int folder_;
     int file_;
@@ -208,6 +216,7 @@ struct URHO3D_API Animation
 
     void Reset();
     bool Load(const pugi::xml_node& node);
+    bool Save(pugi::xml_node& node) const;
 
     int id_;
     String name_;
@@ -224,12 +233,17 @@ struct Ref
     ~Ref();
 
     bool Load(const pugi::xml_node& node);
+    bool Save(pugi::xml_node& node) const;
 
     int id_;
     int parent_;
     int timeline_;
     int key_;
     int zIndex_;
+
+    Color color_;
+    Vector2 offsetPosition_;
+    float offsetAngle_;
 };
 
 
@@ -242,6 +256,7 @@ struct URHO3D_API Timeline
 
     void Reset();
     bool Load(const pugi::xml_node& node);
+    bool Save(pugi::xml_node& node) const;
 
     int id_;
     String name_;
@@ -273,6 +288,7 @@ struct URHO3D_API TimeKey
     virtual ~TimeKey();
 
     virtual bool Load(const pugi::xml_node& node);
+    virtual bool Save(pugi::xml_node& node) const;
 
     float ApplyCurveType(float factor);
     float AdjustTime(float timeA, float timeB, float length, float targetTime);
@@ -294,6 +310,7 @@ struct URHO3D_API MainlineKey : public TimeKey
     virtual ~MainlineKey();
 
     virtual bool Load(const pugi::xml_node& node);
+    virtual bool Save(pugi::xml_node& node) const;
 
     void Reset();
 
@@ -324,6 +341,7 @@ struct URHO3D_API SpatialTimelineKey : TimelineKey
     SpatialTimelineKey(Timeline* timeline);
     virtual ~SpatialTimelineKey();
     virtual bool Load(const pugi::xml_node& node);
+    virtual bool Save(pugi::xml_node& node) const;
     virtual void Interpolate(const TimelineKey& other, float t);
     SpatialTimelineKey& operator=(const SpatialTimelineKey& rhs);
 };
@@ -346,6 +364,7 @@ struct URHO3D_API BoneTimelineKey : SpatialTimelineKey
 
     virtual TimelineKey* Clone() const;
     virtual bool Load(const pugi::xml_node& node);
+    virtual bool Save(pugi::xml_node& node) const;
     virtual void Interpolate(const TimelineKey& other, float t);
     BoneTimelineKey& operator=(const BoneTimelineKey& rhs);
 };
@@ -362,6 +381,8 @@ struct URHO3D_API SpriteTimelineKey : SpatialTimelineKey
 
     // Run time data.
     int zIndex_;
+    Color color_;
+
 #ifdef USE_KEYPOOLS
     static SpriteTimelineKey* Get();
     static void Free(SpriteTimelineKey* elt);
@@ -375,6 +396,7 @@ struct URHO3D_API SpriteTimelineKey : SpatialTimelineKey
 
     virtual TimelineKey* Clone() const;
     virtual bool Load(const pugi::xml_node& node);
+    virtual bool Save(pugi::xml_node& node) const;
     virtual void Interpolate(const TimelineKey& other, float t);
     SpriteTimelineKey& operator=(const SpriteTimelineKey& rhs);
 };
@@ -400,6 +422,7 @@ struct URHO3D_API BoxTimelineKey : SpatialTimelineKey
 
     virtual TimelineKey* Clone() const;
     virtual bool Load(const pugi::xml_node& node);
+    virtual bool Save(pugi::xml_node& node) const;
     virtual void Interpolate(const TimelineKey& other, float t);
     BoxTimelineKey& operator=(const BoxTimelineKey& rhs);
 };

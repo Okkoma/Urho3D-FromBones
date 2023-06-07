@@ -44,6 +44,7 @@
 #include <spine/extension.h>
 #endif
 
+
 #ifdef URHO3D_SPINE
 // Current animation set
 static Urho3D::AnimationSet2D* currentAnimationSet = 0;
@@ -174,6 +175,79 @@ bool AnimationSet2D::EndLoad()
         return EndLoadSpriter();
 
     return false;
+}
+
+bool AnimationSet2D::Save(const String& fileName) const
+{
+    File file(context_, fileName, FILE_WRITE);
+
+    return Save(file);
+}
+
+bool AnimationSet2D::Save(Serializer& dest) const
+{
+    bool ok = SaveSpriter(dest);
+
+    return ok;
+}
+
+void AnimationSet2D::GetEntityObjectRefs(Spriter::Entity* entity, const String& name, const String& parentname, PODVector<Spriter::Ref*>& objrefs)
+{
+    // Find the ObjectRef with name and parentname in each animation
+    for (PODVector<Spriter::Animation*>::ConstIterator it = entity->animations_.Begin(); it != entity->animations_.End(); ++it)
+    {
+        Spriter::Animation* animation = *it;
+        for (PODVector<Spriter::MainlineKey*>::ConstIterator jt = animation->mainlineKeys_.Begin(); jt != animation->mainlineKeys_.End(); ++jt)
+        {
+            Spriter::MainlineKey* mkey = *jt;
+            for (PODVector<Spriter::Ref*>::ConstIterator kt = mkey->objectRefs_.Begin(); kt != mkey->objectRefs_.End(); ++kt)
+            {
+                Spriter::Ref* ref = *kt;
+                Spriter::Timeline* timeline = animation->timelines_[ref->timeline_];
+                if (ref->parent_ != -1 && timeline->name_.StartsWith(name))
+                {
+                    Spriter::Ref* parentRef = mkey->boneRefs_[ref->parent_];
+                    Spriter::Timeline* parentTimeline = animation->timelines_[parentRef->timeline_];
+                    if (parentTimeline->name_.StartsWith(parentname))
+                        objrefs.Push(ref);
+                }
+            }
+        }
+    }
+}
+
+void AnimationSet2D::SetEntityObjectRefAttr(const String& entityname, const String& name, const String& parentname, const Color& color, const Vector2& offset, float angle)
+{
+    // Find the entity
+    Spriter::Entity* entity = 0;
+    const PODVector<Spriter::Entity*>& entities = spriterData_->entities_;
+    for (PODVector<Spriter::Entity*>::ConstIterator it = entities.Begin(); it != entities.End(); ++it)
+    {
+        if ((*it)->name_ == entityname)
+        {
+            entity = *it;
+            break;
+        }
+    }
+
+    if (!entity)
+        return;
+
+    PODVector<Spriter::Ref*> objRefs;
+    GetEntityObjectRefs(entity, name, parentname, objRefs);
+
+    SetObjectRefAttr(objRefs, color, offset, angle);
+}
+
+void AnimationSet2D::SetObjectRefAttr(const PODVector<Spriter::Ref*>& objrefs, const Color& color, const Vector2& offset, float angle)
+{
+    for (PODVector<Spriter::Ref*>::ConstIterator it = objrefs.Begin(); it != objrefs.End(); ++it)
+    {
+        Spriter::Ref* ref = *it;
+        ref->offsetPosition_ = offset;
+        ref->offsetAngle_ = angle;
+        ref->color_ = color;
+    }
 }
 
 unsigned AnimationSet2D::GetNumAnimations() const
@@ -422,6 +496,30 @@ bool AnimationSet2D::BeginLoadSpriter(Deserializer& source)
     SetMemoryUse(dataSize);
 
     return true;
+}
+
+bool AnimationSet2D::SaveSpriter(Serializer& dest) const
+{
+    XMLFile xmlfile(context_);
+    pugi::xml_document* xmldoc = xmlfile.GetDocument();
+
+    URHO3D_LOGINFOF("AnimationSet2D() - SaveSpriter ... xmldoc=%u", xmldoc);
+
+    bool ok = spriterData_->Save(*xmldoc);
+
+    URHO3D_LOGERROR(xmlfile.ToString());
+
+    if (!ok)
+    {
+        URHO3D_LOGERROR("AnimationSet2D() - SaveSpriter ... Error 0 !");
+        return false;
+    }
+
+    ok = xmlfile.Save(dest);
+    if (!ok)
+        URHO3D_LOGERROR("AnimationSet2D() - SaveSpriter ... Error !");
+
+    return ok;
 }
 
 struct SpriterInfoFile

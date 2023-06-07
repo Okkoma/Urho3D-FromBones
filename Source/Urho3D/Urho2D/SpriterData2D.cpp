@@ -39,6 +39,38 @@ namespace Urho3D
 namespace Spriter
 {
 
+const int FloatPrecision = 6;
+const char* ScmlVersion = "1.0";
+const char* ScmlGeneratorStr = "Urho3DSCML";
+const char* ScmlGeneratorVersionStr = "r1";
+
+const char* ObjectTypeStr[] =
+{
+    "bone",
+    "sprite",
+    "point",
+    "box"
+};
+
+const char* CurveTypeStr[] =
+{
+    "instant",
+    "linear",
+    "quadratic",
+    "cubic",
+    "quartic",
+    "quintic",
+    "bezier"
+};
+
+String GetFloatStr(float number, int precision)
+{
+    int numDigitBeforeDecimal = String(static_cast<int>(number)).Length();
+    char resultat[20];
+    sprintf(resultat, "%.*g", precision + numDigitBeforeDecimal, number);
+    return String(resultat);
+}
+
 SpriterData::SpriterData()
 {
 }
@@ -74,11 +106,11 @@ bool SpriterData::Load(const pugi::xml_node& node)
 
     scmlVersion_ = node.attribute("scml_version").as_int();
     generator_ = node.attribute("generator").as_string();
-    generatorVersion_ = node.attribute("scml_version").as_string();
+    generatorVersion_ = node.attribute("generator_version").as_string();
 
     for (xml_node folderNode = node.child("folder"); !folderNode.empty(); folderNode = folderNode.next_sibling("folder"))
     {
-        folders_.Push(new  Folder());
+        folders_.Push(new Folder());
         if (!folders_.Back()->Load(folderNode))
         {
             URHO3D_LOGERRORF("SpriterData : Error In Folders !");
@@ -88,7 +120,7 @@ bool SpriterData::Load(const pugi::xml_node& node)
 
     for (xml_node entityNode = node.child("entity"); !entityNode.empty(); entityNode = entityNode.next_sibling("entity"))
     {
-        entities_.Push(new  Entity());
+        entities_.Push(new Entity());
         if (!entities_.Back()->Load(entityNode))
         {
             URHO3D_LOGERRORF("SpriterData : Error In Entities !");
@@ -109,6 +141,40 @@ bool SpriterData::Load(const void* data, size_t size)
 
     return Load(document.child("spriter_data"));
 }
+
+bool SpriterData::Save(pugi::xml_document& document) const
+{
+    document.reset();
+    pugi::xml_node root = document.append_child("spriter_data");
+
+    bool ok = root.append_attribute("scml_version").set_value(ScmlVersion);
+    ok = const_cast<pugi::xml_node&>(root).append_attribute("generator").set_value(ScmlGeneratorStr);
+    ok = const_cast<pugi::xml_node&>(root).append_attribute("generator_version").set_value(ScmlGeneratorVersionStr);
+
+    for (PODVector<Folder*>::ConstIterator it = folders_.Begin(); it != folders_.End(); ++it)
+    {
+        Folder* folder = *it;
+        if (folder)
+        {
+            pugi::xml_node foldernode = root.append_child("folder");
+            ok = folder->Save(foldernode);
+        }
+    }
+
+    for (PODVector<Entity*>::ConstIterator it = entities_.Begin(); it != entities_.End(); ++it)
+    {
+        Entity* entity = *it;
+        if (entity)
+        {
+            pugi::xml_node entitynode = root.append_child("entity");
+            ok = entity->Save(entitynode);
+        }
+    }
+
+    return ok;
+}
+
+
 
 #ifdef USE_KEYPOOLS
 void SpriterData::InitKeyPools(unsigned poolSize)
@@ -142,7 +208,6 @@ void SpriterData::UpdateKeyInfos()
                     continue;
 
                 const PODVector<SpatialTimelineKey*>& keys = (*timeline)->keys_;
-                const ObjInfo& objinfo = (*entity)->objInfos_[(*timeline)->name_];
 
                 for (PODVector<SpatialTimelineKey*>::ConstIterator key = keys.Begin(); key != keys.End(); ++key)
                 {
@@ -166,14 +231,17 @@ void SpriterData::UpdateKeyInfos()
                     }
                     else if ((*key)->GetObjectType() == BOX)
                     {
-                        BoxTimelineKey* boxKey = (BoxTimelineKey*) (*key);
-
-                        boxKey->width_ = objinfo.width_;
-                        boxKey->height_ = objinfo.height_;
-                        if (boxKey->useDefaultPivot_)
+                        HashMap<String, ObjInfo >::Iterator objit = (*entity)->objInfos_.Find((*timeline)->name_);
+                        if (objit != (*entity)->objInfos_.End())
                         {
-                            boxKey->pivotX_ = objinfo.pivotX_;
-                            boxKey->pivotY_ = objinfo.pivotY_;
+                            BoxTimelineKey* boxKey = (BoxTimelineKey*) (*key);
+                            boxKey->width_ = objit->second_.width_;
+                            boxKey->height_ = objit->second_.height_;
+                            if (boxKey->useDefaultPivot_)
+                            {
+                                boxKey->pivotX_ = objit->second_.pivotX_;
+                                boxKey->pivotY_ = objit->second_.pivotY_;
+                            }
                         }
                     }
                 }
@@ -219,6 +287,29 @@ bool Folder::Load(const pugi::xml_node& node)
     return true;
 }
 
+bool Folder::Save(pugi::xml_node& node) const
+{
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("id").set_value(id_))
+        return false;
+    if (!name_.Empty())
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("name").set_value(name_.CString()))
+            return false;
+
+    bool ok = false;
+    for (PODVector<Spriter::File*>::ConstIterator it = files_.Begin(); it != files_.End(); ++it)
+    {
+        Spriter::File* file = *it;
+        if (file)
+        {
+            pugi::xml_node filenode = node.append_child("file");
+            ok = !file->Save(filenode);
+        }
+    }
+
+    return ok;
+}
+
+
 File::File(Folder* folder) :
     folder_(folder)
 {
@@ -240,6 +331,35 @@ bool File::Load(const pugi::xml_node& node)
     height_ = node.attribute("height").as_float();
     pivotX_ = node.attribute("pivot_x").as_float(0.0f);
     pivotY_ = node.attribute("pivot_y").as_float(1.0f);
+
+    return true;
+}
+
+bool File::Save(pugi::xml_node& node) const
+{
+    if (name_.Empty())
+        return false;
+
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("id").set_value(id_))
+        return false;
+
+    String name;
+    if (folder_ && !folder_->name_.Empty())
+        name = folder_->name_ + "/";
+    name += name_;
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("name").set_value(name.CString()))
+        return false;
+
+    if (fx_ && !const_cast<pugi::xml_node&>(node).append_attribute("fx").set_value(fx_))
+        return false;
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("width").set_value(GetFloatStr(width_, FloatPrecision).CString()))
+        return false;
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("height").set_value(GetFloatStr(height_, FloatPrecision).CString()))
+        return false;
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("pivot_x").set_value(GetFloatStr(pivotX_, FloatPrecision).CString()))
+        return false;
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("pivot_y").set_value(GetFloatStr(pivotY_, FloatPrecision).CString()))
+        return false;
 
     return true;
 }
@@ -285,10 +405,14 @@ bool Entity::Load(const pugi::xml_node& node)
 
     for (xml_node objInfoNode = node.child("obj_info"); !objInfoNode.empty(); objInfoNode = objInfoNode.next_sibling("obj_info"))
     {
-        if (!ObjInfo::Load(objInfoNode, objInfos_[String(objInfoNode.attribute("name").as_string())]))
+        String name(objInfoNode.attribute("name").as_string());
+        if (!name.Empty())
         {
-            URHO3D_LOGERRORF("SpriterData : Error In Entities:ObjInfo !");
-            return false;
+            if (!ObjInfo::Load(objInfoNode, objInfos_[name]))
+            {
+                URHO3D_LOGERRORF("SpriterData : Error In Entities:ObjInfo !");
+                return false;
+            }
         }
     }
 
@@ -304,7 +428,7 @@ bool Entity::Load(const pugi::xml_node& node)
 
     for (xml_node animationNode = node.child("animation"); !animationNode.empty(); animationNode = animationNode.next_sibling("animation"))
     {
-        animations_.Push(new  Animation());
+        animations_.Push(new Animation());
         if (!animations_.Back()->Load(animationNode))
         {
             URHO3D_LOGERRORF("SpriterData : Error In Entities:Animation !");
@@ -313,6 +437,57 @@ bool Entity::Load(const pugi::xml_node& node)
     }
 
     return true;
+}
+
+bool Entity::Save(pugi::xml_node& node) const
+{
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("id").set_value(id_))
+        return false;
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("name").set_value(name_.CString()))
+        return false;
+
+    if (color_ != Color::WHITE)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("color").set_value(color_.ToString().CString()))
+            return false;
+
+    bool ok = true;
+
+    URHO3D_LOGINFOF("SpriterData : Save Entity = %s ...", name_.CString());
+
+    for (HashMap<String, ObjInfo >::ConstIterator it = objInfos_.Begin(); it != objInfos_.End(); ++it)
+    {
+        if (!it->first_.Empty())
+        {
+            const ObjInfo& objinfo = it->second_;
+            if (objinfo.type_ > ObjectType::BOX)
+                break;
+
+            pugi::xml_node child = node.append_child("obj_info");
+            ok &= objinfo.Save(child, it->first_);
+        }
+    }
+
+    for (PODVector<CharacterMap*>::ConstIterator it = characterMaps_.Begin(); it != characterMaps_.End(); ++it)
+    {
+        CharacterMap* cmap = *it;
+        if (cmap)
+        {
+            pugi::xml_node child = node.append_child("character_map");
+            ok &= cmap->Save(child);
+        }
+    }
+
+    for (PODVector<Animation*>::ConstIterator it = animations_.Begin(); it != animations_.End(); ++it)
+    {
+        Animation* animation = *it;
+        if (animation)
+        {
+            pugi::xml_node child = node.append_child("animation");
+            ok &= animation->Save(child);
+        }
+    }
+
+    return ok;
 }
 
 ObjInfo::ObjInfo()
@@ -338,6 +513,8 @@ bool ObjInfo::Load(const pugi::xml_node& node, ObjInfo& objinfo)
         objinfo.type_ = POINT;
     else if (type == "box")
         objinfo.type_ = BOX;
+    else
+        return false;
 
     objinfo.width_ = node.attribute("w").as_float(10.f);
     objinfo.height_ = node.attribute("h").as_float(10.f);
@@ -347,6 +524,24 @@ bool ObjInfo::Load(const pugi::xml_node& node, ObjInfo& objinfo)
     return true;
 }
 
+bool ObjInfo::Save(pugi::xml_node& node, const String& name) const
+{
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("name").set_value(name.CString()))
+        return false;
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("type").set_value(ObjectTypeStr[type_]))
+        return false;
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("w").set_value(GetFloatStr(width_, FloatPrecision).CString()))
+        return false;
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("h").set_value(GetFloatStr(height_, FloatPrecision).CString()))
+        return false;
+    if (pivotX_ != 0.f)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("pivot_x").set_value(GetFloatStr(pivotX_, FloatPrecision).CString()))
+            return false;
+    if (pivotY_ != 1.f)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("pivot_y").set_value(GetFloatStr(pivotY_, FloatPrecision).CString()))
+            return false;
+    return true;
+}
 
 CharacterMap::CharacterMap()
 {
@@ -389,6 +584,28 @@ bool CharacterMap::Load(const pugi::xml_node& node)
     return true;
 }
 
+bool CharacterMap::Save(pugi::xml_node& node) const
+{
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("id").set_value(id_))
+        return false;
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("name").set_value(name_.CString()))
+        return false;
+
+    bool ok = true;
+
+    for (PODVector<MapInstruction*>::ConstIterator it = maps_.Begin(); it != maps_.End(); ++it)
+    {
+        MapInstruction* mapinstruct = *it;
+        if (mapinstruct)
+        {
+            pugi::xml_node child = node.append_child("map");
+            ok &= mapinstruct->Save(child);
+        }
+    }
+
+    return ok;
+}
+
 MapInstruction::MapInstruction()
 {
 
@@ -408,6 +625,22 @@ bool MapInstruction::Load(const pugi::xml_node& node)
     file_ = node.attribute("file").as_int();
     targetFolder_ = node.attribute("target_folder").as_int(-1);
     targetFile_ = node.attribute("target_file").as_int(-1);
+
+    return true;
+}
+
+bool MapInstruction::Save(pugi::xml_node& node) const
+{
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("folder").set_value(folder_))
+        return false;
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("file").set_value(file_))
+        return false;
+    if (targetFolder_ != -1)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("target_folder").set_value(targetFolder_))
+            return false;
+     if (targetFile_ != -1)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("target_file").set_value(targetFile_))
+            return false;
 
     return true;
 }
@@ -456,16 +689,49 @@ bool Animation::Load(const pugi::xml_node& node)
             return false;
     }
 
+    int id = 0;
     for (xml_node timelineNode = node.child("timeline"); !timelineNode.empty(); timelineNode = timelineNode.next_sibling("timeline"))
     {
         timelines_.Push(new Timeline());
         if (!timelines_.Back()->Load(timelineNode))
             return false;
+        timelines_.Back()->id_ = id++;
     }
 
     return true;
 }
 
+bool Animation::Save(pugi::xml_node& node) const
+{
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("id").set_value(id_))
+        return false;
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("name").set_value(name_.CString()))
+        return false;
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("length").set_value(length_ * 1000.f, FloatPrecision))
+        return false;
+    if (!looping_)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("looping").set_value(looping_))
+            return false;
+
+    {
+        xml_node mainline = node.append_child("mainline");
+        for (PODVector<MainlineKey*>::ConstIterator it = mainlineKeys_.Begin(); it != mainlineKeys_.End(); ++it)
+        {
+            pugi::xml_node child = mainline.append_child("key");
+            if (!(*it)->Save(child))
+                return false;
+        }
+    }
+
+    for (PODVector<Timeline*>::ConstIterator it = timelines_.Begin(); it != timelines_.End(); ++it)
+    {
+        pugi::xml_node child = node.append_child("timeline");
+        if (!(*it)->Save(child))
+            return false;
+    }
+
+    return true;
+}
 
 // From http://www.brashmonkey.com/ScmlDocs/ScmlReference.html
 
@@ -541,6 +807,32 @@ bool TimeKey::Load(const pugi::xml_node& node)
     c2_ = node.attribute("c2").as_float();
     c3_ = node.attribute("c3").as_float();
     c4_ = node.attribute("c4").as_float();
+
+    return true;
+}
+
+bool TimeKey::Save(pugi::xml_node& node) const
+{
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("id").set_value(id_))
+        return false;
+    if (time_)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("time").set_value(time_ * 1000.f, FloatPrecision))
+            return false;
+    if (curveType_ != CurveType::LINEAR)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("curve_type").set_value(CurveTypeStr[curveType_]))
+            return false;
+    if (c1_ != 0.f)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("c1").set_value(GetFloatStr(c1_, FloatPrecision).CString()))
+            return false;
+    if (c2_ != 0.f)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("c2").set_value(GetFloatStr(c2_, FloatPrecision).CString()))
+            return false;
+    if (c3_ != 0.f)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("c3").set_value(GetFloatStr(c3_, FloatPrecision).CString()))
+            return false;
+    if (c4_ != 0.f)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("c4").set_value(GetFloatStr(c4_, FloatPrecision).CString()))
+            return false;
 
     return true;
 }
@@ -641,6 +933,28 @@ bool MainlineKey::Load(const pugi::xml_node& node)
     return true;
 }
 
+bool MainlineKey::Save(pugi::xml_node& node) const
+{
+    if (!TimeKey::Save(node))
+        return false;
+
+    for (PODVector<Ref*>::ConstIterator it = boneRefs_.Begin(); it != boneRefs_.End(); ++it)
+    {
+        pugi::xml_node child = node.append_child("bone_ref");
+        if (!(*it)->Save(child))
+            return false;
+    }
+    for (PODVector<Ref*>::ConstIterator it = objectRefs_.Begin(); it != objectRefs_.End(); ++it)
+    {
+        pugi::xml_node child = node.append_child("object_ref");
+        if (!(*it)->Save(child))
+            return false;
+    }
+
+    return true;
+}
+
+
 Ref::Ref()
 {
 
@@ -659,11 +973,48 @@ bool Ref::Load(const pugi::xml_node& node)
     parent_ = node.attribute("parent").as_int(-1);
     timeline_ = node.attribute("timeline").as_int();
     key_ = node.attribute("key").as_int();
-    zIndex_ = node.attribute("z_index").as_int();
+
+    zIndex_ = node.attribute("z_index").as_int(-1);
+    xml_attribute colorAttr = node.attribute("color");
+    color_ = colorAttr.empty() ? Color::WHITE : ToColor(colorAttr.as_string());
+    offsetPosition_.x_ = node.attribute("x").as_float(0.f);
+    offsetPosition_.y_ = node.attribute("y").as_float(0.f);
+    offsetAngle_ = node.attribute("angle").as_float(0.f);
 
     return true;
 }
 
+bool Ref::Save(pugi::xml_node& node) const
+{
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("id").set_value(id_))
+        return false;
+    if (parent_ != -1)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("parent").set_value(parent_))
+            return false;
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("timeline").set_value(timeline_))
+        return false;
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("key").set_value(key_))
+        return false;
+
+    if (zIndex_ != -1)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("z_index").set_value(zIndex_))
+            return false;
+    if (color_ != Color::WHITE)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("color").set_value(color_.ToString().CString()))
+            return false;
+    if (offsetPosition_ != Vector2::ZERO)
+    {
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("x").set_value(GetFloatStr(offsetPosition_.x_, FloatPrecision).CString()))
+            return false;
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("y").set_value(GetFloatStr(offsetPosition_.y_, FloatPrecision).CString()))
+            return false;
+    }
+    if (offsetAngle_ != 0.f)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("angle").set_value(GetFloatStr(offsetAngle_, FloatPrecision).CString()))
+            return false;
+
+    return true;
+}
 
 
 Timeline::Timeline()
@@ -742,6 +1093,27 @@ bool Timeline::Load(const pugi::xml_node& node)
 
     return true;
 }
+
+bool Timeline::Save(pugi::xml_node& node) const
+{
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("id").set_value(id_))
+        return false;
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("name").set_value(name_.CString()))
+        return false;
+    if (objectType_ != SPRITE)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("object_type").set_value(ObjectTypeStr[objectType_]))
+            return false;
+
+    for (PODVector<SpatialTimelineKey*>::ConstIterator it = keys_.Begin(); it != keys_.End(); ++it)
+    {
+        pugi::xml_node child = node.append_child("key");
+        if (!(*it)->Save(child))
+            return false;
+    }
+
+    return true;
+}
+
 
 TimelineKey::TimelineKey(Timeline* timeline)
 {
@@ -864,6 +1236,39 @@ bool SpatialTimelineKey::Load(const xml_node& node)
     return true;
 }
 
+bool SpatialTimelineKey::Save(pugi::xml_node& node) const
+{
+    if (!TimelineKey::Save(node))
+        return false;
+
+    pugi::xml_node child = node.child("bone");
+    if (child.empty())
+        child = node.child("object");
+    if (child.empty())
+        return false;
+
+    if (!const_cast<pugi::xml_node&>(child).append_attribute("x").set_value(GetFloatStr(info_.x_, FloatPrecision).CString()))
+        return false;
+    if (!const_cast<pugi::xml_node&>(child).append_attribute("y").set_value(GetFloatStr(info_.y_, FloatPrecision).CString()))
+        return false;
+    if (!const_cast<pugi::xml_node&>(child).append_attribute("angle").set_value(GetFloatStr(info_.angle_, FloatPrecision).CString()))
+        return false;
+    if (info_.scaleX_ != 1.f)
+        if (!const_cast<pugi::xml_node&>(child).append_attribute("scale_x").set_value(GetFloatStr(info_.scaleX_, FloatPrecision).CString()))
+            return false;
+    if (info_.scaleY_ != 1.f)
+        if (!const_cast<pugi::xml_node&>(child).append_attribute("scale_y").set_value(GetFloatStr(info_.scaleY_, FloatPrecision).CString()))
+            return false;
+    if (info_.alpha_ != 1.f)
+        if (!const_cast<pugi::xml_node&>(child).append_attribute("a").set_value(GetFloatStr(info_.alpha_, FloatPrecision).CString()))
+            return false;
+    if (info_.spin != 1)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("spin").set_value(info_.spin))
+            return false;
+
+    return true;
+}
+
 SpatialTimelineKey& SpatialTimelineKey::operator=(const SpatialTimelineKey& rhs)
 {
     TimelineKey::operator=(rhs);
@@ -946,6 +1351,16 @@ bool BoneTimelineKey::Load(const xml_node& node)
     xml_node boneNode = node.child("bone");
 //    length_ = boneNode.attribute("length").as_float(200.0f);
 //    width_ = boneNode.attribute("width").as_float(10.0f);
+
+    return true;
+}
+
+bool BoneTimelineKey::Save(pugi::xml_node& node) const
+{
+    xml_node child = node.append_child("bone");
+
+    if (!SpatialTimelineKey::Save(node))
+        return false;
 
     return true;
 }
@@ -1037,7 +1452,7 @@ bool SpriteTimelineKey::Load(const pugi::xml_node& node)
     xml_node objectNode = node.child("object");
     folderId_ = objectNode.attribute("folder").as_int(-1);
     fileId_ = objectNode.attribute("file").as_int(-1);
-    fx_ = 0;
+    fx_ = objectNode.attribute("fx").as_int(0);
 
     xml_attribute pivotXAttr = objectNode.attribute("pivot_x");
     xml_attribute pivotYAttr = objectNode.attribute("pivot_y");
@@ -1049,6 +1464,33 @@ bool SpriteTimelineKey::Load(const pugi::xml_node& node)
         pivotX_ = pivotXAttr.as_float(0.0f);
         pivotY_ = pivotYAttr.as_float(1.0f);
     }
+
+    return true;
+}
+
+bool SpriteTimelineKey::Save(pugi::xml_node& node) const
+{
+    xml_node child = node.append_child("object");
+
+    if (folderId_ != -1)
+        if (!const_cast<pugi::xml_node&>(child).append_attribute("folder").set_value(folderId_))
+            return false;
+    if (fileId_ != -1)
+        if (!const_cast<pugi::xml_node&>(child).append_attribute("file").set_value(fileId_))
+            return false;
+    if (fx_ != 0)
+        if (!const_cast<pugi::xml_node&>(child).append_attribute("fx").set_value(fx_))
+            return false;
+    if (!useDefaultPivot_)
+    {
+        if (!const_cast<pugi::xml_node&>(child).append_attribute("pivot_x").set_value(0.f, FloatPrecision))
+            return false;
+        if (!const_cast<pugi::xml_node&>(child).append_attribute("pivot_y").set_value(1.f, FloatPrecision))
+            return false;
+    }
+
+    if (!SpatialTimelineKey::Save(node))
+        return false;
 
     return true;
 }
@@ -1154,6 +1596,24 @@ bool BoxTimelineKey::Load(const pugi::xml_node& node)
         pivotX_ = pivotXAttr.as_float(0.0f);
         pivotY_ = pivotYAttr.as_float(1.0f);
     }
+
+    return true;
+}
+
+bool BoxTimelineKey::Save(pugi::xml_node& node) const
+{
+    xml_node child = node.append_child("object");
+
+    if (!useDefaultPivot_)
+    {
+        if (!const_cast<pugi::xml_node&>(child).append_attribute("pivot_x").set_value(0.f, FloatPrecision))
+            return false;
+        if (!const_cast<pugi::xml_node&>(child).append_attribute("pivot_y").set_value(1.f, FloatPrecision))
+            return false;
+    }
+
+    if (!SpatialTimelineKey::Save(node))
+        return false;
 
     return true;
 }

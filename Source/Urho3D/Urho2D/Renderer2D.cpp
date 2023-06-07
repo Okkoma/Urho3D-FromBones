@@ -95,46 +95,49 @@ Renderer2D::Renderer2D(Context* context) :
     material_->SetTechnique(0, tech);
     material_->SetCullMode(CULL_NONE);
 
-#ifdef URHO3D_VULKAN
-    // Set Vertex Elements 2D for VertexBuffer
-    vertexElements2D_.Push(VertexElement(TYPE_VECTOR2, SEM_POSITION));
-    vertexElements2D_.Push(VertexElement(TYPE_VECTOR2, SEM_TEXCOORD));
-    vertexElements2D_.Push(VertexElement(TYPE_UBYTE4_NORM, SEM_COLOR));
-    vertexElements2D_.Push(VertexElement(TYPE_FLOAT, SEM_POSITION));
-    vertexElements2D_.Push(VertexElement(TYPE_INT, SEM_COLOR));
-    vertexElements2D_.Push(VertexElement(TYPE_INT, SEM_COLOR));
-    VertexBuffer::UpdateOffsets(vertexElements2D_, &VERTEX2DSIZE);
-    if (VERTEX2DSIZE != sizeof(Vertex2D))
+    if (!vertexElements2D_.Size())
     {
-        URHO3D_LOGERRORF("Renderer2D : VertexElements2D Size(%u) != Vertex2D Size(%u) => add align bytes in Vertex2D", VERTEX2DSIZE, sizeof(Vertex2D));
-        exit(1);
+    #ifdef URHO3D_VULKAN
+        // Set Vertex Elements 2D for VertexBuffer
+        vertexElements2D_.Push(VertexElement(TYPE_VECTOR2, SEM_POSITION));
+        vertexElements2D_.Push(VertexElement(TYPE_VECTOR2, SEM_TEXCOORD));
+        vertexElements2D_.Push(VertexElement(TYPE_UBYTE4_NORM, SEM_COLOR));
+        vertexElements2D_.Push(VertexElement(TYPE_FLOAT, SEM_POSITION));
+        vertexElements2D_.Push(VertexElement(TYPE_INT, SEM_COLOR));
+        vertexElements2D_.Push(VertexElement(TYPE_INT, SEM_COLOR));
+        VertexBuffer::UpdateOffsets(vertexElements2D_, &VERTEX2DSIZE);
+        if (VERTEX2DSIZE != sizeof(Vertex2D))
+        {
+            URHO3D_LOGERRORF("Renderer2D : VertexElements2D Size(%u) != Vertex2D Size(%u) => add align bytes in Vertex2D", VERTEX2DSIZE, sizeof(Vertex2D));
+            exit(1);
+        }
+
+        // Register Pipeline Infos
+        Graphics* graphics = GetSubsystem<Graphics>();
+        ShaderVariation* vs = graphics->GetShader(VS, "Urho2D");
+        ShaderVariation* ps = graphics->GetShader(PS, "Urho2D");
+        if (vs && ps)
+        {
+            unsigned states[MAX_BLENDMODES];
+            for (unsigned blendmode=0; blendmode < MAX_BLENDMODES; blendmode++)
+                states[blendmode] = graphics->GetImpl()->GetDefaultPipelineStates(PIPELINESTATE_BLENDMODE, blendmode);
+
+            graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassWithTarget, vs, ps, states[BLEND_REPLACE],  1, &vertexElements2D_);
+            graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassWithTarget, vs, ps, states[BLEND_ALPHA],    1, &vertexElements2D_);
+            graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassWithTarget, vs, ps, states[BLEND_ADDALPHA], 1, &vertexElements2D_);
+
+            graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassNoClear, vs, ps, states[BLEND_REPLACE],  1, &vertexElements2D_);
+            graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassNoClear, vs, ps, states[BLEND_ALPHA],    1, &vertexElements2D_);
+            graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassNoClear, vs, ps, states[BLEND_ADDALPHA], 1, &vertexElements2D_);
+        }
+    #else
+        vertexElements2D_.Push(VertexElement(TYPE_VECTOR3, SEM_POSITION));
+        vertexElements2D_.Push(VertexElement(TYPE_UBYTE4_NORM, SEM_COLOR));
+        vertexElements2D_.Push(VertexElement(TYPE_VECTOR2, SEM_TEXCOORD));
+        vertexElements2D_.Push(VertexElement(TYPE_VECTOR4, SEM_TANGENT));
+        VertexBuffer::UpdateOffsets(vertexElements2D_, &VERTEX2DSIZE);
+    #endif
     }
-
-    // Register Pipeline Infos
-    Graphics* graphics = GetSubsystem<Graphics>();
-    ShaderVariation* vs = graphics->GetShader(VS, "Urho2D");
-    ShaderVariation* ps = graphics->GetShader(PS, "Urho2D");
-    if (vs && ps)
-    {
-        unsigned states[MAX_BLENDMODES];
-        for (unsigned blendmode=0; blendmode < MAX_BLENDMODES; blendmode++)
-            states[blendmode] = graphics->GetImpl()->GetDefaultPipelineStates(PIPELINESTATE_BLENDMODE, blendmode);
-
-        graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassWithTarget, vs, ps, states[BLEND_REPLACE],  1, &vertexElements2D_);
-        graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassWithTarget, vs, ps, states[BLEND_ALPHA],    1, &vertexElements2D_);
-        graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassWithTarget, vs, ps, states[BLEND_ADDALPHA], 1, &vertexElements2D_);
-
-        graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassNoClear, vs, ps, states[BLEND_REPLACE],  1, &vertexElements2D_);
-        graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassNoClear, vs, ps, states[BLEND_ALPHA],    1, &vertexElements2D_);
-        graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassNoClear, vs, ps, states[BLEND_ADDALPHA], 1, &vertexElements2D_);
-    }
-#else
-    vertexElements2D_.Push(VertexElement(TYPE_VECTOR3, SEM_POSITION));
-    vertexElements2D_.Push(VertexElement(TYPE_UBYTE4_NORM, SEM_COLOR));
-    vertexElements2D_.Push(VertexElement(TYPE_VECTOR2, SEM_TEXCOORD));
-    vertexElements2D_.Push(VertexElement(TYPE_VECTOR4, SEM_TANGENT));
-    VertexBuffer::UpdateOffsets(vertexElements2D_, &VERTEX2DSIZE);
-#endif
 
     frame_.frameNumber_ = 0;
     SubscribeToEvent(E_BEGINVIEWUPDATE, URHO3D_HANDLER(Renderer2D, HandleBeginViewUpdate));

@@ -110,6 +110,7 @@ public:
 
     /// Visualize the component as debug geometry.
     virtual void DrawDebugGeometry(DebugRenderer* debug, bool depthTest);
+    void DrawDebug(CollisionShape2D* shape, DebugRenderer* debug, bool depthTest, const Color& color);
 
     // Implement b2ContactListener
     /// Called when two fixtures begin to touch.

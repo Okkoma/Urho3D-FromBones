@@ -155,6 +155,8 @@ public:
 
     /// FromBones : for WaterLayer being batched after ObjectTiled
     bool isSourceBatchedAtEnd_;
+    /// Frombones : Debug facility
+    bool enableDebugLog_;
 
 protected:
     /// Handle scene being assigned.

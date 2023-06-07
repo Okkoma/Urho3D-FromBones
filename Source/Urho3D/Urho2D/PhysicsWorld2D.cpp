@@ -31,6 +31,9 @@
 #include "../Scene/Scene.h"
 #include "../Scene/SceneEvents.h"
 #include "../Urho2D/CollisionShape2D.h"
+#include "../Urho2D/CollisionChain2D.h"
+#include "../Urho2D/CollisionBox2D.h"
+#include "../Urho2D/CollisionCircle2D.h"
 #include "../Urho2D/PhysicsEvents2D.h"
 #include "../Urho2D/PhysicsUtils2D.h"
 #include "../Urho2D/PhysicsWorld2D.h"
@@ -116,6 +119,29 @@ void PhysicsWorld2D::DrawDebugGeometry(DebugRenderer* debug, bool depthTest)
     }
 }
 
+void PhysicsWorld2D::DrawDebug(CollisionShape2D* shape, DebugRenderer* debug, bool depthTest, const Color& color)
+{
+    if (debug)
+    {
+        const Matrix2x3& transform = shape->GetNode()->GetWorldTransform2D();
+        if (shape->IsInstanceOf<CollisionChain2D>())
+        {
+            const PODVector<Vector2>& vertices = static_cast<CollisionChain2D*>(shape)->GetVertices();
+            for (int i = 0; i < vertices.Size() - 1; ++i)
+                debug->AddLine(Vector3(transform * vertices[i]), Vector3(transform * vertices[i + 1]), color, depthTest);
+            debug->AddLine(Vector3(transform * vertices[vertices.Size() - 1]), Vector3(transform * vertices[0]), color, depthTest);
+        }
+        else if (shape->IsInstanceOf<CollisionBox2D>())
+        {
+
+        }
+        else if (shape->IsInstanceOf<CollisionCircle2D>())
+        {
+            CollisionCircle2D* circle = static_cast<CollisionCircle2D*>(shape);
+            debug->AddCircle(Vector3(transform * circle->GetCenter()), Vector3::FORWARD, circle->GetRadius() * shape->GetNode()->GetWorldScale2D().x_, color, 8, false, depthTest);
+        }
+    }
+}
 //void PhysicsWorld2D::BeginContact(b2Contact* contact)
 //{
 //    // Only handle contact event while stepping the physics simulation

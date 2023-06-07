@@ -1350,8 +1350,9 @@ void AnimatedSprite2D::DumpSpritesInfos() const
 
 void AnimatedSprite2D::OnSetEnabled()
 {
-//    URHO3D_LOGINFOF("AnimatedSprite2D() - OnSetEnabled : node=%s(%u) enabled=%s ",
-//             node_->GetName().CString(), node_->GetID(), IsEnabledEffective() ? "true" : "false");
+    if (enableDebugLog_)
+        URHO3D_LOGINFOF("AnimatedSprite2D() - OnSetEnabled : node=%s(%u) enabled=%s ",
+             node_->GetName().CString(), node_->GetID(), IsEnabledEffective() ? "true" : "false");
 
     Drawable2D::OnSetEnabled();
 
@@ -1500,7 +1501,8 @@ void AnimatedSprite2D::UpdateAnimation(float timeStep)
             else
                 ClearSourceBatches();
 
-//            URHO3D_LOGINFOF("%s Visible !", node_->GetName().CString());
+            if (enableDebugLog_)
+                URHO3D_LOGINFOF("%s Visible !", node_->GetName().CString());
         }
     }
     else
@@ -2207,7 +2209,8 @@ void AnimatedSprite2D::UpdateSourceBatches()
 
 void AnimatedSprite2D::UpdateSourceBatchesSpriter(Vector<SourceBatch2D>* sourceBatches, bool resetBatches)
 {
-//    URHO3D_LOGERRORF("AnimatedSprite2D() - UpdateSourceBatchesSpriter : node=%s ... material=%s",
+//    if (enableDebugLog_)
+//        URHO3D_LOGERRORF("AnimatedSprite2D() - UpdateSourceBatchesSpriter : node=%s ... material=%s",
 //                    node_->GetName().CString(), sourceBatches[0][0].material_ ? sourceBatches[0][0].material_->GetName().CString() : "none");
 
     if (!spriterInstance_->GetSpriteKeys().Size())
@@ -2374,7 +2377,7 @@ void AnimatedSprite2D::UpdateSourceBatchesSpriter(Vector<SourceBatch2D>* sourceB
         vertex3.uv_ = Vector2(textureRect.max_.x_, textureRect.min_.y_);
 
         color.a_ = spriteKey->info_.alpha_ * color_.a_;
-        vertex0.color_ = vertex1.color_ = vertex2.color_ = vertex3.color_ = color.ToUInt();
+        vertex0.color_ = vertex1.color_ = vertex2.color_ = vertex3.color_ = (spriteKey->color_ * color).ToUInt();
         vertex0.texmode_ = vertex1.texmode_ = vertex2.texmode_ = vertex3.texmode_ = texmode;
 
         vertices1.Push(vertex0);
@@ -2400,6 +2403,9 @@ void AnimatedSprite2D::UpdateSourceBatchesSpriter(Vector<SourceBatch2D>* sourceB
 
 void AnimatedSprite2D::UpdateSourceBatchesSpriter_Custom(Vector<SourceBatch2D>* sourceBatches, int breakZIndex, bool resetBatches)
 {
+//    if (enableDebugLog_)
+//        URHO3D_LOGERRORF("AnimatedSprite2D() - UpdateSourceBatchesSpriter_Custom : node=%s(%u) resetBatches=%s breakz=%d", node_->GetName().CString(), node_->GetID(),
+//                        resetBatches ? "true" : "false", breakZIndex);
     if (!sourceBatches)
         return;
 
@@ -2407,9 +2413,6 @@ void AnimatedSprite2D::UpdateSourceBatchesSpriter_Custom(Vector<SourceBatch2D>* 
 
     if (!spriteinfos.Size())
         return;
-
-//    URHO3D_LOGERRORF("AnimatedSprite2D() - UpdateSourceBatchesSpriter_Custom : node=%s(%u) resetBatches=%s breakz=%d", node_->GetName().CString(), node_->GetID(),
-//                    resetBatches ? "true" : "false", breakZIndex);
 
     // Reset firstkey
     if (resetBatches || !sourceBatches[0].Size() || breakZIndex == RESETFIRSTKEY)
@@ -2459,7 +2462,8 @@ void AnimatedSprite2D::UpdateSourceBatchesSpriter_Custom(Vector<SourceBatch2D>* 
     int iBatch = sourceBatches[0].Size()-1;
     Material* prevMaterial = sourceBatches[0][iBatch].material_;
 
-//    URHO3D_LOGINFOF("AnimatedSprite2D() - UpdateSourceBatchesSpriter_Custom : node=%s(%u) srcBatchPtr=%u iBatch=%d resetBatches=%s ifirst=%d istop=%d breakZIndex=%d",
+//    if (enableDebugLog_)
+//        URHO3D_LOGINFOF("AnimatedSprite2D() - UpdateSourceBatchesSpriter_Custom : node=%s(%u) srcBatchPtr=%u iBatch=%d resetBatches=%s ifirst=%d istop=%d breakZIndex=%d",
 //                    node_->GetName().CString(), node_->GetID(), &sourceBatches, iBatch, resetBatches ? "true" : "false", firstKeyIndex_, stopKeyIndex_, breakZIndex);
 
     // Start Loop
@@ -2624,7 +2628,7 @@ void AnimatedSprite2D::UpdateSourceBatchesSpriter_Custom(Vector<SourceBatch2D>* 
         // Set Batch
         Vector<Vertex2D>& vertices1 = sourceBatches[0][iBatch].vertices_;
         color.a_ = spriteKey->info_.alpha_ * color_.a_;
-        vertex0.color_ = vertex1.color_ = vertex2.color_ = vertex3.color_ = color.ToUInt();
+        vertex0.color_ = vertex1.color_ = vertex2.color_ = vertex3.color_ = (spriteKey->color_ * color).ToUInt();
         vertex0.texmode_ = vertex1.texmode_ = vertex2.texmode_ = vertex3.texmode_ = texmode;
 
 		vertices1.Push(vertex0);
@@ -2642,6 +2646,10 @@ void AnimatedSprite2D::UpdateSourceBatchesSpriter_Custom(Vector<SourceBatch2D>* 
             vertices2.Push(vertex3);
         }
     }
+
+//    if (enableDebugLog_)
+//        URHO3D_LOGINFOF("AnimatedSprite2D() - UpdateSourceBatchesSpriter_Custom : node=%s(%u) numBatches=%u ... !",
+//                    node_->GetName().CString(), node_->GetID(), sourceBatches[0].Size());
 
     firstKeyIndex_ = stopKeyIndex_;
 }
