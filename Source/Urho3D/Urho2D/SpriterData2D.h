@@ -156,7 +156,7 @@ struct URHO3D_API Entity
     String name_;
     Color color_;
 
-    HashMap<String, ObjInfo > objInfos_;
+    HashMap<StringHash, ObjInfo > objInfos_;
     PODVector<CharacterMap*> characterMaps_;
     PODVector<Animation*> animations_;
 };
@@ -168,8 +168,9 @@ struct URHO3D_API ObjInfo
     ~ObjInfo();
 
     static bool Load(const pugi::xml_node& node, ObjInfo& objinfo);
-    bool Save(pugi::xml_node& node, const String& name) const;
+    bool Save(pugi::xml_node& node) const;
 
+    String name_;
     ObjectType type_;
     float width_;
     float height_;
@@ -260,6 +261,7 @@ struct URHO3D_API Timeline
 
     int id_;
     String name_;
+    StringHash hashname_;
     ObjectType objectType_;
     PODVector<SpatialTimelineKey*> keys_;
 };

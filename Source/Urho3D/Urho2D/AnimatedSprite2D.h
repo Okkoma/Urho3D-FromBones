@@ -25,9 +25,12 @@
 #include "../Urho2D/StaticSprite2D.h"
 
 #ifdef URHO3D_SPINE
-struct spAnimationState;
-struct spAnimationStateData;
-struct spSkeleton;
+namespace spine
+{
+    struct AnimationState;
+    struct AnimationStateData;
+    struct Skeleton;
+}
 #endif
 
 /// Loop mode.
@@ -331,11 +334,11 @@ protected:
 
 #ifdef URHO3D_SPINE
     /// Skeleton.
-    spSkeleton* skeleton_;
+    spine::Skeleton* skeleton_;
     /// Animation state data.
-    spAnimationStateData* animationStateData_;
+    spine::AnimationStateData* animationStateData_;
     /// Animation state.
-    spAnimationState* animationState_;
+    spine::AnimationState* animationState_;
 #endif
 
     /// Spriter instance.

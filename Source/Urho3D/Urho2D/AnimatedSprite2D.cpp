@@ -47,7 +47,6 @@
 #include "../Graphics/RenderPath.h"
 #include "../Resource/XMLFile.h"
 
-
 #ifdef URHO3D_SPINE
 #include <spine/spine.h>
 #endif
@@ -150,22 +149,25 @@ void AnimatedSprite2D::SetAnimationSet(AnimationSet2D* animationSet)
 #ifdef URHO3D_SPINE
     if (animationSet_->GetSkeletonData())
     {
-        spSkeletonData* skeletonData = animationSet->GetSkeletonData();
+        spine::SkeletonData* skeletonData = animationSet->GetSkeletonData();
 
         // Create skeleton
-        skeleton_ = spSkeleton_create(skeletonData);
-        skeleton_->flipX = flipX_;
-        skeleton_->flipY = flipY_;
+        skeleton_ = new spine::Skeleton(skeletonData);
+        skeleton_->setScaleX(flipX_ ? -1.f : 1.f);
+        skeleton_->setScaleY(flipY_ ? -1.f : 1.f);
 
-        if (skeleton_->data->skinsCount > 0)
+        if (skeleton_->getData()->getSkins().size() > 0)
         {
             // If entity is empty use first skin in spine
             if (entityName_.Empty())
-                entityName_ = skeleton_->data->skins[0]->name;
-            spSkeleton_setSkinByName(skeleton_, entityName_.CString());
+                entityName_ = String(skeleton_->getData()->getSkins()[0]->getName().buffer());
+
+            spine::String entityname(entityName_.CString() , true);
+            skeleton_->setSkin(entityname);
+            entityname.unown();
         }
 
-        spSkeleton_updateWorldTransform(skeleton_);
+        skeleton_->updateWorldTransform();
     }
 #endif
     if (animationSet_->GetSpriterData())
@@ -220,7 +222,11 @@ void AnimatedSprite2D::SetEntity(const String& entity)
 
 #ifdef URHO3D_SPINE
     if (skeleton_)
-        spSkeleton_setSkinByName(skeleton_, entityName_.CString());
+    {
+        spine::String entityname(entityName_.CString(), true);
+        skeleton_->setSkin(entityname);
+        entityname.unown();
+    }
 #endif
     if (spriterInstance_)
         spriterInstance_->SetEntity(entityName_);
@@ -1531,7 +1537,7 @@ void AnimatedSprite2D::SetSpineAnimation()
 {
     if (!animationStateData_)
     {
-        animationStateData_ = spAnimationStateData_create(animationSet_->GetSkeletonData());
+        animationStateData_ = new spine::AnimationStateData(animationSet_->GetSkeletonData());
         if (!animationStateData_)
         {
             URHO3D_LOGERROR("Create animation state data failed");
@@ -1541,7 +1547,7 @@ void AnimatedSprite2D::SetSpineAnimation()
 
     if (!animationState_)
     {
-        animationState_ = spAnimationState_create(animationStateData_);
+        animationState_ = new spine::AnimationState(animationStateData_);
         if (!animationState_)
         {
             URHO3D_LOGERROR("Create animation state failed");
@@ -1550,8 +1556,10 @@ void AnimatedSprite2D::SetSpineAnimation()
     }
 
     // Reset slots to setup pose, fix issue #932
-    spSkeleton_setSlotsToSetupPose(skeleton_);
-    spAnimationState_setAnimationByName(animationState_, 0, animationName_.CString(), loopMode_ != LM_FORCE_CLAMPED ? true : false);
+    skeleton_->setSlotsToSetupPose();
+    spine::String animationName(animationName_.CString(), true);
+    animationState_->setAnimation(0, animationName, loopMode_ != LM_FORCE_CLAMPED ? true : false);
+    animationName.unown();
 
     UpdateAnimation(0.0f);
     MarkNetworkUpdate();
@@ -1563,13 +1571,12 @@ void AnimatedSprite2D::UpdateSpineAnimation(float timeStep)
 
     timeStep *= speed_;
 
-    skeleton_->flipX = flipX_;
-    skeleton_->flipY = flipY_;
+    skeleton_->setScaleX(flipX_ ? -1.f : 1.f);
+    skeleton_->setScaleY(flipY_ ? -1.f : 1.f);
 
-    spSkeleton_update(skeleton_, timeStep);
-    spAnimationState_update(animationState_, timeStep);
-    spAnimationState_apply(animationState_, skeleton_);
-    spSkeleton_updateWorldTransform(skeleton_);
+    animationState_->update(timeStep);
+    animationState_->apply(*skeleton_);
+    skeleton_->updateWorldTransform();
 
     sourceBatchesDirty_ = true;
     worldBoundingBoxDirty_ = true;
@@ -1577,95 +1584,78 @@ void AnimatedSprite2D::UpdateSpineAnimation(float timeStep)
 
 void AnimatedSprite2D::UpdateSourceBatchesSpine()
 {
-    const Matrix3x4& worldTransform = GetNode()->GetWorldTransform();
+    const Matrix2x3& worldTransform2D = GetNode()->GetWorldTransform2D();
 
-    SourceBatch2D& sourceBatch = sourceBatches_[0];
-    sourceBatches_[0].vertices_.Clear();
+    SourceBatch2D& sourceBatch = sourceBatches_[0][0];
+    sourceBatch.vertices_.Clear();
 
     const int SLOT_VERTEX_COUNT_MAX = 1024;
     float slotVertices[SLOT_VERTEX_COUNT_MAX];
 
-    for (int i = 0; i < skeleton_->slotsCount; ++i)
+    spine::Vector<spine::Slot *>& drawOrders = skeleton_->getDrawOrder();
+    for (int i = 0; i < drawOrders.size(); ++i)
     {
-        spSlot* slot = skeleton_->drawOrder[i];
-        spAttachment* attachment = slot->attachment;
+        spine::Slot* slot = drawOrders[i];
+        spine::Attachment* attachment = slot->getAttachment();
         if (!attachment)
             continue;
 
-        unsigned color = Color(color_.r_ * slot->r,
-            color_.g_ * slot->g,
-            color_.b_ * slot->b,
-            color_.a_ * slot->a).ToUInt();
+        const spine::Color& spColor = slot->getColor();
+        unsigned color = Color(color_.r_ * spColor.r,
+                               color_.g_ * spColor.g,
+                               color_.b_ * spColor.b,
+                               color_.a_ * spColor.a).ToUInt();
 
-        if (attachment->type == SP_ATTACHMENT_REGION)
+        if (attachment->getRTTI().isExactly(spine::RegionAttachment::rtti))
         {
-            spRegionAttachment* region = (spRegionAttachment*)attachment;
-            spRegionAttachment_computeWorldVertices(region, slot->bone, slotVertices);
+            spine::RegionAttachment* region = (spine::RegionAttachment*)attachment;
+            region->computeWorldVertices(*slot, slotVertices, 0);
 
             Vertex2D vertices[4];
-            vertices[0].position_ = worldTransform * Vector3(slotVertices[SP_VERTEX_X1], slotVertices[SP_VERTEX_Y1]);
-            vertices[1].position_ = worldTransform * Vector3(slotVertices[SP_VERTEX_X2], slotVertices[SP_VERTEX_Y2]);
-            vertices[2].position_ = worldTransform * Vector3(slotVertices[SP_VERTEX_X3], slotVertices[SP_VERTEX_Y3]);
-            vertices[3].position_ = worldTransform * Vector3(slotVertices[SP_VERTEX_X4], slotVertices[SP_VERTEX_Y4]);
+            vertices[0].position_ = worldTransform2D * Vector2(slotVertices[0], slotVertices[1]);
+            vertices[1].position_ = worldTransform2D * Vector2(slotVertices[2], slotVertices[3]);
+            vertices[2].position_ = worldTransform2D * Vector2(slotVertices[4], slotVertices[5]);
+            vertices[3].position_ = worldTransform2D * Vector2(slotVertices[6], slotVertices[7]);
 
             vertices[0].color_ = color;
             vertices[1].color_ = color;
             vertices[2].color_ = color;
             vertices[3].color_ = color;
 
-            vertices[0].uv_ = Vector2(region->uvs[SP_VERTEX_X1], region->uvs[SP_VERTEX_Y1]);
-            vertices[1].uv_ = Vector2(region->uvs[SP_VERTEX_X2], region->uvs[SP_VERTEX_Y2]);
-            vertices[2].uv_ = Vector2(region->uvs[SP_VERTEX_X3], region->uvs[SP_VERTEX_Y3]);
-            vertices[3].uv_ = Vector2(region->uvs[SP_VERTEX_X4], region->uvs[SP_VERTEX_Y4]);
+            spine::Vector<float>& uvs = region->getUVs();
+            vertices[0].uv_ = Vector2(uvs[0], uvs[1]);
+            vertices[1].uv_ = Vector2(uvs[2], uvs[3]);
+            vertices[2].uv_ = Vector2(uvs[4], uvs[5]);
+            vertices[3].uv_ = Vector2(uvs[6], uvs[7]);
 
-            sourceBatches_[0].vertices_.Push(vertices[0]);
-            sourceBatches_[0].vertices_.Push(vertices[1]);
-            sourceBatches_[0].vertices_.Push(vertices[2]);
-            sourceBatches_[0].vertices_.Push(vertices[3]);
+            sourceBatch.vertices_.Push(vertices[0]);
+            sourceBatch.vertices_.Push(vertices[1]);
+            sourceBatch.vertices_.Push(vertices[2]);
+            sourceBatch.vertices_.Push(vertices[3]);
         }
-        else if (attachment->type == SP_ATTACHMENT_MESH)
+        else if (attachment->getRTTI().isExactly(spine::MeshAttachment::rtti))
         {
-            spMeshAttachment* mesh = (spMeshAttachment*)attachment;
-            if (mesh->verticesCount > SLOT_VERTEX_COUNT_MAX)
+            spine::MeshAttachment* mesh = (spine::MeshAttachment*)attachment;
+            if (mesh->getVertices().size() > SLOT_VERTEX_COUNT_MAX)
                 continue;
 
-            spMeshAttachment_computeWorldVertices(mesh, slot, slotVertices);
+            mesh->computeWorldVertices(*slot, slotVertices);
 
             Vertex2D vertex;
             vertex.color_ = color;
-            for (int j = 0; j < mesh->trianglesCount; ++j)
-            {
-                int index = mesh->triangles[j] << 1;
-                vertex.position_ = worldTransform * Vector3(slotVertices[index], slotVertices[index + 1]);
-                vertex.uv_ = Vector2(mesh->uvs[index], mesh->uvs[index + 1]);
 
-                sourceBatches_[0].vertices_.Push(vertex);
+            spine::Vector<unsigned short>& triangles = mesh->getTriangles();
+            spine::Vector<float>& uvs = mesh->getUVs();
+            for (int j = 0; j < triangles.size(); ++j)
+            {
+                int index = triangles[j] << 1;
+                vertex.position_ = worldTransform2D * Vector2(slotVertices[index], slotVertices[index + 1]);
+                vertex.uv_       = Vector2(uvs[index], uvs[index + 1]);
+                sourceBatch.vertices_.Push(vertex);
                 // Add padding vertex
                 if (j % 3 == 2)
-                    sourceBatches_[0].vertices_.Push(vertex);
+                    sourceBatch.vertices_.Push(vertex);
             }
-        }
-        else if (attachment->type == SP_ATTACHMENT_SKINNED_MESH)
-        {
-            spSkinnedMeshAttachment* skinnedMesh = (spSkinnedMeshAttachment*)attachment;
-            if (skinnedMesh->uvsCount > SLOT_VERTEX_COUNT_MAX)
-                continue;
-
-            spSkinnedMeshAttachment_computeWorldVertices(skinnedMesh, slot, slotVertices);
-
-            Vertex2D vertex;
-            vertex.color_ = color;
-            for (int j = 0; j < skinnedMesh->trianglesCount; ++j)
-            {
-                int index = skinnedMesh->triangles[j] << 1;
-                vertex.position_ = worldTransform * Vector3(slotVertices[index], slotVertices[index + 1]);
-                vertex.uv_ = Vector2(skinnedMesh->uvs[index], skinnedMesh->uvs[index + 1]);
-
-                sourceBatches_[0].vertices_.Push(vertex);
-                // Add padding vertex
-                if (j % 3 == 2)
-                    sourceBatches_[0].vertices_.Push(vertex);
-             }
         }
     }
 }
@@ -2765,19 +2755,19 @@ void AnimatedSprite2D::Dispose(bool removeNode)
 #ifdef URHO3D_SPINE
     if (animationState_)
     {
-        spAnimationState_dispose(animationState_);
+        delete animationState_;
         animationState_ = 0;
     }
 
     if (animationStateData_)
     {
-        spAnimationStateData_dispose(animationStateData_);
+        delete animationStateData_;
         animationStateData_ = 0;
     }
 
     if (skeleton_)
     {
-        spSkeleton_dispose(skeleton_);
+        delete skeleton_;
         skeleton_ = 0;
     }
 #endif

@@ -202,12 +202,13 @@ void SpriterData::UpdateKeyInfos()
 //        	URHO3D_LOGERRORF("=> animation %s ...", (*animation)->name_.CString());
 
             const PODVector<Timeline*>& timelines = (*animation)->timelines_;
-            for (PODVector<Timeline*>::ConstIterator timeline = timelines.Begin(); timeline != timelines.End(); ++timeline)
+            for (PODVector<Timeline*>::ConstIterator timelinet = timelines.Begin(); timelinet != timelines.End(); ++timelinet)
             {
-                if ((*timeline)->objectType_ != SPRITE && (*timeline)->objectType_  != BOX)
+                Timeline* timeline = *timelinet;
+                if (timeline->objectType_ != SPRITE && timeline->objectType_ != BOX)
                     continue;
 
-                const PODVector<SpatialTimelineKey*>& keys = (*timeline)->keys_;
+                const PODVector<SpatialTimelineKey*>& keys = timeline->keys_;
 
                 for (PODVector<SpatialTimelineKey*>::ConstIterator key = keys.Begin(); key != keys.End(); ++key)
                 {
@@ -225,13 +226,13 @@ void SpriterData::UpdateKeyInfos()
                             spriteKey->pivotX_ = file->pivotX_;
                             spriteKey->pivotY_ = file->pivotY_;
 //                            URHO3D_LOGINFOF(" ... anim=%s t=%s k=%d is using DefautPivot x=%f y=%f",
-//                                            (*animation)->name_.CString(), (*timeline)->name_.CString(),
+//                                            (*animation)->name_.CString(), timeline->name_.CString(),
 //                                            spriteKey->id_, spriteKey->pivotX_, spriteKey->pivotY_);
                         }
                     }
                     else if ((*key)->GetObjectType() == BOX)
                     {
-                        HashMap<String, ObjInfo >::Iterator objit = (*entity)->objInfos_.Find((*timeline)->name_);
+                        HashMap<StringHash, ObjInfo >::Iterator objit = (*entity)->objInfos_.Find(timeline->hashname_);
                         if (objit != (*entity)->objInfos_.End())
                         {
                             BoxTimelineKey* boxKey = (BoxTimelineKey*) (*key);
@@ -242,6 +243,7 @@ void SpriterData::UpdateKeyInfos()
                                 boxKey->pivotX_ = objit->second_.pivotX_;
                                 boxKey->pivotY_ = objit->second_.pivotY_;
                             }
+//                            objit->second_.name_ = timeline->name_;
                         }
                     }
                 }
@@ -408,7 +410,8 @@ bool Entity::Load(const pugi::xml_node& node)
         String name(objInfoNode.attribute("name").as_string());
         if (!name.Empty())
         {
-            if (!ObjInfo::Load(objInfoNode, objInfos_[name]))
+            StringHash hashname(name);
+            if (!ObjInfo::Load(objInfoNode, objInfos_[hashname]))
             {
                 URHO3D_LOGERRORF("SpriterData : Error In Entities:ObjInfo !");
                 return false;
@@ -454,17 +457,14 @@ bool Entity::Save(pugi::xml_node& node) const
 
     URHO3D_LOGINFOF("SpriterData : Save Entity = %s ...", name_.CString());
 
-    for (HashMap<String, ObjInfo >::ConstIterator it = objInfos_.Begin(); it != objInfos_.End(); ++it)
+    for (HashMap<StringHash, ObjInfo >::ConstIterator it = objInfos_.Begin(); it != objInfos_.End(); ++it)
     {
-        if (!it->first_.Empty())
-        {
-            const ObjInfo& objinfo = it->second_;
-            if (objinfo.type_ > ObjectType::BOX)
-                break;
+        const ObjInfo& objinfo = it->second_;
+        if (objinfo.type_ > ObjectType::BOX)
+            break;
 
-            pugi::xml_node child = node.append_child("obj_info");
-            ok &= objinfo.Save(child, it->first_);
-        }
+        pugi::xml_node child = node.append_child("obj_info");
+        ok &= objinfo.Save(child);
     }
 
     for (PODVector<CharacterMap*>::ConstIterator it = characterMaps_.Begin(); it != characterMaps_.End(); ++it)
@@ -516,7 +516,8 @@ bool ObjInfo::Load(const pugi::xml_node& node, ObjInfo& objinfo)
     else
         return false;
 
-    objinfo.width_ = node.attribute("w").as_float(10.f);
+    objinfo.name_   = node.attribute("name").as_string();
+    objinfo.width_  = node.attribute("w").as_float(10.f);
     objinfo.height_ = node.attribute("h").as_float(10.f);
     objinfo.pivotX_ = node.attribute("pivot_x").as_float(0.f);
     objinfo.pivotY_ = node.attribute("pivot_y").as_float(1.f);
@@ -524,9 +525,9 @@ bool ObjInfo::Load(const pugi::xml_node& node, ObjInfo& objinfo)
     return true;
 }
 
-bool ObjInfo::Save(pugi::xml_node& node, const String& name) const
+bool ObjInfo::Save(pugi::xml_node& node) const
 {
-    if (!const_cast<pugi::xml_node&>(node).append_attribute("name").set_value(name.CString()))
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("name").set_value(name_.CString()))
         return false;
     if (!const_cast<pugi::xml_node&>(node).append_attribute("type").set_value(ObjectTypeStr[type_]))
         return false;
@@ -1042,6 +1043,7 @@ bool Timeline::Load(const pugi::xml_node& node)
         return false;
 
     name_ = String(node.attribute("name").as_string());
+    hashname_ = StringHash(name_);
 
     String typeString;
     xml_attribute typeAttr = node.attribute("type");

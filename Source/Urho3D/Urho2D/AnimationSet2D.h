@@ -26,9 +26,12 @@
 #include "../Resource/Resource.h"
 
 #ifdef URHO3D_SPINE
-struct spAtlas;
-struct spSkeletonData;
-struct spAnimationStateData;
+namespace spine
+{
+    struct Atlas;
+    struct SkeletonData;
+    struct AnimationStateData;
+}
 #endif
 
 namespace Urho3D
@@ -82,8 +85,9 @@ public:
     Sprite2D* GetSprite(const String& name) const;
 
 #ifdef URHO3D_SPINE
+    Sprite2D* GetSpineSprite() const;
     /// Return spine skeleton data.
-    spSkeletonData* GetSkeletonData() const { return skeletonData_; }
+    spine::SkeletonData* GetSkeletonData() const { return skeletonData_; }
 #endif
 
     /// Return spriter data.
@@ -96,7 +100,7 @@ public:
     void GetCharacterMapSprites(const Spriter::CharacterMap* characterMap, PODVector<Sprite2D*>& sprites);
     void GetSpritesCharacterMapRef(Spriter::CharacterMap* characterMap, ResourceRefList& spriteRefList);
 
-    const HashMap<int, SharedPtr<Sprite2D> >& GetSpriteMapping() const { return spriterFileSprites_; }
+    const HashMap<unsigned, SharedPtr<Sprite2D> >& GetSpriteMapping() const { return spriterFileSprites_; }
 
     static String customSpritesheetFile_;
 
@@ -119,17 +123,7 @@ private:
     /// Dispose all data.
     void Dispose();
 
-    /// Spine sprite.
     SharedPtr<Sprite2D> sprite_;
-
-#ifdef URHO3D_SPINE
-    /// Spine json data.
-    SharedArrayPtr<char> jsonData_;
-    /// Spine skeleton data.
-    spSkeletonData* skeletonData_;
-    /// Spine atlas.
-    spAtlas* atlas_;
-#endif
 
     /// Spriter data.
     UniquePtr<Spriter::SpriterData> spriterData_;
@@ -140,7 +134,17 @@ private:
     /// Sprite sheet.
     SharedPtr<SpriteSheet2D> spriteSheet_;
     /// Spriter sprites.
-    HashMap<int, SharedPtr<Sprite2D> > spriterFileSprites_;
+    HashMap<unsigned, SharedPtr<Sprite2D> > spriterFileSprites_;
+
+#ifdef URHO3D_SPINE
+    SharedPtr<Sprite2D> spineSprite_;
+    /// Spine json data.
+    SharedArrayPtr<char> jsonData_;
+    /// Spine skeleton data.
+    spine::SkeletonData* skeletonData_;
+    /// Spine atlas.
+    spine::Atlas* atlas_;
+#endif
 };
 
 }
