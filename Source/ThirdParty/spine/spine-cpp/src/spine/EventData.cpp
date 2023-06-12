@@ -27,14 +27,14 @@
  * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#include <spine/EventData.h>
+#include <spine/SpineEventData.h>
 
 #include <assert.h>
 
 namespace spine
 {
 
-spine::EventData::EventData(const spine::String &name) : _name(name),
+spine::SpineEventData::SpineEventData(const spine::String &name) : _name(name),
 														 _intValue(0),
 														 _floatValue(0),
 														 _stringValue(),
@@ -44,57 +44,57 @@ spine::EventData::EventData(const spine::String &name) : _name(name),
 	assert(_name.length() > 0);
 }
 
-/// The name of the event, which is unique within the skeleton.
-const spine::String &spine::EventData::getName() const {
+/// The name of the SpineEvent, which is unique within the skeleton.
+const spine::String &spine::SpineEventData::getName() const {
 	return _name;
 }
 
-int spine::EventData::getIntValue() const {
+int spine::SpineEventData::getIntValue() const {
 	return _intValue;
 }
 
-void spine::EventData::setIntValue(int inValue) {
+void spine::SpineEventData::setIntValue(int inValue) {
 	_intValue = inValue;
 }
 
-float spine::EventData::getFloatValue() const {
+float spine::SpineEventData::getFloatValue() const {
 	return _floatValue;
 }
 
-void spine::EventData::setFloatValue(float inValue) {
+void spine::SpineEventData::setFloatValue(float inValue) {
 	_floatValue = inValue;
 }
 
-const spine::String &spine::EventData::getStringValue() const {
+const spine::String &spine::SpineEventData::getStringValue() const {
 	return _stringValue;
 }
 
-void spine::EventData::setStringValue(const spine::String &inValue) {
+void spine::SpineEventData::setStringValue(const spine::String &inValue) {
 	this->_stringValue = inValue;
 }
 
-const spine::String &spine::EventData::getAudioPath() const {
+const spine::String &spine::SpineEventData::getAudioPath() const {
 	return _audioPath;
 }
 
-void spine::EventData::setAudioPath(const spine::String &inValue) {
+void spine::SpineEventData::setAudioPath(const spine::String &inValue) {
 	_audioPath = inValue;
 }
 
 
-float spine::EventData::getVolume() const {
+float spine::SpineEventData::getVolume() const {
 	return _volume;
 }
 
-void spine::EventData::setVolume(float inValue) {
+void spine::SpineEventData::setVolume(float inValue) {
 	_volume = inValue;
 }
 
-float spine::EventData::getBalance() const {
+float spine::SpineEventData::getBalance() const {
 	return _balance;
 }
 
-void spine::EventData::setBalance(float inValue) {
+void spine::SpineEventData::setBalance(float inValue) {
 	_balance = inValue;
 }
 

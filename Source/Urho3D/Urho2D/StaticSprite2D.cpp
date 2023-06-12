@@ -387,7 +387,7 @@ void StaticSprite2D::OnWorldBoundingBoxUpdate()
 
 bool StaticSprite2D::UpdateDrawRectangle()
 {
-//    if (node_->GetID() == 16785126)
+//    if (enableDebugLog_)
 //        URHO3D_LOGINFOF("StaticSprite2D() - UpdateDrawRectangle : node=%s(%u) ...", node_->GetName().CString(), node_->GetID());
 
     if (!drawRectDirty_ || useDrawRect_)

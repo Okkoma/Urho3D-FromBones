@@ -31,7 +31,7 @@
 #include <spine/Bone.h>
 #include <spine/RegionAttachment.h>
 #include <spine/MeshAttachment.h>
-#include <spine/Event.h>
+#include <spine/SpineEvent.h>
 #include <spine/Skeleton.h>
 #include <spine/Attachment.h>
 #include <spine/PathConstraintData.h>
@@ -63,11 +63,11 @@ void SequenceTimeline::setFrame(int frame, float time, SequenceMode mode, int in
 	frames[frame + DELAY] = delay;
 }
 
-void SequenceTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents,
+void SequenceTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents,
 							 float alpha, MixBlend blend, MixDirection direction) {
 	SP_UNUSED(alpha);
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 	SP_UNUSED(direction);
 
 	Slot *slot = skeleton.getSlots()[_slotIndex];

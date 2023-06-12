@@ -27,36 +27,17 @@
  * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#ifndef Spine_EventTimeline_h
-#define Spine_EventTimeline_h
+#include <spine/TransformConstraintData.h>
+#include <spine/extension.h>
 
-#include <spine/Timeline.h>
-
-namespace spine {
-	class SP_API EventTimeline : public Timeline {
-		friend class SkeletonBinary;
-
-		friend class SkeletonJson;
-
-	RTTI_DECL
-
-	public:
-		explicit EventTimeline(size_t frameCount);
-
-		~EventTimeline();
-
-		virtual void
-		apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha, MixBlend blend,
-			  MixDirection direction);
-
-		/// Sets the time and value of the specified keyframe.
-		void setFrame(size_t frame, Event *event);
-
-		Vector<Event *> &getEvents();
-
-	private:
-		Vector<Event *> _events;
-	};
+spTransformConstraintData *spTransformConstraintData_create(const char *name) {
+	spTransformConstraintData *self = NEW(spTransformConstraintData);
+	MALLOC_STR(self->name, name);
+	return self;
 }
 
-#endif /* Spine_EventTimeline_h */
+void spTransformConstraintData_dispose(spTransformConstraintData *self) {
+	FREE(self->name);
+	FREE(self->bones);
+	FREE(self);
+}

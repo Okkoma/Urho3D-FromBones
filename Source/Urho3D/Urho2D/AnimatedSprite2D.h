@@ -25,12 +25,9 @@
 #include "../Urho2D/StaticSprite2D.h"
 
 #ifdef URHO3D_SPINE
-namespace spine
-{
-    struct AnimationState;
-    struct AnimationStateData;
-    struct Skeleton;
-}
+struct spAnimationState;
+struct spAnimationStateData;
+struct spSkeleton;
 #endif
 
 /// Loop mode.
@@ -272,14 +269,7 @@ protected:
 
     /// Update animation.
     void UpdateAnimation(float timeStep);
-#ifdef URHO3D_SPINE
-    /// Handle set spine animation.
-    void SetSpineAnimation();
-    /// Update spine animation.
-    void UpdateSpineAnimation(float timeStep);
-    /// Update vertices for spine animation;
-    void UpdateSourceBatchesSpine();
-#endif
+
     /// Update spriter triggers.
     void HideTriggers();
     void ClearTriggers(bool removeNode);
@@ -315,8 +305,6 @@ protected:
     SharedPtr<AnimationSet2D> animationSet_;
     /// Animation name.
     String animationName_;
-    int animationIndex_;
-
     /// Local Positioning In Node
     float localRotation_;
     Vector2 localPosition_;
@@ -331,15 +319,6 @@ protected:
 	int renderZIndex_;
 	unsigned firstKeyIndex_, stopKeyIndex_;
     float mappingScaleRatio_;
-
-#ifdef URHO3D_SPINE
-    /// Skeleton.
-    spine::Skeleton* skeleton_;
-    /// Animation state data.
-    spine::AnimationStateData* animationStateData_;
-    /// Animation state.
-    spine::AnimationState* animationState_;
-#endif
 
     /// Spriter instance.
     UniquePtr<Spriter::SpriterInstance> spriterInstance_;
@@ -373,6 +352,24 @@ protected:
     EventTriggerInfo triggerInfo_;
 
     Vector<SourceBatch2D>* customSourceBatches_;
+
+    int animationIndex_;
+
+#ifdef URHO3D_SPINE
+    /// Handle set spine animation.
+    void SetSpineAnimation();
+    /// Update spine animation.
+    void UpdateSpineAnimation(float timeStep);
+    /// Update vertices for spine animation;
+    void UpdateSourceBatchesSpine();
+
+    /// Skeleton.
+    spSkeleton* skeleton_;
+    /// Animation state data.
+    spAnimationStateData* animationStateData_;
+    /// Animation state.
+    spAnimationState* animationState_;
+#endif
 };
 
 }

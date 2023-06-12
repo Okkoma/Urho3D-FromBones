@@ -84,7 +84,7 @@ public:
     float GetTextureEdgeOffset() const { return edgeOffset_; }
 
     /// Return sprite sheet.
-    SpriteSheet2D* GetSpriteSheet() const { return spriteSheet_; }
+    SpriteSheet2D* GetSpriteSheet() const { return spriteSheet_.Get(); }
 
     /// Return draw rectangle.
     bool GetDrawRectangle(Rect& rect, bool flipX = false, bool flipY = false) const;

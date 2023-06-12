@@ -48,9 +48,9 @@
 #include <spine/ContainerUtil.h>
 #include <spine/DeformTimeline.h>
 #include <spine/DrawOrderTimeline.h>
-#include <spine/Event.h>
-#include <spine/EventData.h>
-#include <spine/EventTimeline.h>
+#include <spine/SpineEvent.h>
+#include <spine/SpineEventData.h>
+#include <spine/SpineEventTimeline.h>
 #include <spine/IkConstraintData.h>
 #include <spine/IkConstraintTimeline.h>
 #include <spine/MeshAttachment.h>
@@ -314,12 +314,12 @@ SkeletonData *SkeletonBinary::readSkeletonData(const unsigned char *binary, cons
 	ContainerUtil::cleanUpVectorOfPointers(_linkedMeshes);
 	_linkedMeshes.clear();
 
-	/* Events. */
-	int eventsCount = readVarint(input, true);
-	skeletonData->_events.setSize(eventsCount, 0);
-	for (int i = 0; i < eventsCount; ++i) {
+	/* SpineEvents. */
+	int SpineEventsCount = readVarint(input, true);
+	skeletonData->_SpineEvents.setSize(SpineEventsCount, 0);
+	for (int i = 0; i < SpineEventsCount; ++i) {
 		const char *name = readStringRef(input, skeletonData);
-		EventData *eventData = new (__FILE__, __LINE__) EventData(String(name));
+		SpineEventData *eventData = new (__FILE__, __LINE__) SpineEventData(String(name));
 		eventData->_intValue = readVarint(input, false);
 		eventData->_floatValue = readFloat(input);
 		eventData->_stringValue.own(readString(input));
@@ -328,7 +328,7 @@ SkeletonData *SkeletonBinary::readSkeletonData(const unsigned char *binary, cons
 			eventData->_volume = readFloat(input);
 			eventData->_balance = readFloat(input);
 		}
-		skeletonData->_events[i] = eventData;
+		skeletonData->_SpineEvents[i] = eventData;
 	}
 
 	/* Animations. */
@@ -1369,24 +1369,24 @@ Animation *SkeletonBinary::readAnimation(const String &name, DataInput *input, S
 		timelines.add(timeline);
 	}
 
-	// Event timeline.
-	int eventCount = readVarint(input, true);
-	if (eventCount > 0) {
-		EventTimeline *timeline = new (__FILE__, __LINE__) EventTimeline(eventCount);
+	// event timeline.
+	int SpineEventCount = readVarint(input, true);
+	if (SpineEventCount > 0) {
+		SpineEventTimeline *timeline = new (__FILE__, __LINE__) SpineEventTimeline(SpineEventCount);
 
-		for (int i = 0; i < eventCount; ++i) {
+		for (int i = 0; i < SpineEventCount; ++i) {
 			float time = readFloat(input);
-			EventData *eventData = skeletonData->_events[readVarint(input, true)];
-			Event *event = new (__FILE__, __LINE__) Event(time, *eventData);
+			SpineEventData *SpineEventData = skeletonData->_SpineEvents[readVarint(input, true)];
+			SpineEvent *event = new (__FILE__, __LINE__) SpineEvent(time, *SpineEventData);
 
 			event->_intValue = readVarint(input, false);
 			event->_floatValue = readFloat(input);
 			bool freeString = readBoolean(input);
-			const char *event_stringValue = freeString ? readString(input) : eventData->_stringValue.buffer();
-			event->_stringValue = String(event_stringValue);
-			if (freeString) SpineExtension::free(event_stringValue, __FILE__, __LINE__);
+			const char *SpineEvent_stringValue = freeString ? readString(input) : SpineEventData->_stringValue.buffer();
+			event->_stringValue = String(SpineEvent_stringValue);
+			if (freeString) SpineExtension::free(SpineEvent_stringValue, __FILE__, __LINE__);
 
-			if (!eventData->_audioPath.isEmpty()) {
+			if (!SpineEventData->_audioPath.isEmpty()) {
 				event->_volume = readFloat(input);
 				event->_balance = readFloat(input);
 			}

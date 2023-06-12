@@ -44,13 +44,13 @@
 #endif
 
 namespace spine {
-	enum EventType {
-		EventType_Start = 0,
-		EventType_Interrupt,
-		EventType_End,
-		EventType_Complete,
-		EventType_Dispose,
-		EventType_Event
+	enum SpineEventType {
+		SpineEventType_Start = 0,
+		SpineEventType_Interrupt,
+		SpineEventType_End,
+		SpineEventType_Complete,
+		SpineEventType_Dispose,
+		SpineEventType_SpineEvent
 	};
 
 	class AnimationState;
@@ -59,7 +59,7 @@ namespace spine {
 
 	class Animation;
 
-	class Event;
+	class SpineEvent;
 
 	class AnimationStateData;
 
@@ -70,10 +70,10 @@ namespace spine {
 	class AttachmentTimeline;
 
 #ifdef SPINE_USE_STD_FUNCTION
-	typedef std::function<void (AnimationState* state, EventType type, TrackEntry* entry, Event* event)> AnimationStateListener;
+	typedef std::function<void (AnimationState* state, SpineEventType type, TrackEntry* entry, SpineEvent* SpineEvent)> AnimationStateListener;
 #else
 
-	typedef void (*AnimationStateListener)(AnimationState *state, EventType type, TrackEntry *entry, Event *event);
+	typedef void (*AnimationStateListener)(AnimationState *state, SpineEventType type, TrackEntry *entry, SpineEvent *SpineEvent);
 
 #endif
 
@@ -85,12 +85,12 @@ namespace spine {
 		virtual ~AnimationStateListenerObject() {};
 	public:
 		/// The callback function to be called
-		virtual void callback(AnimationState *state, EventType type, TrackEntry *entry, Event *event) = 0;
+		virtual void callback(AnimationState *state, SpineEventType type, TrackEntry *entry, SpineEvent *SpineEvent) = 0;
 	};
 
 	/// State for the playback of an animation
 	class SP_API TrackEntry : public SpineObject, public HasRendererObject {
-		friend class EventQueue;
+		friend class SpineEventQueue;
 
 		friend class AnimationState;
 
@@ -162,7 +162,7 @@ namespace spine {
 		/// Seconds when this animation starts, both initially and after looping. Defaults to 0.
 		///
 		/// When changing the animation start time, it often makes sense to set TrackEntry.AnimationLast to the same value to
-		/// prevent timeline keys before the start time from triggering.
+		/// prSpineEvent timeline keys before the start time from triggering.
 		float getAnimationStart();
 
 		void setAnimationStart(float inValue);
@@ -174,7 +174,7 @@ namespace spine {
 		void setAnimationEnd(float inValue);
 
 		/// The time in seconds this animation was last applied. Some timelines use this for one-time triggers. Eg, when this
-		/// animation is applied, event timelines will fire all events between the animation last time (exclusive) and animation time
+		/// animation is applied, SpineEvent timelines will fire all SpineEvents between the animation last time (exclusive) and animation time
 		/// (inclusive). Defaults to -1 to ensure triggers on frame 0 happen the first time this animation is applied.
 		float getAnimationLast();
 
@@ -200,11 +200,11 @@ namespace spine {
 		void setAlpha(float inValue);
 
 		///
-		/// When the mix percentage (mix time / mix duration) is less than the event threshold, event timelines for the animation
-		/// being mixed out will be applied. Defaults to 0, so event timelines are not applied for an animation being mixed out.
-		float getEventThreshold();
+		/// When the mix percentage (mix time / mix duration) is less than the SpineEvent threshold, SpineEvent timelines for the animation
+		/// being mixed out will be applied. Defaults to 0, so SpineEvent timelines are not applied for an animation being mixed out.
+		float getSpineEventThreshold();
 
-		void setEventThreshold(float inValue);
+		void setSpineEventThreshold(float inValue);
 
 		/// When the mix percentage (mix time / mix duration) is less than the attachment threshold, attachment timelines for the
 		/// animation being mixed out will be applied. Defaults to 0, so attachment timelines are not applied for an animation being
@@ -280,7 +280,7 @@ namespace spine {
 		int _trackIndex;
 
 		bool _loop, _holdPrevious, _reverse, _shortestRotation;
-		float _eventThreshold, _attachmentThreshold, _drawOrderThreshold;
+		float _SpineEventThreshold, _attachmentThreshold, _drawOrderThreshold;
 		float _animationStart, _animationEnd, _animationLast, _nextAnimationLast;
 		float _delay, _trackTime, _trackLast, _nextTrackLast, _trackEnd, _timeScale;
 		float _alpha, _mixTime, _mixDuration, _interruptAlpha, _totalAlpha;
@@ -294,32 +294,32 @@ namespace spine {
 		void reset();
 	};
 
-	class SP_API EventQueueEntry : public SpineObject {
-		friend class EventQueue;
+	class SP_API SpineEventQueueEntry : public SpineObject {
+		friend class SpineEventQueue;
 
 	public:
-		EventType _type;
+		SpineEventType _type;
 		TrackEntry *_entry;
-		Event *_event;
+		SpineEvent *_event;
 
-		EventQueueEntry(EventType eventType, TrackEntry *trackEntry, Event *event = NULL);
+		SpineEventQueueEntry(SpineEventType eventType, TrackEntry *trackEntry, SpineEvent *event = NULL);
 	};
 
-	class SP_API EventQueue : public SpineObject {
+	class SP_API SpineEventQueue : public SpineObject {
 		friend class AnimationState;
 
 	private:
-		Vector<EventQueueEntry> _eventQueueEntries;
+		Vector<SpineEventQueueEntry> _SpineEventQueueEntries;
 		AnimationState &_state;
 		bool _drainDisabled;
 
-		static EventQueue *newEventQueue(AnimationState &state);
+		static SpineEventQueue *newSpineEventQueue(AnimationState &state);
 
-		static EventQueueEntry newEventQueueEntry(EventType eventType, TrackEntry *entry, Event *event = NULL);
+		static SpineEventQueueEntry newSpineEventQueueEntry(SpineEventType eventType, TrackEntry *entry, SpineEvent *event = NULL);
 
-		EventQueue(AnimationState &state);
+		SpineEventQueue(AnimationState &state);
 
-		~EventQueue();
+		~SpineEventQueue();
 
 		void start(TrackEntry *entry);
 
@@ -331,16 +331,16 @@ namespace spine {
 
 		void complete(TrackEntry *entry);
 
-		void event(TrackEntry *entry, Event *event);
+		void event(TrackEntry *entry, SpineEvent *pevent);
 
-		/// Raises all events in the queue and drains the queue.
+		/// Raises all SpineEvents in the queue and drains the queue.
 		void drain();
 	};
 
 	class SP_API AnimationState : public SpineObject, public HasRendererObject {
 		friend class TrackEntry;
 
-		friend class EventQueue;
+		friend class SpineEventQueue;
 
 	public:
 		explicit AnimationState(AnimationStateData *data);
@@ -448,8 +448,8 @@ namespace spine {
 
 		Pool<TrackEntry> _trackEntryPool;
 		Vector<TrackEntry *> _tracks;
-		Vector<Event *> _events;
-		EventQueue *_queue;
+		Vector<SpineEvent *> _SpineEvents;
+		SpineEventQueue *_queue;
 
 		HashMap<PropertyId, bool> _propertyIDs;
 		bool _animationsChanged;
@@ -477,7 +477,7 @@ namespace spine {
 
 		float applyMixingFrom(TrackEntry *to, Skeleton &skeleton, MixBlend currentPose);
 
-		void queueEvents(TrackEntry *entry, float animationTime);
+		void queueSpineEvents(TrackEntry *entry, float animationTime);
 
 		/// Sets the active TrackEntry for a given track number.
 		void setCurrent(size_t index, TrackEntry *current, bool interrupt);

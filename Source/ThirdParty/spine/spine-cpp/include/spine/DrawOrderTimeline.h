@@ -44,7 +44,7 @@ namespace spine {
 		explicit DrawOrderTimeline(size_t frameCount);
 
 		virtual void
-		apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha, MixBlend blend,
+		apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha, MixBlend blend,
 			  MixDirection direction);
 
 		/// Sets the time and value of the specified keyframe.

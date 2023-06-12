@@ -46,9 +46,9 @@
 #include <spine/ContainerUtil.h>
 #include <spine/DeformTimeline.h>
 #include <spine/DrawOrderTimeline.h>
-#include <spine/Event.h>
-#include <spine/EventData.h>
-#include <spine/EventTimeline.h>
+#include <spine/SpineEvent.h>
+#include <spine/SpineEventData.h>
+#include <spine/SpineEventTimeline.h>
 #include <spine/IkConstraintData.h>
 #include <spine/IkConstraintTimeline.h>
 #include <spine/MeshAttachment.h>
@@ -133,7 +133,7 @@ SkeletonData *SkeletonJson::readSkeletonDataFile(const String &path) {
 SkeletonData *SkeletonJson::readSkeletonData(const char *json) {
 	int i, ii;
 	SkeletonData *skeletonData;
-	Json *root, *skeleton, *bones, *boneMap, *ik, *transform, *path, *slots, *skins, *animations, *events;
+	Json *root, *skeleton, *bones, *boneMap, *ik, *transform, *path, *slots, *skins, *animations, *SpineEvents;
 
 	_error = "";
 	_linkedMeshes.clear();
@@ -738,26 +738,26 @@ SkeletonData *SkeletonJson::readSkeletonData(const char *json) {
 	ContainerUtil::cleanUpVectorOfPointers(_linkedMeshes);
 	_linkedMeshes.clear();
 
-	/* Events. */
-	events = Json::getItem(root, "events");
-	if (events) {
-		Json *eventMap;
-		skeletonData->_events.ensureCapacity(events->_size);
-		skeletonData->_events.setSize(events->_size, 0);
-		for (eventMap = events->_child, i = 0; eventMap; eventMap = eventMap->_next, ++i) {
-			EventData *eventData = new (__FILE__, __LINE__) EventData(String(eventMap->_name));
+	/* SpineEvents. */
+	SpineEvents = Json::getItem(root, "SpineEvents");
+	if (SpineEvents) {
+		Json *SpineEventMap;
+		skeletonData->_SpineEvents.ensureCapacity(SpineEvents->_size);
+		skeletonData->_SpineEvents.setSize(SpineEvents->_size, 0);
+		for (SpineEventMap = SpineEvents->_child, i = 0; SpineEventMap; SpineEventMap = SpineEventMap->_next, ++i) {
+			SpineEventData *eventData = new (__FILE__, __LINE__) SpineEventData(String(SpineEventMap->_name));
 
-			eventData->_intValue = Json::getInt(eventMap, "int", 0);
-			eventData->_floatValue = Json::getFloat(eventMap, "float", 0);
-			const char *stringValue = Json::getString(eventMap, "string", 0);
+			eventData->_intValue = Json::getInt(SpineEventMap, "int", 0);
+			eventData->_floatValue = Json::getFloat(SpineEventMap, "float", 0);
+			const char *stringValue = Json::getString(SpineEventMap, "string", 0);
 			eventData->_stringValue = stringValue;
-			const char *audioPath = Json::getString(eventMap, "audio", 0);
+			const char *audioPath = Json::getString(SpineEventMap, "audio", 0);
 			eventData->_audioPath = audioPath;
 			if (audioPath) {
-				eventData->_volume = Json::getFloat(eventMap, "volume", 1);
-				eventData->_balance = Json::getFloat(eventMap, "balance", 0);
+				eventData->_volume = Json::getFloat(SpineEventMap, "volume", 1);
+				eventData->_balance = Json::getFloat(SpineEventMap, "balance", 0);
 			}
-			skeletonData->_events[i] = eventData;
+			skeletonData->_SpineEvents[i] = eventData;
 		}
 	}
 
@@ -883,7 +883,7 @@ Animation *SkeletonJson::readAnimation(Json *root, SkeletonData *skeletonData) {
 	Json *paths = Json::getItem(root, "path");
 	Json *attachments = Json::getItem(root, "attachments");
 	Json *drawOrder = Json::getItem(root, "drawOrder");
-	Json *events = Json::getItem(root, "events");
+	Json *SpineEvents = Json::getItem(root, "SpineEvents");
 	Json *boneMap, *slotMap, *keyMap, *nextMap, *curve;
 	int frame, bezier;
 	Color color, color2, newColor, newColor2;
@@ -1396,24 +1396,24 @@ Animation *SkeletonJson::readAnimation(Json *root, SkeletonData *skeletonData) {
 		timelines.add(timeline);
 	}
 
-	/** Event timeline. */
-	if (events) {
-		EventTimeline *timeline = new (__FILE__, __LINE__) EventTimeline(events->_size);
+	/** SpineEvent timeline. */
+	if (SpineEvents) {
+		SpineEventTimeline *timeline = new (__FILE__, __LINE__) SpineEventTimeline(SpineEvents->_size);
 
-		for (keyMap = events->_child, frame = 0; keyMap; keyMap = keyMap->_next, ++frame) {
-			Event *event;
-			EventData *eventData = skeletonData->findEvent(Json::getString(keyMap, "name", 0));
-			if (!eventData) {
+		for (keyMap = SpineEvents->_child, frame = 0; keyMap; keyMap = keyMap->_next, ++frame) {
+			SpineEvent *event;
+			SpineEventData *SpineEventData = skeletonData->findSpineEvent(Json::getString(keyMap, "name", 0));
+			if (!SpineEventData) {
 				ContainerUtil::cleanUpVectorOfPointers(timelines);
-				setError(NULL, "Event not found: ", Json::getString(keyMap, "name", 0));
+				setError(NULL, "SpineEvent not found: ", Json::getString(keyMap, "name", 0));
 				return NULL;
 			}
 
-			event = new (__FILE__, __LINE__) Event(Json::getFloat(keyMap, "time", 0), *eventData);
-			event->_intValue = Json::getInt(keyMap, "int", eventData->_intValue);
-			event->_floatValue = Json::getFloat(keyMap, "float", eventData->_floatValue);
-			event->_stringValue = Json::getString(keyMap, "string", eventData->_stringValue.buffer());
-			if (!eventData->_audioPath.isEmpty()) {
+			event = new (__FILE__, __LINE__) SpineEvent(Json::getFloat(keyMap, "time", 0), *SpineEventData);
+			event->_intValue = Json::getInt(keyMap, "int", SpineEventData->_intValue);
+			event->_floatValue = Json::getFloat(keyMap, "float", SpineEventData->_floatValue);
+			event->_stringValue = Json::getString(keyMap, "string", SpineEventData->_stringValue.buffer());
+			if (!SpineEventData->_audioPath.isEmpty()) {
 				event->_volume = Json::getFloat(keyMap, "volume", 1);
 				event->_balance = Json::getFloat(keyMap, "balance", 0);
 			}

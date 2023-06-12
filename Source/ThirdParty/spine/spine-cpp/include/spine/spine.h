@@ -51,9 +51,9 @@
 #include <spine/CurveTimeline.h>
 #include <spine/DeformTimeline.h>
 #include <spine/DrawOrderTimeline.h>
-#include <spine/Event.h>
-#include <spine/EventData.h>
-#include <spine/EventTimeline.h>
+#include <spine/SpineEvent.h>
+#include <spine/SpineEventData.h>
+#include <spine/SpineEventTimeline.h>
 #include <spine/Extension.h>
 #include <spine/HashMap.h>
 #include <spine/HasRendererObject.h>

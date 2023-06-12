@@ -27,60 +27,11 @@
  * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#ifndef Spine_Event_h
-#define Spine_Event_h
+#ifndef SPINE_VERTEXEFFECT_H_
+#define SPINE_VERTEXEFFECT_H_
 
-#include <spine/SpineObject.h>
-#include <spine/SpineString.h>
+#define SPINE_MAJOR_VERSION 4
+#define SPINE_MINOR_VERSION 1
+#define SPINE_VERSION_STRING "4.1"
 
-namespace spine {
-	class EventData;
-
-/// Stores the current pose values for an Event.
-	class SP_API Event : public SpineObject {
-		friend class SkeletonBinary;
-
-		friend class SkeletonJson;
-
-		friend class AnimationState;
-
-	public:
-		Event(float time, const EventData &data);
-
-		const EventData &getData();
-
-		/// The animation time this event was keyed.
-		float getTime();
-
-		int getIntValue();
-
-		void setIntValue(int inValue);
-
-		float getFloatValue();
-
-		void setFloatValue(float inValue);
-
-		const String &getStringValue();
-
-		void setStringValue(const String &inValue);
-
-		float getVolume();
-
-		void setVolume(float inValue);
-
-		float getBalance();
-
-		void setBalance(float inValue);
-
-	private:
-		const EventData &_data;
-		const float _time;
-		int _intValue;
-		float _floatValue;
-		String _stringValue;
-		float _volume;
-		float _balance;
-	};
-}
-
-#endif /* Spine_Event_h */
+#endif

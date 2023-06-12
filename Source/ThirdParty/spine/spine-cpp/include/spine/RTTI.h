@@ -46,7 +46,7 @@ namespace spine {
 		bool instanceOf(const RTTI &rtti) const;
 
 	private:
-		// Prevent copying
+		// PrSpineEvent copying
 		RTTI(const RTTI &obj);
 
 		RTTI &operator=(const RTTI &obj);

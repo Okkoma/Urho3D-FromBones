@@ -308,7 +308,8 @@ const Vector<SourceBatch2D*>& Drawable2D::GetSourceBatchesToRender(Camera* camer
 
     if (sourceBatchesDirty_)
     {
-//        URHO3D_LOGINFOF("Drawable2D() - GetSourceBatchesToRender : node=%s(%u) layer=%s batchsetid=%d ",
+//        if (enableDebugLog_)
+//            URHO3D_LOGERRORF("Drawable2D() - GetSourceBatchesToRender : node=%s(%u) layer=%s batchsetid=%d ",
 //                        node_->GetName().CString(), node_->GetID(), layer_.ToString().CString(), batchsetid);
         UpdateSourceBatchesToRender(batchsetid);
     }

@@ -181,7 +181,7 @@ const char *Json::parseValue(Json *item, const char *value) {
 		case 'f': {
 			if (!strncmp(value + 1, "alse", 4)) {
 				item->_type = JSON_FALSE;
-				/* calloc prevents us needing item->_type = JSON_FALSE or valueInt = 0 here */
+				/* calloc prSpineEvents us needing item->_type = JSON_FALSE or valueInt = 0 here */
 				return value + 5;
 			}
 			break;

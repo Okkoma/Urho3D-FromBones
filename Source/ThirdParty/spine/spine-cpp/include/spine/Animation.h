@@ -43,7 +43,7 @@ namespace spine {
 
 	class Skeleton;
 
-	class Event;
+	class SpineEvent;
 
 	class AnimationState;
 
@@ -70,7 +70,7 @@ namespace spine {
 
 		friend class DrawOrderTimeline;
 
-		friend class EventTimeline;
+		friend class SpineEventTimeline;
 
 		friend class IkConstraintTimeline;
 
@@ -103,7 +103,7 @@ namespace spine {
 
 		/// Applies all the animation's timelines to the specified skeleton.
 		/// See also Timeline::apply(Skeleton&, float, float, Vector, float, MixPose, MixDirection)
-		void apply(Skeleton &skeleton, float lastTime, float time, bool loop, Vector<Event *> *pEvents, float alpha,
+		void apply(Skeleton &skeleton, float lastTime, float time, bool loop, Vector<SpineEvent *> *pSpineEvents, float alpha,
 				   MixBlend blend, MixDirection direction);
 
 		const String &getName();

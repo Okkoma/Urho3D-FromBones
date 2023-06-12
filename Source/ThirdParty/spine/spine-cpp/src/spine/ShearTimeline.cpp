@@ -29,7 +29,7 @@
 
 #include <spine/ShearTimeline.h>
 
-#include <spine/Event.h>
+#include <spine/SpineEvent.h>
 #include <spine/Skeleton.h>
 
 #include <spine/Bone.h>
@@ -54,10 +54,10 @@ ShearTimeline::ShearTimeline(size_t frameCount, size_t bezierCount, int boneInde
 ShearTimeline::~ShearTimeline() {
 }
 
-void ShearTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha,
+void ShearTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha,
 						  MixBlend blend, MixDirection direction) {
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 	SP_UNUSED(direction);
 
 	Bone *bone = skeleton._bones[_boneIndex];
@@ -131,10 +131,10 @@ ShearXTimeline::ShearXTimeline(size_t frameCount, size_t bezierCount, int boneIn
 ShearXTimeline::~ShearXTimeline() {
 }
 
-void ShearXTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha,
+void ShearXTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha,
 						   MixBlend blend, MixDirection direction) {
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 	SP_UNUSED(direction);
 
 	Bone *bone = skeleton._bones[_boneIndex];
@@ -179,10 +179,10 @@ ShearYTimeline::ShearYTimeline(size_t frameCount, size_t bezierCount, int boneIn
 ShearYTimeline::~ShearYTimeline() {
 }
 
-void ShearYTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha,
+void ShearYTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha,
 						   MixBlend blend, MixDirection direction) {
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 	SP_UNUSED(direction);
 
 	Bone *bone = skeleton._bones[_boneIndex];

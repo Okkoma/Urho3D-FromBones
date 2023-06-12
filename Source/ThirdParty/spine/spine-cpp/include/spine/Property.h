@@ -45,7 +45,7 @@ namespace spine {
 		Property_Rgb2 = 1 << 9,
 		Property_Attachment = 1 << 10,
 		Property_Deform = 1 << 11,
-		Property_Event = 1 << 12,
+		Property_SpineEvent = 1 << 12,
 		Property_DrawOrder = 1 << 13,
 		Property_IkConstraint = 1 << 14,
 		Property_TransformConstraint = 1 << 15,

@@ -29,7 +29,7 @@
 
 #include <spine/ColorTimeline.h>
 
-#include <spine/Event.h>
+#include <spine/SpineEvent.h>
 #include <spine/Skeleton.h>
 
 #include <spine/Animation.h>
@@ -55,10 +55,10 @@ RGBATimeline::RGBATimeline(size_t frameCount, size_t bezierCount, int slotIndex)
 RGBATimeline::~RGBATimeline() {
 }
 
-void RGBATimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha,
+void RGBATimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha,
 						 MixBlend blend, MixDirection direction) {
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 	SP_UNUSED(direction);
 
 	Slot *slot = skeleton._slots[_slotIndex];
@@ -144,10 +144,10 @@ RGBTimeline::RGBTimeline(size_t frameCount, size_t bezierCount, int slotIndex) :
 RGBTimeline::~RGBTimeline() {
 }
 
-void RGBTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha,
+void RGBTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha,
 						MixBlend blend, MixDirection direction) {
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 	SP_UNUSED(direction);
 
 	Slot *slot = skeleton._slots[_slotIndex];
@@ -227,10 +227,10 @@ AlphaTimeline::AlphaTimeline(size_t frameCount, size_t bezierCount, int slotInde
 AlphaTimeline::~AlphaTimeline() {
 }
 
-void AlphaTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha,
+void AlphaTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha,
 						  MixBlend blend, MixDirection direction) {
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 	SP_UNUSED(direction);
 
 	Slot *slot = skeleton._slots[_slotIndex];
@@ -274,10 +274,10 @@ RGBA2Timeline::RGBA2Timeline(size_t frameCount, size_t bezierCount, int slotInde
 RGBA2Timeline::~RGBA2Timeline() {
 }
 
-void RGBA2Timeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha,
+void RGBA2Timeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha,
 						  MixBlend blend, MixDirection direction) {
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 	SP_UNUSED(direction);
 
 	Slot *slot = skeleton._slots[_slotIndex];
@@ -394,10 +394,10 @@ RGB2Timeline::RGB2Timeline(size_t frameCount, size_t bezierCount, int slotIndex)
 RGB2Timeline::~RGB2Timeline() {
 }
 
-void RGB2Timeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha,
+void RGB2Timeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha,
 						 MixBlend blend, MixDirection direction) {
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 	SP_UNUSED(direction);
 
 	Slot *slot = skeleton._slots[_slotIndex];

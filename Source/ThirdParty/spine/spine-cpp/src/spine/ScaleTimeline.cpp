@@ -29,7 +29,7 @@
 
 #include <spine/ScaleTimeline.h>
 
-#include <spine/Event.h>
+#include <spine/SpineEvent.h>
 #include <spine/Skeleton.h>
 
 #include <spine/Bone.h>
@@ -53,10 +53,10 @@ ScaleTimeline::ScaleTimeline(size_t frameCount, size_t bezierCount, int boneInde
 
 ScaleTimeline::~ScaleTimeline() {}
 
-void ScaleTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha,
+void ScaleTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha,
 						  MixBlend blend, MixDirection direction) {
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 
 	Bone *bone = skeleton._bones[_boneIndex];
 	if (!bone->_active) return;
@@ -166,10 +166,10 @@ ScaleXTimeline::ScaleXTimeline(size_t frameCount, size_t bezierCount, int boneIn
 
 ScaleXTimeline::~ScaleXTimeline() {}
 
-void ScaleXTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha,
+void ScaleXTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha,
 						   MixBlend blend, MixDirection direction) {
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 
 	Bone *bone = skeleton._bones[_boneIndex];
 	if (!bone->_active) return;
@@ -239,10 +239,10 @@ ScaleYTimeline::ScaleYTimeline(size_t frameCount, size_t bezierCount, int boneIn
 
 ScaleYTimeline::~ScaleYTimeline() {}
 
-void ScaleYTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha,
+void ScaleYTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha,
 						   MixBlend blend, MixDirection direction) {
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 
 	Bone *bone = skeleton._bones[_boneIndex];
 	if (!bone->_active) return;

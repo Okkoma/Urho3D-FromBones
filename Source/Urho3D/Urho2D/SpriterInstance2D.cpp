@@ -263,7 +263,7 @@ void SpriterInstance::UpdateTimelineKeys()
         Ref* ref = mainlineKey_->boneRefs_[i];
         Timeline* timeline = animation_->timelines_[ref->timeline_];
 
-        BoneTimelineKey* tKey = (BoneTimelineKey*) GetTimelineKey(ref, adjustedTime_);
+        BoneTimelineKey* tKey = (BoneTimelineKey*) GetTimelineKey(ref, adjustedTime_, 0);
 
         tKey->info_ = ref->parent_ >= 0 ? tKey->info_.UnmapFromParent(boneKeys_[ref->parent_]->info_) : tKey->info_.UnmapFromParent(spatialInfo_);
 
@@ -277,19 +277,15 @@ void SpriterInstance::UpdateTimelineKeys()
 
         if (timeline->objectType_ == Spriter::BOX)
         {
-            BoxTimelineKey* tKey = (BoxTimelineKey*) GetTimelineKey(ref, adjustedTime_);
+            BoxTimelineKey*& tKey = physicTriggers_[timeline];
+            tKey = (BoxTimelineKey*) GetTimelineKey(ref, adjustedTime_, tKey);
             tKey->info_ = ref->parent_ >= 0 ? tKey->info_.UnmapFromParent(boneKeys_[ref->parent_]->info_) : tKey->info_.UnmapFromParent(spatialInfo_);
-
-            physicTriggers_[timeline] = tKey;
-            continue;
         }
-
-        SpriteTimelineKey* tKey = (SpriteTimelineKey*) GetTimelineKey(ref, adjustedTime_);
-        tKey->info_ = ref->parent_ >= 0 ? tKey->info_.UnmapFromParent(boneKeys_[ref->parent_]->info_) : tKey->info_.UnmapFromParent(spatialInfo_);
-        tKey->zIndex_ = ref->zIndex_;
-
-        if (timeline->objectType_ == Spriter::SPRITE)
+        else if (timeline->objectType_ == Spriter::SPRITE)
         {
+            SpriteTimelineKey* tKey = (SpriteTimelineKey*) GetTimelineKey(ref, adjustedTime_, 0);
+            tKey->info_ = ref->parent_ >= 0 ? tKey->info_.UnmapFromParent(boneKeys_[ref->parent_]->info_) : tKey->info_.UnmapFromParent(spatialInfo_);
+            tKey->zIndex_ = ref->zIndex_;
             tKey->color_ = ref->color_;
             spriteKeys_.Push(tKey);
         }
@@ -299,26 +295,31 @@ void SpriterInstance::UpdateTimelineKeys()
             {
                 String name = timeline->name_.Substring(3);
                 bool resetcomponent = !nodeUpdaters_.Contains(name);
-
                 NodeUpdater& updater = nodeUpdaters_[name];
-                updater.timekey_ = tKey;
+
+                PointTimelineKey*& tKey = updater.timekey_;
+                tKey = (PointTimelineKey*) GetTimelineKey(ref, adjustedTime_, tKey);
+                tKey->info_ = ref->parent_ >= 0 ? tKey->info_.UnmapFromParent(boneKeys_[ref->parent_]->info_) : tKey->info_.UnmapFromParent(spatialInfo_);
+                tKey->zIndex_ = ref->zIndex_;
+
                 if (resetcomponent)
-                {
                     updater.ucomponent_ = 0;
-                }
             }
             else
             {
-                eventTriggers_[timeline] = tKey;
+                PointTimelineKey*& tKey = eventTriggers_[timeline];
+                tKey = (PointTimelineKey*) GetTimelineKey(ref, adjustedTime_, tKey);
+                tKey->info_ = ref->parent_ >= 0 ? tKey->info_.UnmapFromParent(boneKeys_[ref->parent_]->info_) : tKey->info_.UnmapFromParent(spatialInfo_);
+                tKey->zIndex_ = ref->zIndex_;
             }
         }
     }
 }
 
-TimelineKey* SpriterInstance::GetTimelineKey(Ref* ref, float targetTime) const
+TimelineKey* SpriterInstance::GetTimelineKey(Ref* ref, float targetTime, TimelineKey* reuse) const
 {
     Timeline* timeline = animation_->timelines_[ref->timeline_];
-    TimelineKey* timelineKey = timeline->keys_[ref->key_]->Clone();
+    TimelineKey* timelineKey = reuse ? reuse : timeline->keys_[ref->key_]->Clone();
 
     if (mainlineKey_->curveType_ == INSTANT)
         return timelineKey;
@@ -349,7 +350,7 @@ void SpriterInstance::Clear()
         for (unsigned i = 0; i < boneKeys_.Size(); ++i)
         {
         #ifdef USE_KEYPOOLS
-            BoneTimelineKey::Free(boneKeys_[i]);
+            KeyPool::Free<BoneTimelineKey>(boneKeys_[i]);
         #else
             delete boneKeys_[i];
         #endif
@@ -361,7 +362,7 @@ void SpriterInstance::Clear()
         for (unsigned i = 0; i < spriteKeys_.Size(); ++i)
         {
         #ifdef USE_KEYPOOLS
-            SpriteTimelineKey::Free(spriteKeys_[i]);
+            KeyPool::Free<SpriteTimelineKey>(spriteKeys_[i]);
         #else
             delete spriteKeys_[i];
         #endif
@@ -370,10 +371,10 @@ void SpriterInstance::Clear()
     }
     if (!eventTriggers_.Empty())
     {
-        for (HashMap<Timeline*, SpriteTimelineKey* >::ConstIterator it=eventTriggers_.Begin();it!=eventTriggers_.End(); ++it)
+        for (HashMap<Timeline*, PointTimelineKey* >::ConstIterator it=eventTriggers_.Begin();it!=eventTriggers_.End(); ++it)
         {
         #ifdef USE_KEYPOOLS
-            SpriteTimelineKey::Free(it->second_);
+            KeyPool::Free<PointTimelineKey>(it->second_);
         #else
             delete it->second_;
         #endif
@@ -385,12 +386,25 @@ void SpriterInstance::Clear()
         for (HashMap<Timeline*, BoxTimelineKey* >::ConstIterator it=physicTriggers_.Begin();it!=physicTriggers_.End(); ++it)
         {
         #ifdef USE_KEYPOOLS
-            BoxTimelineKey::Free(it->second_);
+            KeyPool::Free<BoxTimelineKey>(it->second_);
         #else
             delete it->second_;
         #endif
         }
         physicTriggers_.Clear();
+    }
+
+    if (!nodeUpdaters_.Empty())
+    {
+        for (HashMap<String, NodeUpdater >::ConstIterator it=nodeUpdaters_.Begin();it!=nodeUpdaters_.End(); ++it)
+        {
+        #ifdef USE_KEYPOOLS
+            KeyPool::Free<PointTimelineKey>(it->second_.timekey_);
+        #else
+            delete it->second_.timekey_;
+        #endif
+        }
+        nodeUpdaters_.Clear();
     }
 
 //    URHO3D_LOGINFOF("SpriterInstance() - Clear : ... OK !");

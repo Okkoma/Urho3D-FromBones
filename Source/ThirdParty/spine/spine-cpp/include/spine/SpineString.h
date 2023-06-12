@@ -38,17 +38,17 @@
 
 namespace spine {
 
-	class SP_API String : public SpineObject {
+	class SP_API String {
 	public:
-		String() : _length(0), _buffer(NULL) {
+		String() : _length(0), _capacity(0), _buffer(NULL) {
 		}
 
 		String(const char *chars, bool own = false) {
 			if (!chars) {
-				_length = 0;
+				_length = _capacity = 0;
 				_buffer = NULL;
 			} else {
-				_length = strlen(chars);
+				_capacity = _length = strlen(chars);
 				if (!own) {
 					_buffer = SpineExtension::calloc<char>(_length + 1, __FILE__, __LINE__);
 					memcpy((void *) _buffer, chars, _length + 1);
@@ -60,10 +60,10 @@ namespace spine {
 
 		String(const String &other) {
 			if (!other._buffer) {
-				_length = 0;
+				_capacity = _length = 0;
 				_buffer = NULL;
 			} else {
-				_length = other._length;
+				_capacity = _length = other._length;
 				_buffer = SpineExtension::calloc<char>(other._length + 1, __FILE__, __LINE__);
 				memcpy((void *) _buffer, other._buffer, other._length + 1);
 			}
@@ -86,9 +86,9 @@ namespace spine {
 			if (_buffer) {
 				SpineExtension::free(_buffer, __FILE__, __LINE__);
 			}
-			_length = other._length;
+			_capacity = _length = other._length;
 			_buffer = other._buffer;
-			other._length = 0;
+			other._length = other._capacity = 0;
 			other._buffer = NULL;
 		}
 
@@ -102,13 +102,13 @@ namespace spine {
 				_length = 0;
 				_buffer = NULL;
 			} else {
-				_length = strlen(chars);
+				_length = _capacity = strlen(chars);
 				_buffer = (char *) chars;
 			}
 		}
 
 		void unown() {
-			_length = 0;
+			_length = _capacity = 0;
 			_buffer = NULL;
 		}
 
@@ -118,10 +118,10 @@ namespace spine {
 				SpineExtension::free(_buffer, __FILE__, __LINE__);
 			}
 			if (!other._buffer) {
-				_length = 0;
+				_length = _capacity = 0;
 				_buffer = NULL;
 			} else {
-				_length = other._length;
+				_length = _capacity = other._length;
 				_buffer = SpineExtension::calloc<char>(other._length + 1, __FILE__, __LINE__);
 				memcpy((void *) _buffer, other._buffer, other._length + 1);
 			}
@@ -134,10 +134,10 @@ namespace spine {
 				SpineExtension::free(_buffer, __FILE__, __LINE__);
 			}
 			if (!chars) {
-				_length = 0;
+				_length = _capacity = 0;
 				_buffer = NULL;
 			} else {
-				_length = strlen(chars);
+				_length = _capacity = strlen(chars);
 				_buffer = SpineExtension::calloc<char>(_length + 1, __FILE__, __LINE__);
 				memcpy((void *) _buffer, chars, _length + 1);
 			}
@@ -157,7 +157,7 @@ namespace spine {
 		String &append(const String &other) {
 			size_t len = other.length();
 			size_t thisLen = _length;
-			_length = _length + len;
+			_length = _capacity = _length + len;
 			bool same = other._buffer == _buffer;
 			_buffer = SpineExtension::realloc(_buffer, _length + 1, __FILE__, __LINE__);
 			memcpy((void *) (_buffer + thisLen), (void *) (same ? _buffer : other._buffer), len + 1);
@@ -200,14 +200,15 @@ namespace spine {
 			return !(a == b);
 		}
 
-		virtual ~String() {
+		~String() {
 			if (_buffer) {
 				SpineExtension::free(_buffer, __FILE__, __LINE__);
 			}
 		}
 
 	private:
-		mutable size_t _length;
+		mutable unsigned _length;
+		mutable unsigned _capacity;
 		mutable char *_buffer;
 	};
 }

@@ -26,7 +26,7 @@ if [ -d "$F" ]; then
 			filename="$filename-$2"
 		fi
 		echo Zip "$F" buildChain=v2 in "$A/$filename.zip"
-		zip -y -r $A/$filename $F/ -x $F/android/urho3d-lib/build/\* $F/android/urho3d-lib/.cxx\* $F/android/launcher-app/build/\* $F/android/launcher-app/.cxx\* $F/app/src/main/jniLibs/\* $F/app/build/\* $F/app/.cxx\* $F/bin-tool/Output\* $F/bin-tool/Input/PNG\* $F/bin-tool/Input/UI\* $F/build/\* $F/.android\* $F/.gradle\* $F/.cache\* $F/.ccache\* $F/.idea\* $F/.lldb\*
+		zip -y -r $A/$filename $F/ -x $F/android/urho3d-lib/build/\* $F/android/urho3d-lib/.cxx\* $F/android/launcher-app/build/\* $F/android/launcher-app/.cxx\* $F/app/src/main/jniLibs/\* $F/app/build/\* $F/app/.cxx\* $F/bin-tool/Output\* $F/bin-tool/Input/PNG\* $F/bin-tool/Input/UI\* $F/build/\* $F/.android\* $F/.gradle\* $F/.cache\* $F/.ccache\* $F/.idea\* $F/.lldb\* $F/.git\*
 	elif [ -d $F/CMake ]; then
 		# old build storage exclude folders
 		tag=BCv1
@@ -35,7 +35,7 @@ if [ -d "$F" ]; then
 			filename="$filename-$2"
 		fi			
 		echo Zip "$F" buildChain=v1 in "$A/$filename.zip"
-		zip -y -r $A/$filename $F/ -x $F/androiddevice/app/build/\* $F/androiddevice/app/.gradle\* $F/androiddevice/app/.idea\* $F/androiddevice/build/\* $F/androiddevice/.gradle\* $F/androiddevice/.idea\* $F/androiddevice/app/src/jniLibs\* $F/Local\* $F/OldSources\* $F/Source-\* $F/bin-tool/Output\* $F/bin-tool/Input/PNG\* $F/bin-tool/Input/UI\* $F/build*/\* $F/.cache\* $F/.ccache\* $F/.android\* $F/.lldb\*
+		zip -y -r $A/$filename $F/ -x $F/androiddevice/app/build/\* $F/androiddevice/app/.gradle\* $F/androiddevice/app/.idea\* $F/androiddevice/build/\* $F/androiddevice/.gradle\* $F/androiddevice/.idea\* $F/androiddevice/app/src/jniLibs\* $F/Local\* $F/OldSources\* $F/Source-\* $F/bin-tool/Output\* $F/bin-tool/Input/PNG\* $F/bin-tool/Input/UI\* $F/build*/\* $F/.cache\* $F/.ccache\* $F/.android\* $F/.lldb\* $F/.git\*
 	elif [ -d $F/Graphics ]; then
 		# ressources folders
 		filename=$Z-$Date

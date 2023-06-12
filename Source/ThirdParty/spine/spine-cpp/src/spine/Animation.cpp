@@ -28,7 +28,7 @@
  *****************************************************************************/
 
 #include <spine/Animation.h>
-#include <spine/Event.h>
+#include <spine/SpineEvent.h>
 #include <spine/Skeleton.h>
 #include <spine/Timeline.h>
 
@@ -62,7 +62,7 @@ Animation::~Animation() {
 	ContainerUtil::cleanUpVectorOfPointers(_timelines);
 }
 
-void Animation::apply(Skeleton &skeleton, float lastTime, float time, bool loop, Vector<Event *> *pEvents, float alpha,
+void Animation::apply(Skeleton &skeleton, float lastTime, float time, bool loop, Vector<SpineEvent *> *pSpineEvents, float alpha,
 					  MixBlend blend, MixDirection direction) {
 	if (loop && _duration != 0) {
 		time = MathUtil::fmod(time, _duration);
@@ -72,7 +72,7 @@ void Animation::apply(Skeleton &skeleton, float lastTime, float time, bool loop,
 	}
 
 	for (size_t i = 0, n = _timelines.size(); i < n; ++i) {
-		_timelines[i]->apply(skeleton, lastTime, time, pEvents, alpha, blend, direction);
+		_timelines[i]->apply(skeleton, lastTime, time, pSpineEvents, alpha, blend, direction);
 	}
 }
 

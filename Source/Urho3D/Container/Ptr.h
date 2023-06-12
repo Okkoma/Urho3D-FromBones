@@ -374,7 +374,7 @@ public:
     T* Get() const
     {
         if (Expired())
-            return 0;
+            return (T*)0;
         else
             return ptr_;
     }

@@ -29,7 +29,7 @@
 
 #include <spine/PathConstraintMixTimeline.h>
 
-#include <spine/Event.h>
+#include <spine/SpineEvent.h>
 #include <spine/Skeleton.h>
 
 #include <spine/Animation.h>
@@ -52,10 +52,10 @@ PathConstraintMixTimeline::PathConstraintMixTimeline(size_t frameCount, size_t b
 	setPropertyIds(ids, 1);
 }
 
-void PathConstraintMixTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha,
+void PathConstraintMixTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha,
 									  MixBlend blend, MixDirection direction) {
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 	SP_UNUSED(direction);
 
 	PathConstraint *constraintP = skeleton._pathConstraints[_pathConstraintIndex];

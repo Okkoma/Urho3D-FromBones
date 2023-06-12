@@ -27,14 +27,14 @@
  * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#include <spine/Event.h>
+#include <spine/SpineEvent.h>
 
-#include <spine/EventData.h>
+#include <spine/SpineEventData.h>
 
 namespace spine
 {
 
-spine::Event::Event(float time, const spine::EventData &data) : _data(data),
+spine::SpineEvent::SpineEvent(float time, const spine::SpineEventData &data) : _data(data),
 																_time(time),
 																_intValue(0),
 																_floatValue(0),
@@ -43,52 +43,52 @@ spine::Event::Event(float time, const spine::EventData &data) : _data(data),
 																_balance(0) {
 }
 
-const spine::EventData &spine::Event::getData() {
+const spine::SpineEventData &spine::SpineEvent::getData() {
 	return _data;
 }
 
-float spine::Event::getTime() {
+float spine::SpineEvent::getTime() {
 	return _time;
 }
 
-int spine::Event::getIntValue() {
+int spine::SpineEvent::getIntValue() {
 	return _intValue;
 }
 
-void spine::Event::setIntValue(int inValue) {
+void spine::SpineEvent::setIntValue(int inValue) {
 	_intValue = inValue;
 }
 
-float spine::Event::getFloatValue() {
+float spine::SpineEvent::getFloatValue() {
 	return _floatValue;
 }
 
-void spine::Event::setFloatValue(float inValue) {
+void spine::SpineEvent::setFloatValue(float inValue) {
 	_floatValue = inValue;
 }
 
-const spine::String &spine::Event::getStringValue() {
+const spine::String &spine::SpineEvent::getStringValue() {
 	return _stringValue;
 }
 
-void spine::Event::setStringValue(const spine::String &inValue) {
+void spine::SpineEvent::setStringValue(const spine::String &inValue) {
 	_stringValue = inValue;
 }
 
 
-float spine::Event::getVolume() {
+float spine::SpineEvent::getVolume() {
 	return _volume;
 }
 
-void spine::Event::setVolume(float inValue) {
+void spine::SpineEvent::setVolume(float inValue) {
 	_volume = inValue;
 }
 
-float spine::Event::getBalance() {
+float spine::SpineEvent::getBalance() {
 	return _balance;
 }
 
-void spine::Event::setBalance(float inValue) {
+void spine::SpineEvent::setBalance(float inValue) {
 	_balance = inValue;
 }
 

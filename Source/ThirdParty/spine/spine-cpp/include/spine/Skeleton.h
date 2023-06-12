@@ -78,7 +78,7 @@ namespace spine {
 
 		friend class DrawOrderTimeline;
 
-		friend class EventTimeline;
+		friend class SpineEventTimeline;
 
 		friend class IkConstraintTimeline;
 

@@ -27,14 +27,14 @@
  * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#include <spine/EventTimeline.h>
+#include <spine/SpineEventTimeline.h>
 
-#include <spine/Event.h>
+#include <spine/SpineEvent.h>
 #include <spine/Skeleton.h>
 
 #include <spine/Animation.h>
 #include <spine/ContainerUtil.h>
-#include <spine/EventData.h>
+#include <spine/SpineEventData.h>
 #include <spine/Property.h>
 #include <spine/Slot.h>
 #include <spine/SlotData.h>
@@ -45,29 +45,29 @@
 namespace spine
 {
 
-RTTI_IMPL(EventTimeline, Timeline)
+RTTI_IMPL(SpineEventTimeline, Timeline)
 
-EventTimeline::EventTimeline(size_t frameCount) : Timeline(frameCount, 1) {
-	PropertyId ids[] = {((PropertyId) Property_Event << 32)};
+SpineEventTimeline::SpineEventTimeline(size_t frameCount) : Timeline(frameCount, 1) {
+	PropertyId ids[] = {((PropertyId) Property_SpineEvent << 32)};
 	setPropertyIds(ids, 1);
-	_events.setSize(frameCount, NULL);
+	_SpineEvents.setSize(frameCount, NULL);
 }
 
-EventTimeline::~EventTimeline() {
-	ContainerUtil::cleanUpVectorOfPointers(_events);
+SpineEventTimeline::~SpineEventTimeline() {
+	ContainerUtil::cleanUpVectorOfPointers(_SpineEvents);
 }
 
-void EventTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha,
+void SpineEventTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha,
 						  MixBlend blend, MixDirection direction) {
-	if (pEvents == NULL) return;
+	if (pSpineEvents == NULL) return;
 
-	Vector<Event *> &events = *pEvents;
+	Vector<SpineEvent *> &SpineEvents = *pSpineEvents;
 
 	size_t frameCount = _frames.size();
 
 	if (lastTime > time) {
-		// Fire events after last time for looped animations.
-		apply(skeleton, lastTime, FLT_MAX, pEvents, alpha, blend, direction);
+		// Fire SpineEvents after last time for looped animations.
+		apply(skeleton, lastTime, FLT_MAX, pSpineEvents, alpha, blend, direction);
 		lastTime = -1.0f;
 	} else if (lastTime >= _frames[frameCount - 1]) {
 		// Last time is after last i.
@@ -83,21 +83,21 @@ void EventTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector
 		i = Animation::search(_frames, lastTime) + 1;
 		float frameTime = _frames[i];
 		while (i > 0) {
-			// Fire multiple events with the same i.
+			// Fire multiple SpineEvents with the same i.
 			if (_frames[i - 1] != frameTime) break;
 			i--;
 		}
 	}
 
 	for (; (size_t) i < frameCount && time >= _frames[i]; i++)
-		events.add(_events[i]);
+		SpineEvents.add(_SpineEvents[i]);
 }
 
-void EventTimeline::setFrame(size_t frame, Event *event) {
-	_frames[frame] = event->getTime();
-	_events[frame] = event;
+void SpineEventTimeline::setFrame(size_t frame, SpineEvent *SpineEvent) {
+	_frames[frame] = SpineEvent->getTime();
+	_SpineEvents[frame] = SpineEvent;
 }
 
-Vector<Event *> &EventTimeline::getEvents() { return _events; }
+Vector<SpineEvent *> &SpineEventTimeline::getSpineEvents() { return _SpineEvents; }
 
 }

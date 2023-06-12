@@ -80,6 +80,26 @@ SpriterData::~SpriterData()
     Reset();
 }
 
+void SpriterData::Register()
+{
+#ifdef USE_KEYPOOLS
+    KeyPool::Create<BoneTimelineKey>();
+    KeyPool::Create<SpriteTimelineKey>();
+    KeyPool::Create<PointTimelineKey>();
+    KeyPool::Create<BoxTimelineKey>();
+#endif
+}
+
+void SpriterData::UnRegister()
+{
+#ifdef USE_KEYPOOLS
+    KeyPool::Release<BoneTimelineKey>();
+    KeyPool::Release<SpriteTimelineKey>();
+    KeyPool::Release<PointTimelineKey>();
+    KeyPool::Release<BoxTimelineKey>();
+#endif
+}
+
 void SpriterData::Reset()
 {
     if (!folders_.Empty())
@@ -174,20 +194,6 @@ bool SpriterData::Save(pugi::xml_document& document) const
     return ok;
 }
 
-
-
-#ifdef USE_KEYPOOLS
-void SpriterData::InitKeyPools(unsigned poolSize)
-{
-    BoneTimelineKey::pool_.Resize(poolSize);
-    BoneTimelineKey::FreeAlls();
-    SpriteTimelineKey::pool_.Resize(poolSize);
-    SpriteTimelineKey::FreeAlls();
-    BoxTimelineKey::pool_.Resize(poolSize);
-    BoxTimelineKey::FreeAlls();
-}
-#endif
-
 void SpriterData::UpdateKeyInfos()
 {
 //    URHO3D_LOGINFOF("SpriterData : UpdateKeyInfos !");
@@ -276,7 +282,7 @@ bool Folder::Load(const pugi::xml_node& node)
     if (strcmp(node.name(), "folder"))
         return false;
 
-    id_ = node.attribute("id").as_int();
+    id_ = node.attribute("id").as_uint();
     name_ = node.attribute("name").as_string();
 
     for (xml_node fileNode = node.child("file"); !fileNode.empty(); fileNode = fileNode.next_sibling("file"))
@@ -326,8 +332,8 @@ bool File::Load(const pugi::xml_node& node)
     if (strcmp(node.name(), "file"))
         return false;
 
-    id_ = node.attribute("id").as_int();
-    fx_ = node.attribute("fx").as_int(0);
+    id_ = node.attribute("id").as_uint(0);
+    fx_ = node.attribute("fx").as_uint(0);
     name_ = node.attribute("name").as_string();
     width_ = node.attribute("width").as_float();
     height_ = node.attribute("height").as_float();
@@ -394,7 +400,7 @@ bool Entity::Load(const pugi::xml_node& node)
     if (strcmp(node.name(), "entity"))
         return false;
 
-    id_ = node.attribute("id").as_int();
+    id_ = node.attribute("id").as_uint();
     name_ = String(node.attribute("name").as_string());
 
     xml_attribute colorAttr = node.attribute("color");
@@ -551,7 +557,7 @@ CharacterMap::CharacterMap()
 
 CharacterMap::~CharacterMap()
 {
-
+    Reset();
 }
 
 void CharacterMap::Reset()
@@ -568,7 +574,7 @@ bool CharacterMap::Load(const pugi::xml_node& node)
     if (strcmp(node.name(), "character_map"))
         return false;
 
-    id_ = node.attribute("id").as_int();
+    id_ = node.attribute("id").as_uint();
     name_ = String(node.attribute("name").as_string());
     hashname_ = StringHash(name_);
 
@@ -622,8 +628,8 @@ bool MapInstruction::Load(const pugi::xml_node& node)
     if (strcmp(node.name(), "map"))
         return false;
 
-    folder_ = node.attribute("folder").as_int();
-    file_ = node.attribute("file").as_int();
+    folder_ = node.attribute("folder").as_uint();
+    file_ = node.attribute("file").as_uint();
     targetFolder_ = node.attribute("target_folder").as_int(-1);
     targetFile_ = node.attribute("target_file").as_int(-1);
 
@@ -677,7 +683,7 @@ bool Animation::Load(const pugi::xml_node& node)
     if (strcmp(node.name(), "animation"))
         return false;
 
-    id_ = node.attribute("id").as_int();
+    id_ = node.attribute("id").as_uint();
     name_ = String(node.attribute("name").as_string());
     length_ = node.attribute("length").as_float() * 0.001f;
     looping_ = node.attribute("looping").as_bool(true);
@@ -690,7 +696,7 @@ bool Animation::Load(const pugi::xml_node& node)
             return false;
     }
 
-    int id = 0;
+    unsigned id = 0;
     for (xml_node timelineNode = node.child("timeline"); !timelineNode.empty(); timelineNode = timelineNode.next_sibling("timeline"))
     {
         timelines_.Push(new Timeline());
@@ -781,7 +787,7 @@ bool TimeKey::Load(const pugi::xml_node& node)
     if (strcmp(node.name(), "key"))
         return false;
 
-    id_ = node.attribute("id").as_int();
+    id_ = node.attribute("id").as_uint();
 
     time_ = node.attribute("time").as_float(0.f) * 0.001f;
 
@@ -970,10 +976,10 @@ bool Ref::Load(const pugi::xml_node& node)
     if (strcmp(node.name(), "bone_ref") && strcmp(node.name(), "object_ref"))
         return false;
 
-    id_ = node.attribute("id").as_int();
+    id_ = node.attribute("id").as_uint();
     parent_ = node.attribute("parent").as_int(-1);
-    timeline_ = node.attribute("timeline").as_int();
-    key_ = node.attribute("key").as_int();
+    timeline_ = node.attribute("timeline").as_uint();
+    key_ = node.attribute("key").as_uint();
 
     zIndex_ = node.attribute("z_index").as_int(-1);
     xml_attribute colorAttr = node.attribute("color");
@@ -1077,7 +1083,7 @@ bool Timeline::Load(const pugi::xml_node& node)
         objectType_ = POINT;
         for (xml_node keyNode = node.child("key"); !keyNode.empty(); keyNode = keyNode.next_sibling("key"))
         {
-            keys_.Push(new SpriteTimelineKey(this));
+            keys_.Push(new PointTimelineKey(this));
             if (!keys_.Back()->Load(keyNode))
                 return false;
         }
@@ -1286,32 +1292,16 @@ void SpatialTimelineKey::Interpolate(const TimelineKey& other, float t)
 
 
 #ifdef USE_KEYPOOLS
-    BoneTimelineKey* BoneTimelineKey::Get()
-    {
-        if (!freeindexes_.Size())
-        {
-            pool_.Resize(pool_.Size()+1);
-            freeindexes_.Push(&pool_.Back());
-            URHO3D_LOGWARNINGF("BoneTimelineKey() - Get : No More Key - create a new one !");
-        }
-        return freeindexes_.Back();
-    }
-
-    void BoneTimelineKey::Free(BoneTimelineKey* elt)
-    {
-        freeindexes_.Push(elt);
-    }
-
-    void BoneTimelineKey::FreeAlls()
-    {
-        freeindexes_.Resize(pool_.Size());
-        for (unsigned i=0; i<pool_.Size();i++)
-            freeindexes_[i] = &pool_[i];
-    }
-
-    PODVector<BoneTimelineKey*> BoneTimelineKey::freeindexes_;
-    Vector<BoneTimelineKey> BoneTimelineKey::pool_;
+PODVector<BoneTimelineKey*> BoneTimelineKey::freeindexes_;
+Vector<BoneTimelineKey> BoneTimelineKey::keypool_;
+PODVector<PointTimelineKey*> PointTimelineKey::freeindexes_;
+Vector<PointTimelineKey> PointTimelineKey::keypool_;
+PODVector<SpriteTimelineKey*> SpriteTimelineKey::freeindexes_;
+Vector<SpriteTimelineKey> SpriteTimelineKey::keypool_;
+PODVector<BoxTimelineKey*> BoxTimelineKey::freeindexes_;
+Vector<BoxTimelineKey> BoxTimelineKey::keypool_;
 #endif
+
 
 BoneTimelineKey::BoneTimelineKey() :
     SpatialTimelineKey(0)
@@ -1333,11 +1323,7 @@ BoneTimelineKey::~BoneTimelineKey()
 TimelineKey* BoneTimelineKey::Clone() const
 {
 #ifdef USE_KEYPOOLS
-    BoneTimelineKey* result = Get();
-    if (result)
-        result->timeline_ = timeline_;
-    else
-        result = new BoneTimelineKey(timeline_);
+    BoneTimelineKey* result = KeyPool::Get<BoneTimelineKey>();
 #else
     BoneTimelineKey* result = new BoneTimelineKey(timeline_);
 #endif
@@ -1386,33 +1372,73 @@ void BoneTimelineKey::Interpolate(const TimelineKey& other, float t)
 }
 
 
+PointTimelineKey::PointTimelineKey() :
+    SpatialTimelineKey(0)
+{
+
+}
+
+PointTimelineKey::PointTimelineKey(Timeline* timeline) :
+    SpatialTimelineKey(timeline)
+{
+
+}
+
+PointTimelineKey::~PointTimelineKey()
+{
+
+}
+
+TimelineKey* PointTimelineKey::Clone() const
+{
 #ifdef USE_KEYPOOLS
-    SpriteTimelineKey* SpriteTimelineKey::Get()
-    {
-        if (!freeindexes_.Size())
-        {
-            pool_.Resize(pool_.Size()+1);
-            freeindexes_.Push(&pool_.Back());
-            URHO3D_LOGWARNINGF("SpriteTimelineKey() - Get : No More Key - create a new one !");
-        }
-        return freeindexes_.Back();
-    }
-
-    void SpriteTimelineKey::Free(SpriteTimelineKey* elt)
-    {
-        freeindexes_.Push(elt);
-    }
-
-    void SpriteTimelineKey::FreeAlls()
-    {
-        freeindexes_.Resize(pool_.Size());
-        for (unsigned i=0; i<pool_.Size();i++)
-            freeindexes_[i] = &pool_[i];
-    }
-
-    PODVector<SpriteTimelineKey*> SpriteTimelineKey::freeindexes_;
-    Vector<SpriteTimelineKey> SpriteTimelineKey::pool_;
+    PointTimelineKey* result = KeyPool::Get<PointTimelineKey>();
+#else
+    PointTimelineKey* result = new PointTimelineKey(timeline_);
 #endif
+    *result = *this;
+    return result;
+}
+
+bool PointTimelineKey::Load(const xml_node& node)
+{
+    if (!SpatialTimelineKey::Load(node))
+        return false;
+
+    xml_node boneNode = node.child("bone");
+
+    return true;
+}
+
+bool PointTimelineKey::Save(pugi::xml_node& node) const
+{
+    xml_node child = node.append_child("bone");
+
+    if (!SpatialTimelineKey::Save(node))
+        return false;
+
+    return true;
+}
+
+PointTimelineKey& PointTimelineKey::operator=(const PointTimelineKey& rhs)
+{
+    SpatialTimelineKey::operator=(rhs);
+//    length_ = rhs.length_;
+//    width_ = rhs.width_;
+
+    return *this;
+}
+
+void PointTimelineKey::Interpolate(const TimelineKey& other, float t)
+{
+    SpatialTimelineKey::Interpolate(other, t);
+
+    const PointTimelineKey& o = (const PointTimelineKey&)other;
+//    length_ = Linear(length_, o.length_, t);
+//    width_ = Linear(width_, o.width_, t);
+}
+
+
 
 SpriteTimelineKey::SpriteTimelineKey() :
     SpatialTimelineKey(0)
@@ -1434,11 +1460,7 @@ SpriteTimelineKey::~SpriteTimelineKey()
 TimelineKey* SpriteTimelineKey::Clone() const
 {
 #ifdef USE_KEYPOOLS
-    SpriteTimelineKey* result = Get();
-    if (result)
-        result->timeline_ = timeline_;
-    else
-        result = new SpriteTimelineKey(timeline_);
+    SpriteTimelineKey* result = KeyPool::Get<SpriteTimelineKey>();
 #else
     SpriteTimelineKey* result = new SpriteTimelineKey(timeline_);
 #endif
@@ -1452,9 +1474,9 @@ bool SpriteTimelineKey::Load(const pugi::xml_node& node)
         return false;
 
     xml_node objectNode = node.child("object");
-    folderId_ = objectNode.attribute("folder").as_int(-1);
-    fileId_ = objectNode.attribute("file").as_int(-1);
-    fx_ = objectNode.attribute("fx").as_int(0);
+    folderId_ = objectNode.attribute("folder").as_uint(0);
+    fileId_ = objectNode.attribute("file").as_uint(0);
+    fx_ = objectNode.attribute("fx").as_uint(0);
 
     xml_attribute pivotXAttr = objectNode.attribute("pivot_x");
     xml_attribute pivotYAttr = objectNode.attribute("pivot_y");
@@ -1520,35 +1542,6 @@ SpriteTimelineKey& SpriteTimelineKey::operator=(const SpriteTimelineKey& rhs)
     return *this;
 }
 
-
-#ifdef USE_KEYPOOLS
-    BoxTimelineKey* BoxTimelineKey::Get()
-    {
-        if (!freeindexes_.Size())
-        {
-            pool_.Resize(pool_.Size()+1);
-            freeindexes_.Push(&pool_.Back());
-            URHO3D_LOGWARNINGF("BoxTimelineKey() - Get : No More Key - create a new one !");
-        }
-        return freeindexes_.Back();
-    }
-
-    void BoxTimelineKey::Free(BoxTimelineKey* elt)
-    {
-        freeindexes_.Push(elt);
-    }
-
-    void BoxTimelineKey::FreeAlls()
-    {
-        freeindexes_.Resize(pool_.Size());
-        for (unsigned i=0; i<pool_.Size();i++)
-            freeindexes_[i] = &pool_[i];
-    }
-
-    PODVector<BoxTimelineKey*> BoxTimelineKey::freeindexes_;
-    Vector<BoxTimelineKey> BoxTimelineKey::pool_;
-#endif
-
 BoxTimelineKey::BoxTimelineKey() :
     SpatialTimelineKey(0)
 {
@@ -1568,11 +1561,7 @@ BoxTimelineKey::~BoxTimelineKey()
 TimelineKey* BoxTimelineKey::Clone() const
 {
 #ifdef USE_KEYPOOLS
-    BoxTimelineKey* result = Get();
-    if (result)
-        result->timeline_ = timeline_;
-    else
-        result = new BoxTimelineKey(timeline_);
+    BoxTimelineKey* result = KeyPool::Get<BoxTimelineKey>();
 #else
     BoxTimelineKey* result = new BoxTimelineKey(timeline_);
 #endif

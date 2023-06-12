@@ -46,7 +46,7 @@ namespace spine {
 		virtual ~RGBATimeline();
 
 		virtual void
-		apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha, MixBlend blend,
+		apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha, MixBlend blend,
 			  MixDirection direction);
 
 		/// Sets the time and value of the specified keyframe.
@@ -79,7 +79,7 @@ namespace spine {
 		virtual ~RGBTimeline();
 
 		virtual void
-		apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha, MixBlend blend,
+		apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha, MixBlend blend,
 			  MixDirection direction);
 
 		/// Sets the time and value of the specified keyframe.
@@ -111,7 +111,7 @@ namespace spine {
 		virtual ~AlphaTimeline();
 
 		virtual void
-		apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha, MixBlend blend,
+		apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha, MixBlend blend,
 			  MixDirection direction);
 
 		int getSlotIndex() { return _slotIndex; };
@@ -135,7 +135,7 @@ namespace spine {
 		virtual ~RGBA2Timeline();
 
 		virtual void
-		apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha, MixBlend blend,
+		apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha, MixBlend blend,
 			  MixDirection direction);
 
 		/// Sets the time and value of the specified keyframe.
@@ -171,7 +171,7 @@ namespace spine {
 		virtual ~RGB2Timeline();
 
 		virtual void
-		apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha, MixBlend blend,
+		apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha, MixBlend blend,
 			  MixDirection direction);
 
 		/// Sets the time and value of the specified keyframe.

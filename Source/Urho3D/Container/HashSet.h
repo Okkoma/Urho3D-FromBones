@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2008-2016 the Urho3D project.
+// Copyright (c) 2008-2017 the Urho3D project.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -594,7 +594,7 @@ private:
     Node* ReserveNode()
     {
         Node* newNode = static_cast<Node*>(AllocatorReserve(allocator_));
-        new (newNode) Node();
+        new(newNode) Node();
         return newNode;
     }
 
@@ -602,7 +602,7 @@ private:
     Node* ReserveNode(const T& key)
     {
         Node* newNode = static_cast<Node*>(AllocatorReserve(allocator_));
-        new (newNode) Node(key);
+        new(newNode) Node(key);
         return newNode;
     }
 

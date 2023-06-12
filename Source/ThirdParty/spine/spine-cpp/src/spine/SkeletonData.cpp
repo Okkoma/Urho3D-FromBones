@@ -31,7 +31,7 @@
 
 #include <spine/Animation.h>
 #include <spine/BoneData.h>
-#include <spine/EventData.h>
+#include <spine/SpineEventData.h>
 #include <spine/IkConstraintData.h>
 #include <spine/PathConstraintData.h>
 #include <spine/Skin.h>
@@ -62,7 +62,7 @@ SkeletonData::~SkeletonData() {
 
 	_defaultSkin = NULL;
 
-	ContainerUtil::cleanUpVectorOfPointers(_events);
+	ContainerUtil::cleanUpVectorOfPointers(_SpineEvents);
 	ContainerUtil::cleanUpVectorOfPointers(_animations);
 	ContainerUtil::cleanUpVectorOfPointers(_ikConstraints);
 	ContainerUtil::cleanUpVectorOfPointers(_transformConstraints);
@@ -84,8 +84,8 @@ Skin *SkeletonData::findSkin(const String &skinName) {
 	return ContainerUtil::findWithName(_skins, skinName);
 }
 
-spine::EventData *SkeletonData::findEvent(const String &eventDataName) {
-	return ContainerUtil::findWithName(_events, eventDataName);
+spine::SpineEventData *SkeletonData::findSpineEvent(const String &SpineEventDataName) {
+	return ContainerUtil::findWithName(_SpineEvents, SpineEventDataName);
 }
 
 Animation *SkeletonData::findAnimation(const String &animationName) {
@@ -132,8 +132,8 @@ void SkeletonData::setDefaultSkin(Skin *inValue) {
 	_defaultSkin = inValue;
 }
 
-Vector<spine::EventData *> &SkeletonData::getEvents() {
-	return _events;
+Vector<spine::SpineEventData *> &SkeletonData::getSpineEvents() {
+	return _SpineEvents;
 }
 
 Vector<Animation *> &SkeletonData::getAnimations() {

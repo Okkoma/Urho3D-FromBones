@@ -11,14 +11,14 @@ else()
 endif()
 
 # Define source files
-define_source_files (GLOB_CPP_PATTERNS spine-cpp/src/spine/*.cpp GLOB_H_PATTERNS spine-cpp/include/spine/*.h)
+define_source_files (GLOB_CPP_PATTERNS spine-c/src/spine/*.c GLOB_H_PATTERNS spine-c/include/spine/*.h)
 
 # Define dependency libs
-set (INCLUDE_DIRS spine-cpp/include)
+set (INCLUDE_DIRS spine-c/include)
 
 # Setup target
 setup_library ()
 
 # Install headers for building the Urho3D library
-install_header_files (DIRECTORY spine-cpp/include/spine DESTINATION ${DEST_INCLUDE_DIR}/ThirdParty FILES_MATCHING PATTERN *.h)
+install_header_files (DIRECTORY spine-c/include/spine DESTINATION ${DEST_INCLUDE_DIR}/ThirdParty FILES_MATCHING PATTERN *.h)
 

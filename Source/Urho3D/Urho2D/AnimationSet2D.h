@@ -26,12 +26,9 @@
 #include "../Resource/Resource.h"
 
 #ifdef URHO3D_SPINE
-namespace spine
-{
-    struct Atlas;
-    struct SkeletonData;
-    struct AnimationStateData;
-}
+struct spAtlas;
+struct spSkeletonData;
+struct spAnimationStateData;
 #endif
 
 namespace Urho3D
@@ -87,7 +84,7 @@ public:
 #ifdef URHO3D_SPINE
     Sprite2D* GetSpineSprite() const;
     /// Return spine skeleton data.
-    spine::SkeletonData* GetSkeletonData() const { return skeletonData_; }
+    spSkeletonData* GetSkeletonData() const { return skeletonData_; }
 #endif
 
     /// Return spriter data.
@@ -100,6 +97,7 @@ public:
     void GetCharacterMapSprites(const Spriter::CharacterMap* characterMap, PODVector<Sprite2D*>& sprites);
     void GetSpritesCharacterMapRef(Spriter::CharacterMap* characterMap, ResourceRefList& spriteRefList);
 
+    SpriteSheet2D* GetSpriteSheet() const { return spriteSheet_; }
     const HashMap<unsigned, SharedPtr<Sprite2D> >& GetSpriteMapping() const { return spriterFileSprites_; }
 
     static String customSpritesheetFile_;
@@ -107,12 +105,7 @@ public:
 private:
     /// Return sprite by hash.
     Sprite2D* GetSpriterFileSprite(const StringHash& hash) const;
-#ifdef URHO3D_SPINE
-    /// Begin load spine.
-    bool BeginLoadSpine(Deserializer& source);
-    /// Finish load spine.
-    bool EndLoadSpine();
-#endif
+
     /// Begin load scml.
     bool BeginLoadSpriter(Deserializer& source);
     /// Finish load scml.
@@ -124,7 +117,6 @@ private:
     void Dispose();
 
     SharedPtr<Sprite2D> sprite_;
-
     /// Spriter data.
     UniquePtr<Spriter::SpriterData> spriterData_;
     /// Has sprite sheet.
@@ -137,13 +129,18 @@ private:
     HashMap<unsigned, SharedPtr<Sprite2D> > spriterFileSprites_;
 
 #ifdef URHO3D_SPINE
+    /// Begin load spine.
+    bool BeginLoadSpine(Deserializer& source);
+    /// Finish load spine.
+    bool EndLoadSpine();
+
     SharedPtr<Sprite2D> spineSprite_;
     /// Spine json data.
     SharedArrayPtr<char> jsonData_;
     /// Spine skeleton data.
-    spine::SkeletonData* skeletonData_;
+    spSkeletonData* skeletonData_;
     /// Spine atlas.
-    spine::Atlas* atlas_;
+    spAtlas* atlas_;
 #endif
 };
 

@@ -48,6 +48,7 @@
 #include "../Urho2D/RigidBody2D.h"
 #include "../Urho2D/Sprite2D.h"
 #include "../Urho2D/SpriteSheet2D.h"
+#include "../Urho2D/SpriterData2D.h"
 #include "../Urho2D/SequencedSprite2D.h"
 #include "../Urho2D/StretchableSprite2D.h"
 #include "../Urho2D/TileMap2D.h"
@@ -75,6 +76,7 @@ void RegisterUrho2DLibrary(Context* context)
     SequencedSprite2D::RegisterObject(context);
     StretchableSprite2D::RegisterObject(context);
 
+    Spriter::SpriterData::Register();
     AnimationSet2D::RegisterObject(context);
     AnimatedSprite2D::RegisterObject(context);
 
@@ -107,6 +109,11 @@ void RegisterUrho2DLibrary(Context* context)
     ConstraintRope2D::RegisterObject(context);
     ConstraintWeld2D::RegisterObject(context);
     ConstraintWheel2D::RegisterObject(context);
+}
+
+void UnRegisterUrho2DLibrary()
+{
+    Spriter::SpriterData::UnRegister();
 }
 
 }

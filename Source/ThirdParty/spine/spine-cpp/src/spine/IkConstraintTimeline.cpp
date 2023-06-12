@@ -29,7 +29,7 @@
 
 #include <spine/IkConstraintTimeline.h>
 
-#include <spine/Event.h>
+#include <spine/SpineEvent.h>
 #include <spine/Skeleton.h>
 
 #include <spine/Animation.h>
@@ -51,10 +51,10 @@ IkConstraintTimeline::IkConstraintTimeline(size_t frameCount, size_t bezierCount
 	setPropertyIds(ids, 1);
 }
 
-void IkConstraintTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha,
+void IkConstraintTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha,
 								 MixBlend blend, MixDirection direction) {
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 
 	IkConstraint *constraintP = skeleton._ikConstraints[_ikConstraintIndex];
 	IkConstraint &constraint = *constraintP;

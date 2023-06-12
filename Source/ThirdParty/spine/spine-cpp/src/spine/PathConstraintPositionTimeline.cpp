@@ -29,7 +29,7 @@
 
 #include <spine/PathConstraintPositionTimeline.h>
 
-#include <spine/Event.h>
+#include <spine/SpineEvent.h>
 #include <spine/Skeleton.h>
 
 #include <spine/Animation.h>
@@ -56,10 +56,10 @@ PathConstraintPositionTimeline::PathConstraintPositionTimeline(size_t frameCount
 PathConstraintPositionTimeline::~PathConstraintPositionTimeline() {
 }
 
-void PathConstraintPositionTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents,
+void PathConstraintPositionTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents,
 										   float alpha, MixBlend blend, MixDirection direction) {
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 	SP_UNUSED(direction);
 
 	PathConstraint *constraintP = skeleton._pathConstraints[_pathConstraintIndex];

@@ -48,6 +48,7 @@ namespace Urho3D
 Node::Node(Context* context) :
     Animatable(context),
     isPoolNode_(false),
+    isInPool_(false),
     worldTransform_(Matrix3x4::IDENTITY),
     dirty_(false),
     dirty2D_(false),
@@ -1344,6 +1345,8 @@ Node* Node::Clone(CreateMode mode, bool applyAttr, unsigned nodeid, unsigned com
 {
     if (!parent) parent = parent_;
 
+//    URHO3D_LOGERRORF("Node::Clone() %s(%u) ... ", GetName().CString(), GetID());
+
     // The scene itself can not be cloned
     if (this == scene_ || !parent_)
     {
@@ -2538,7 +2541,7 @@ void Node::GetChildrenWithTagRecursive(PODVector<Node*>& dest, const String& tag
             node->GetChildrenWithTagRecursive(dest, tag);
     }
 }
-
+/*
 Node* Node::CloneRecursive(Node* parent, SceneResolver& resolver, CreateMode mode, unsigned nodeid, unsigned componentid, bool applyAttr)
 {
     // Create clone node
@@ -2598,6 +2601,121 @@ Node* Node::CloneRecursive(Node* parent, SceneResolver& resolver, CreateMode mod
             resolver.AddComponent(component->GetID(), cloneComponent);
         }
     }
+
+    URHO3D_LOGERRORF("Node::CloneRecursive() parent=%s(%u) cloneNode=%s(%u) ... ", parent->GetName().CString(), parent->GetID(), cloneNode->GetName().CString(), cloneNode->GetID());
+
+    // Clone child nodes recursively
+    if (isPoolNode_ && nodeid)
+    {
+        for (Vector<SharedPtr<Node> >::ConstIterator i = children_.Begin(); i != children_.End(); ++i)
+        {
+            Node* node = *i;
+            if (node->IsTemporary())
+                continue;
+
+            node->isPoolNode_ = isPoolNode_;
+            node->changeModeEnabled_ = changeModeEnabled_;
+            nodeid++;
+
+            node->CloneRecursive(cloneNode, resolver, mode, nodeid, componentid, applyAttr);
+        }
+    }
+    else
+    {
+        for (Vector<SharedPtr<Node> >::ConstIterator i = children_.Begin(); i != children_.End(); ++i)
+        {
+            Node* node = *i;
+            if (node->IsTemporary())
+                continue;
+
+            node->CloneRecursive(cloneNode, resolver, mode, 0, 0, applyAttr);
+        }
+    }
+
+    {
+        using namespace NodeCloned;
+
+        VariantMap& eventData = GetEventDataMap();
+        eventData[P_SCENE] = scene_;
+        eventData[P_NODE] = this;
+        eventData[P_CLONENODE] = cloneNode;
+
+        scene_->SendEvent(E_NODECLONED, eventData);
+    }
+
+    return cloneNode;
+}
+*/
+
+Node* Node::CloneRecursive(Node* parent, SceneResolver& resolver, CreateMode mode, unsigned nodeid, unsigned componentid, bool applyAttr)
+{
+    // Create clone node
+    Node* cloneNode = parent->CreateChild(nodeid, (mode == LOCAL || nodeid >= FIRST_LOCAL_ID) ? LOCAL : REPLICATED);
+
+    if (!nodeid)
+        resolver.AddNode(id_, cloneNode);
+
+    // Copy variables
+    cloneNode->isPoolNode_ = isPoolNode_;
+    cloneNode->changeModeEnabled_ = changeModeEnabled_;
+
+    cloneNode->worldTransform_ = worldTransform_;
+    cloneNode->worldTransform2D_ = worldTransform2D_;
+    cloneNode->dirty_ = dirty_;
+    cloneNode->dirty2D_ = dirty2D_;
+
+    cloneNode->enabled_ = enabled_;
+    cloneNode->enabledPrev_ = enabledPrev_;
+
+    cloneNode->networkUpdate_ = networkUpdate_;
+
+    cloneNode->position_ = position_;
+    cloneNode->rotation_ = rotation_;
+    cloneNode->scale_ = scale_;
+    cloneNode->worldRotation_ = worldRotation_;
+    cloneNode->rotation2D_ = rotation2D_;
+    cloneNode->worldRotation2D_ = worldRotation2D_;
+
+    cloneNode->owner_ = owner_;
+    cloneNode->name_ = name_;
+    cloneNode->tags_ = tags_;
+    cloneNode->nameHash_ = nameHash_;
+    cloneNode->attrBuffer_ = attrBuffer_;
+    cloneNode->vars_ = vars_;
+
+    cloneNode->SetTemporary(false);
+
+    // Clone components
+    if (isPoolNode_ && componentid)
+    {
+        for (Vector<SharedPtr<Component> >::ConstIterator i = components_.Begin(); i != components_.End(); ++i)
+        {
+            Component* component = *i;
+            if (component->IsTemporary())
+                continue;
+
+            componentid++;
+
+            Component* cloneComponent = cloneNode->CloneComponent(component,
+                (mode == REPLICATED && component->GetID() < FIRST_LOCAL_ID) ? REPLICATED : LOCAL, componentid, applyAttr);
+        }
+    }
+    else
+    {
+        for (Vector<SharedPtr<Component> >::ConstIterator i = components_.Begin(); i != components_.End(); ++i)
+        {
+            Component* component = *i;
+            if (component->IsTemporary())
+                continue;
+
+            Component* cloneComponent = cloneNode->CloneComponent(component,
+                (mode == REPLICATED && component->GetID() < FIRST_LOCAL_ID) ? REPLICATED : LOCAL, 0, applyAttr);
+
+            resolver.AddComponent(component->GetID(), cloneComponent);
+        }
+    }
+
+//    URHO3D_LOGERRORF("Node::CloneRecursive() parent=%s(%u) cloneNode=%s(%u) ... ", parent->GetName().CString(), parent->GetID(), cloneNode->GetName().CString(), cloneNode->GetID());
 
     // Clone child nodes recursively
     if (isPoolNode_ && nodeid)

@@ -46,7 +46,7 @@ namespace spine {
 		virtual ~ShearTimeline();
 
 		virtual void
-		apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha, MixBlend blend,
+		apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha, MixBlend blend,
 			  MixDirection direction);
 
 		int getBoneIndex() { return _boneIndex; }
@@ -70,7 +70,7 @@ namespace spine {
 		virtual ~ShearXTimeline();
 
 		virtual void
-		apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha, MixBlend blend,
+		apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha, MixBlend blend,
 			  MixDirection direction);
 
 		int getBoneIndex() { return _boneIndex; }
@@ -94,7 +94,7 @@ namespace spine {
 		virtual ~ShearYTimeline();
 
 		virtual void
-		apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha, MixBlend blend,
+		apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha, MixBlend blend,
 			  MixDirection direction);
 
 		int getBoneIndex() { return _boneIndex; }

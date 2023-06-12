@@ -40,7 +40,7 @@ namespace spine {
 
 	class Skin;
 
-	class EventData;
+	class SpineEventData;
 
 	class Animation;
 
@@ -75,7 +75,7 @@ namespace spine {
 		Skin *findSkin(const String &skinName);
 
 		/// @return May be NULL.
-		spine::EventData *findEvent(const String &eventDataName);
+		spine::SpineEventData *findSpineEvent(const String &SpineEventDataName);
 
 		/// @return May be NULL.
 		Animation *findAnimation(const String &animationName);
@@ -108,7 +108,7 @@ namespace spine {
 
 		void setDefaultSkin(Skin *inValue);
 
-		Vector<spine::EventData *> &getEvents();
+		Vector<spine::SpineEventData *> &getSpineEvents();
 
 		Vector<Animation *> &getAnimations();
 
@@ -162,7 +162,7 @@ namespace spine {
 		Vector<SlotData *> _slots; // Setup pose draw order.
 		Vector<Skin *> _skins;
 		Skin *_defaultSkin;
-		Vector<EventData *> _events;
+		Vector<SpineEventData *> _SpineEvents;
 		Vector<Animation *> _animations;
 		Vector<IkConstraintData *> _ikConstraints;
 		Vector<TransformConstraintData *> _transformConstraints;

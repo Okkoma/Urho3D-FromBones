@@ -29,7 +29,7 @@
 
 #include <spine/TransformConstraintTimeline.h>
 
-#include <spine/Event.h>
+#include <spine/SpineEvent.h>
 #include <spine/Skeleton.h>
 
 #include <spine/Animation.h>
@@ -54,10 +54,10 @@ TransformConstraintTimeline::TransformConstraintTimeline(size_t frameCount, size
 	setPropertyIds(ids, 1);
 }
 
-void TransformConstraintTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents,
+void TransformConstraintTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents,
 										float alpha, MixBlend blend, MixDirection direction) {
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 	SP_UNUSED(direction);
 
 	TransformConstraint *constraintP = skeleton._transformConstraints[_transformConstraintIndex];

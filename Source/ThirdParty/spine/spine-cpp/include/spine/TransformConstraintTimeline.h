@@ -45,7 +45,7 @@ namespace spine {
 		explicit TransformConstraintTimeline(size_t frameCount, size_t bezierCount, int transformConstraintIndex);
 
 		virtual void
-		apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha, MixBlend blend,
+		apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha, MixBlend blend,
 			  MixDirection direction);
 
 		void setFrame(size_t frameIndex, float time, float mixRotate, float mixX, float mixY, float mixScaleX,

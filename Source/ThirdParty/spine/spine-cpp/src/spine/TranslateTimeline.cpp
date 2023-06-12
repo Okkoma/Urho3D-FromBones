@@ -29,7 +29,7 @@
 
 #include <spine/TranslateTimeline.h>
 
-#include <spine/Event.h>
+#include <spine/SpineEvent.h>
 #include <spine/Skeleton.h>
 
 #include <spine/Bone.h>
@@ -53,10 +53,10 @@ TranslateTimeline::TranslateTimeline(size_t frameCount, size_t bezierCount, int 
 TranslateTimeline::~TranslateTimeline() {
 }
 
-void TranslateTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha,
+void TranslateTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha,
 							  MixBlend blend, MixDirection direction) {
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 	SP_UNUSED(direction);
 
 	Bone *bone = skeleton._bones[_boneIndex];
@@ -130,10 +130,10 @@ TranslateXTimeline::TranslateXTimeline(size_t frameCount, size_t bezierCount, in
 TranslateXTimeline::~TranslateXTimeline() {
 }
 
-void TranslateXTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha,
+void TranslateXTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha,
 							   MixBlend blend, MixDirection direction) {
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 	SP_UNUSED(direction);
 
 	Bone *bone = skeleton._bones[_boneIndex];
@@ -178,10 +178,10 @@ TranslateYTimeline::TranslateYTimeline(size_t frameCount, size_t bezierCount, in
 TranslateYTimeline::~TranslateYTimeline() {
 }
 
-void TranslateYTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha,
+void TranslateYTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha,
 							   MixBlend blend, MixDirection direction) {
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 	SP_UNUSED(direction);
 
 	Bone *bone = skeleton._bones[_boneIndex];

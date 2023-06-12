@@ -34,8 +34,8 @@
 #include <spine/Bone.h>
 #include <spine/BoneData.h>
 #include <spine/DrawOrderTimeline.h>
-#include <spine/Event.h>
-#include <spine/EventTimeline.h>
+#include <spine/SpineEvent.h>
+#include <spine/SpineEventTimeline.h>
 #include <spine/RotateTimeline.h>
 #include <spine/Skeleton.h>
 #include <spine/SkeletonData.h>
@@ -47,21 +47,21 @@
 namespace spine
 {
 
-void dummyOnAnimationEventFunc(AnimationState *state, spine::EventType type, TrackEntry *entry, Event *event = NULL) {
+void dummyOnAnimationSpineEventFunc(AnimationState *state, spine::SpineEventType type, TrackEntry *entry, SpineEvent *SpineEvent = NULL) {
 	SP_UNUSED(state);
 	SP_UNUSED(type);
 	SP_UNUSED(entry);
-	SP_UNUSED(event);
+	SP_UNUSED(SpineEvent);
 }
 
 TrackEntry::TrackEntry() : _animation(NULL), _previous(NULL), _next(NULL), _mixingFrom(NULL), _mixingTo(0),
 						   _trackIndex(0), _loop(false), _holdPrevious(false), _reverse(false),
 						   _shortestRotation(false),
-						   _eventThreshold(0), _attachmentThreshold(0), _drawOrderThreshold(0), _animationStart(0),
+						   _SpineEventThreshold(0), _attachmentThreshold(0), _drawOrderThreshold(0), _animationStart(0),
 						   _animationEnd(0), _animationLast(0), _nextAnimationLast(0), _delay(0), _trackTime(0),
 						   _trackLast(0), _nextTrackLast(0), _trackEnd(0), _timeScale(1.0f), _alpha(0), _mixTime(0),
 						   _mixDuration(0), _interruptAlpha(0), _totalAlpha(0), _mixBlend(MixBlend_Replace),
-						   _listener(dummyOnAnimationEventFunc), _listenerObject(NULL) {
+						   _listener(dummyOnAnimationSpineEventFunc), _listenerObject(NULL) {
 }
 
 TrackEntry::~TrackEntry() {}
@@ -133,9 +133,9 @@ float TrackEntry::getAlpha() { return _alpha; }
 
 void TrackEntry::setAlpha(float inValue) { _alpha = inValue; }
 
-float TrackEntry::getEventThreshold() { return _eventThreshold; }
+float TrackEntry::getSpineEventThreshold() { return _SpineEventThreshold; }
 
-void TrackEntry::setEventThreshold(float inValue) { _eventThreshold = inValue; }
+void TrackEntry::setSpineEventThreshold(float inValue) { _SpineEventThreshold = inValue; }
 
 float TrackEntry::getAttachmentThreshold() { return _attachmentThreshold; }
 
@@ -177,7 +177,7 @@ void TrackEntry::setListener(AnimationStateListener inValue) {
 }
 
 void TrackEntry::setListener(AnimationStateListenerObject *inValue) {
-	_listener = dummyOnAnimationEventFunc;
+	_listener = dummyOnAnimationSpineEventFunc;
 	_listenerObject = inValue;
 }
 
@@ -194,7 +194,7 @@ void TrackEntry::reset() {
 	_timelineHoldMix.clear();
 	_timelinesRotation.clear();
 
-	_listener = dummyOnAnimationEventFunc;
+	_listener = dummyOnAnimationSpineEventFunc;
 	_listenerObject = NULL;
 }
 
@@ -207,54 +207,54 @@ float TrackEntry::getTrackComplete() {
 	return _trackTime;// Next update.
 }
 
-EventQueueEntry::EventQueueEntry(EventType eventType, TrackEntry *trackEntry, Event *event) : _type(eventType),
+SpineEventQueueEntry::SpineEventQueueEntry(SpineEventType eventType, TrackEntry *trackEntry, SpineEvent *event) : _type(eventType),
 																							  _entry(trackEntry),
 																							  _event(event) {
 }
 
-EventQueue *EventQueue::newEventQueue(AnimationState &state) {
-	return new (__FILE__, __LINE__) EventQueue(state);
+SpineEventQueue *SpineEventQueue::newSpineEventQueue(AnimationState &state) {
+	return new (__FILE__, __LINE__) SpineEventQueue(state);
 }
 
-EventQueueEntry EventQueue::newEventQueueEntry(EventType eventType, TrackEntry *entry, Event *event) {
-	return EventQueueEntry(eventType, entry, event);
+SpineEventQueueEntry SpineEventQueue::newSpineEventQueueEntry(SpineEventType eventType, TrackEntry *entry, SpineEvent *event) {
+	return SpineEventQueueEntry(eventType, entry, event);
 }
 
-EventQueue::EventQueue(AnimationState &state) : _state(state),
+SpineEventQueue::SpineEventQueue(AnimationState &state) : _state(state),
 												_drainDisabled(false) {
 }
 
-EventQueue::~EventQueue() {
+SpineEventQueue::~SpineEventQueue() {
 }
 
-void EventQueue::start(TrackEntry *entry) {
-	_eventQueueEntries.add(newEventQueueEntry(EventType_Start, entry));
+void SpineEventQueue::start(TrackEntry *entry) {
+	_SpineEventQueueEntries.add(newSpineEventQueueEntry(SpineEventType_Start, entry));
 	_state._animationsChanged = true;
 }
 
-void EventQueue::interrupt(TrackEntry *entry) {
-	_eventQueueEntries.add(newEventQueueEntry(EventType_Interrupt, entry));
+void SpineEventQueue::interrupt(TrackEntry *entry) {
+	_SpineEventQueueEntries.add(newSpineEventQueueEntry(SpineEventType_Interrupt, entry));
 }
 
-void EventQueue::end(TrackEntry *entry) {
-	_eventQueueEntries.add(newEventQueueEntry(EventType_End, entry));
+void SpineEventQueue::end(TrackEntry *entry) {
+	_SpineEventQueueEntries.add(newSpineEventQueueEntry(SpineEventType_End, entry));
 	_state._animationsChanged = true;
 }
 
-void EventQueue::dispose(TrackEntry *entry) {
-	_eventQueueEntries.add(newEventQueueEntry(EventType_Dispose, entry));
+void SpineEventQueue::dispose(TrackEntry *entry) {
+	_SpineEventQueueEntries.add(newSpineEventQueueEntry(SpineEventType_Dispose, entry));
 }
 
-void EventQueue::complete(TrackEntry *entry) {
-	_eventQueueEntries.add(newEventQueueEntry(EventType_Complete, entry));
+void SpineEventQueue::complete(TrackEntry *entry) {
+	_SpineEventQueueEntries.add(newSpineEventQueueEntry(SpineEventType_Complete, entry));
 }
 
-void EventQueue::event(TrackEntry *entry, Event *event) {
-	_eventQueueEntries.add(newEventQueueEntry(EventType_Event, entry, event));
+void SpineEventQueue::event(TrackEntry *entry, SpineEvent *pevent) {
+	_SpineEventQueueEntries.add(newSpineEventQueueEntry(SpineEventType_SpineEvent, entry, pevent));
 }
 
-/// Raises all events in the queue and drains the queue.
-void EventQueue::drain() {
+/// Raises all SpineEvents in the queue and drains the queue.
+void SpineEventQueue::drain() {
 	if (_drainDisabled) {
 		return;
 	}
@@ -263,15 +263,15 @@ void EventQueue::drain() {
 
 	AnimationState &state = _state;
 
-	// Don't cache _eventQueueEntries.size() so callbacks can queue their own events (eg, call setAnimation in AnimationState_Complete).
-	for (size_t i = 0; i < _eventQueueEntries.size(); ++i) {
-		EventQueueEntry queueEntry = _eventQueueEntries[i];
+	// Don't cache _SpineEventQueueEntries.size() so callbacks can queue their own SpineEvents (eg, call setAnimation in AnimationState_Complete).
+	for (size_t i = 0; i < _SpineEventQueueEntries.size(); ++i) {
+		SpineEventQueueEntry queueEntry = _SpineEventQueueEntries[i];
 		TrackEntry *trackEntry = queueEntry._entry;
 
 		switch (queueEntry._type) {
-			case EventType_Start:
-			case EventType_Interrupt:
-			case EventType_Complete:
+			case SpineEventType_Start:
+			case SpineEventType_Interrupt:
+			case SpineEventType_Complete:
 				if (!trackEntry->_listenerObject) trackEntry->_listener(&state, queueEntry._type, trackEntry, NULL);
 				else
 					trackEntry->_listenerObject->callback(&state, queueEntry._type, trackEntry, NULL);
@@ -279,7 +279,7 @@ void EventQueue::drain() {
 				else
 					state._listenerObject->callback(&state, queueEntry._type, trackEntry, NULL);
 				break;
-			case EventType_End:
+			case SpineEventType_End:
 				if (!trackEntry->_listenerObject) trackEntry->_listener(&state, queueEntry._type, trackEntry, NULL);
 				else
 					trackEntry->_listenerObject->callback(&state, queueEntry._type, trackEntry, NULL);
@@ -287,17 +287,17 @@ void EventQueue::drain() {
 				else
 					state._listenerObject->callback(&state, queueEntry._type, trackEntry, NULL);
 				/* Fall through. */
-			case EventType_Dispose:
-				if (!trackEntry->_listenerObject) trackEntry->_listener(&state, EventType_Dispose, trackEntry, NULL);
+			case SpineEventType_Dispose:
+				if (!trackEntry->_listenerObject) trackEntry->_listener(&state, SpineEventType_Dispose, trackEntry, NULL);
 				else
-					trackEntry->_listenerObject->callback(&state, EventType_Dispose, trackEntry, NULL);
-				if (!state._listenerObject) state._listener(&state, EventType_Dispose, trackEntry, NULL);
+					trackEntry->_listenerObject->callback(&state, SpineEventType_Dispose, trackEntry, NULL);
+				if (!state._listenerObject) state._listener(&state, SpineEventType_Dispose, trackEntry, NULL);
 				else
-					state._listenerObject->callback(&state, EventType_Dispose, trackEntry, NULL);
+					state._listenerObject->callback(&state, SpineEventType_Dispose, trackEntry, NULL);
 
 				if (!_state.getManualTrackEntryDisposal()) _state.disposeTrackEntry(trackEntry);
 				break;
-			case EventType_Event:
+			case SpineEventType_SpineEvent:
 				if (!trackEntry->_listenerObject)
 					trackEntry->_listener(&state, queueEntry._type, trackEntry, queueEntry._event);
 				else
@@ -308,15 +308,15 @@ void EventQueue::drain() {
 				break;
 		}
 	}
-	_eventQueueEntries.clear();
+	_SpineEventQueueEntries.clear();
 
 	_drainDisabled = false;
 }
 
 AnimationState::AnimationState(AnimationStateData *data) : _data(data),
-														   _queue(EventQueue::newEventQueue(*this)),
+														   _queue(SpineEventQueue::newSpineEventQueue(*this)),
 														   _animationsChanged(false),
-														   _listener(dummyOnAnimationEventFunc),
+														   _listener(dummyOnAnimationSpineEventFunc),
 														   _listenerObject(NULL),
 														   _unkeyedState(0),
 														   _timeScale(1),
@@ -439,10 +439,10 @@ bool AnimationState::apply(Skeleton &skeleton) {
 		// apply current entry.
 		float animationLast = current._animationLast, animationTime = current.getAnimationTime();
 		float applyTime = animationTime;
-		Vector<Event *> *applyEvents = &_events;
+		Vector<SpineEvent *> *applySpineEvents = &_SpineEvents;
 		if (current._reverse) {
 			applyTime = current._animation->getDuration() - applyTime;
-			applyEvents = NULL;
+			applySpineEvents = NULL;
 		}
 		size_t timelineCount = current._animation->_timelines.size();
 		Vector<Timeline *> &timelines = current._animation->_timelines;
@@ -453,7 +453,7 @@ bool AnimationState::apply(Skeleton &skeleton) {
 					applyAttachmentTimeline(static_cast<AttachmentTimeline *>(timeline), skeleton, applyTime, blend,
 											true);
 				else
-					timeline->apply(skeleton, animationLast, applyTime, applyEvents, mix, blend, MixDirection_In);
+					timeline->apply(skeleton, animationLast, applyTime, applySpineEvents, mix, blend, MixDirection_In);
 			}
 		} else {
 			Vector<int> &timelineMode = current._timelineMode;
@@ -476,13 +476,13 @@ bool AnimationState::apply(Skeleton &skeleton) {
 					applyAttachmentTimeline(static_cast<AttachmentTimeline *>(timeline), skeleton, applyTime,
 											timelineBlend, true);
 				else
-					timeline->apply(skeleton, animationLast, applyTime, applyEvents, mix, timelineBlend,
+					timeline->apply(skeleton, animationLast, applyTime, applySpineEvents, mix, timelineBlend,
 									MixDirection_In);
 			}
 		}
 
-		queueEvents(currentP, animationTime);
-		_events.clear();
+		queueSpineEvents(currentP, animationTime);
+		_SpineEvents.clear();
 		current._nextAnimationLast = animationTime;
 		current._nextTrackLast = current._trackTime;
 	}
@@ -654,7 +654,7 @@ void AnimationState::setListener(AnimationStateListener inValue) {
 }
 
 void AnimationState::setListener(AnimationStateListenerObject *inValue) {
-	_listener = dummyOnAnimationEventFunc;
+	_listener = dummyOnAnimationSpineEventFunc;
 	_listenerObject = inValue;
 }
 
@@ -817,16 +817,16 @@ float AnimationState::applyMixingFrom(TrackEntry *to, Skeleton &skeleton, MixBle
 	float alphaHold = from->_alpha * to->_interruptAlpha, alphaMix = alphaHold * (1 - mix);
 	float animationLast = from->_animationLast, animationTime = from->getAnimationTime();
 	float applyTime = animationTime;
-	Vector<Event *> *events = NULL;
+	Vector<SpineEvent *> *SpineEvents = NULL;
 	if (from->_reverse) {
 		applyTime = from->_animation->_duration - applyTime;
 	} else {
-		if (mix < from->_eventThreshold) events = &_events;
+		if (mix < from->_SpineEventThreshold) SpineEvents = &_SpineEvents;
 	}
 
 	if (blend == MixBlend_Add) {
 		for (size_t i = 0; i < timelineCount; i++)
-			timelines[i]->apply(skeleton, animationLast, applyTime, events, alphaMix, blend, MixDirection_Out);
+			timelines[i]->apply(skeleton, animationLast, applyTime, SpineEvents, alphaMix, blend, MixDirection_Out);
 	} else {
 		Vector<int> &timelineMode = from->_timelineMode;
 		Vector<TrackEntry *> &timelineHoldMix = from->_timelineHoldMix;
@@ -878,16 +878,16 @@ float AnimationState::applyMixingFrom(TrackEntry *to, Skeleton &skeleton, MixBle
 				if (drawOrder && timeline->getRTTI().isExactly(DrawOrderTimeline::rtti) &&
 					timelineBlend == MixBlend_Setup)
 					direction = MixDirection_In;
-				timeline->apply(skeleton, animationLast, applyTime, events, alpha, timelineBlend, direction);
+				timeline->apply(skeleton, animationLast, applyTime, SpineEvents, alpha, timelineBlend, direction);
 			}
 		}
 	}
 
 	if (to->_mixDuration > 0) {
-		queueEvents(from, animationTime);
+		queueSpineEvents(from, animationTime);
 	}
 
-	_events.clear();
+	_SpineEvents.clear();
 	from->_nextAnimationLast = animationTime;
 	from->_nextTrackLast = from->_trackTime;
 
@@ -900,17 +900,17 @@ void AnimationState::setAttachment(Skeleton &skeleton, Slot &slot, const String 
 	if (attachments) slot.setAttachmentState(_unkeyedState + Current);
 }
 
-void AnimationState::queueEvents(TrackEntry *entry, float animationTime) {
+void AnimationState::queueSpineEvents(TrackEntry *entry, float animationTime) {
 	float animationStart = entry->_animationStart, animationEnd = entry->_animationEnd;
 	float duration = animationEnd - animationStart;
 	float trackLastWrapped = MathUtil::fmod(entry->_trackLast, duration);
 
-	// Queue events before complete.
-	size_t i = 0, n = _events.size();
+	// Queue SpineEvents before complete.
+	size_t i = 0, n = _SpineEvents.size();
 	for (; i < n; ++i) {
-		Event *e = _events[i];
+		SpineEvent *e = _SpineEvents[i];
 		if (e->_time < trackLastWrapped) break;
-		if (e->_time > animationEnd) continue;// Discard events outside animation start/end.
+		if (e->_time > animationEnd) continue;// Discard SpineEvents outside animation start/end.
 		_queue->event(entry, e);
 	}
 
@@ -922,10 +922,10 @@ void AnimationState::queueEvents(TrackEntry *entry, float animationTime) {
 		complete = animationTime >= animationEnd && entry->_animationLast < animationEnd;
 	if (complete) _queue->complete(entry);
 
-	// Queue events after complete.
+	// Queue SpineEvents after complete.
 	for (; i < n; ++i) {
-		Event *e = _events[i];
-		if (e->_time < animationStart) continue;// Discard events outside animation start/end.
+		SpineEvent *e = _SpineEvents[i];
+		if (e->_time < animationStart) continue;// Discard SpineEvents outside animation start/end.
 		_queue->event(entry, e);
 	}
 }
@@ -972,7 +972,7 @@ TrackEntry *AnimationState::newTrackEntry(size_t trackIndex, Animation *animatio
 	entry._reverse = false;
 	entry._shortestRotation = false;
 
-	entry._eventThreshold = 0;
+	entry._SpineEventThreshold = 0;
 	entry._attachmentThreshold = 0;
 	entry._drawOrderThreshold = 0;
 
@@ -1053,7 +1053,7 @@ continue_outer:
 		} else {
 			if (to == NULL || timeline->getRTTI().isExactly(AttachmentTimeline::rtti) ||
 				timeline->getRTTI().isExactly(DrawOrderTimeline::rtti) ||
-				timeline->getRTTI().isExactly(EventTimeline::rtti) || !to->_animation->hasTimeline(ids)) {
+				timeline->getRTTI().isExactly(SpineEventTimeline::rtti) || !to->_animation->hasTimeline(ids)) {
 				timelineMode[i] = First;
 			} else {
 				for (TrackEntry *next = to->_mixingTo; next != NULL; next = next->_mixingTo) {

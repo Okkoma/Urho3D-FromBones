@@ -43,7 +43,7 @@ namespace spine {
 
 	class Slot;
 
-	class Event;
+	class SpineEvent;
 
 	class SP_API AttachmentTimeline : public Timeline {
 		friend class SkeletonBinary;
@@ -58,7 +58,7 @@ namespace spine {
 		virtual ~AttachmentTimeline();
 
 		virtual void
-		apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha, MixBlend blend,
+		apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha, MixBlend blend,
 			  MixDirection direction);
 
 		/// Sets the time and value of the specified keyframe.

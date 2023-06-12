@@ -46,7 +46,7 @@ namespace spine {
 		explicit PathConstraintMixTimeline(size_t frameCount, size_t bezierCount, int pathConstraintIndex);
 
 		virtual void
-		apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha, MixBlend blend,
+		apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha, MixBlend blend,
 			  MixDirection direction);
 
 		/// Sets the time and mixes of the specified keyframe.

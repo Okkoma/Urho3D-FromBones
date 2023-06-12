@@ -328,11 +328,11 @@ ResourceRef Sprite2D::SaveToResourceRef(Sprite2D* sprite)
     if (!sprite)
         return Variant::emptyResourceRef;
 
-    if (!sprite->GetSpriteSheet())
+    if (!sprite->GetSpriteSheet() || sprite->GetSpriteSheet()->GetName().Empty())
         return GetResourceRef(sprite, Sprite2D::GetTypeStatic());
 
     // Combine sprite sheet name and sprite name as resource name.
-    return ResourceRef(sprite->GetSpriteSheet()->GetType(), sprite->GetSpriteSheet()->GetName() + "@" + sprite->GetName());
+    return ResourceRef(SpriteSheet2D::GetTypeStatic(), sprite->GetSpriteSheet()->GetName() + "@" + sprite->GetName());
 }
 
 Sprite2D* Sprite2D::LoadFromResourceRef(Context* context, const ResourceRef& value)

@@ -29,7 +29,7 @@
 
 #include <spine/Timeline.h>
 
-#include <spine/Event.h>
+#include <spine/SpineEvent.h>
 #include <spine/Skeleton.h>
 
 namespace spine {

@@ -29,7 +29,7 @@
 
 #include <spine/DrawOrderTimeline.h>
 
-#include <spine/Event.h>
+#include <spine/SpineEvent.h>
 #include <spine/Skeleton.h>
 
 #include <spine/Animation.h>
@@ -53,10 +53,10 @@ DrawOrderTimeline::DrawOrderTimeline(size_t frameCount) : Timeline(frameCount, 1
 	}
 }
 
-void DrawOrderTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha,
+void DrawOrderTimeline::apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha,
 							  MixBlend blend, MixDirection direction) {
 	SP_UNUSED(lastTime);
-	SP_UNUSED(pEvents);
+	SP_UNUSED(pSpineEvents);
 	SP_UNUSED(alpha);
 
 	Vector<Slot *> &drawOrder = skeleton._drawOrder;

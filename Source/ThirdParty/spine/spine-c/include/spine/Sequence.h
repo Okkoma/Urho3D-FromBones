@@ -27,60 +27,49 @@
  * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#ifndef Spine_EventData_h
-#define Spine_EventData_h
+#ifndef SPINE_SEQUENCE_H
+#define SPINE_SEQUENCE_H
 
-#include <spine/SpineObject.h>
-#include <spine/SpineString.h>
+#include <spine/dll.h>
+#include <spine/TextureRegion.h>
+#include <spine/Atlas.h>
+#include "Attachment.h"
+#include "Slot.h"
 
-namespace spine {
-/// Stores the setup pose values for an Event.
-	class SP_API EventData : public SpineObject {
-		friend class SkeletonBinary;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-		friend class SkeletonJson;
+_SP_ARRAY_DECLARE_TYPE(spTextureRegionArray, spTextureRegion*)
 
-		friend class Event;
+typedef struct spSequence {
+	int id;
+	int start;
+	int digits;
+	int setupIndex;
+	spTextureRegionArray *regions;
+} spSequence;
 
-	public:
-		explicit EventData(const String &name);
+SP_API spSequence *spSequence_create(int numRegions);
 
-		/// The name of the event, which is unique within the skeleton.
-		const String &getName() const;
+SP_API void spSequence_dispose(spSequence *self);
 
-		int getIntValue() const;
+SP_API spSequence *spSequence_copy(spSequence *self);
 
-		void setIntValue(int inValue);
+SP_API void spSequence_apply(spSequence *self, spSlot *slot, spAttachment *attachment);
 
-		float getFloatValue() const;
+SP_API void spSequence_getPath(spSequence *self, const char *basePath, int index, char *path);
 
-		void setFloatValue(float inValue);
+#define SP_SEQUENCE_MODE_HOLD 0
+#define SP_SEQUENCE_MODE_ONCE 1
+#define SP_SEQUENCE_MODE_LOOP 2
+#define SP_SEQUENCE_MODE_PINGPONG 3
+#define SP_SEQUENCE_MODE_ONCEREVERSE 4
+#define SP_SEQUENCE_MODE_LOOPREVERSE 5
+#define SP_SEQUENCE_MODE_PINGPONGREVERSE 6
 
-		const String &getStringValue() const;
-
-		void setStringValue(const String &inValue);
-
-		const String &getAudioPath() const;
-
-		void setAudioPath(const String &inValue);
-
-		float getVolume() const;
-
-		void setVolume(float inValue);
-
-		float getBalance() const;
-
-		void setBalance(float inValue);
-
-	private:
-		const String _name;
-		int _intValue;
-		float _floatValue;
-		String _stringValue;
-		String _audioPath;
-		float _volume;
-		float _balance;
-	};
+#ifdef __cplusplus
 }
+#endif
 
-#endif /* Spine_EventData_h */
+#endif

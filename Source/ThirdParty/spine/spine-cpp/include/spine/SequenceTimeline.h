@@ -49,7 +49,7 @@ namespace spine {
 		virtual ~SequenceTimeline();
 
 		virtual void
-		apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha, MixBlend blend,
+		apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha, MixBlend blend,
 			  MixDirection direction);
 
 		void setFrame(int frame, float time, SequenceMode mode, int index, float delay);

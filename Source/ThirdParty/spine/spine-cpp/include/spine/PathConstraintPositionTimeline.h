@@ -49,7 +49,7 @@ namespace spine {
 		virtual ~PathConstraintPositionTimeline();
 
 		virtual void
-		apply(Skeleton &skeleton, float lastTime, float time, Vector<Event *> *pEvents, float alpha, MixBlend blend,
+		apply(Skeleton &skeleton, float lastTime, float time, Vector<SpineEvent *> *pSpineEvents, float alpha, MixBlend blend,
 			  MixDirection direction);
 
 		int getPathConstraintIndex() { return _pathConstraintIndex; }

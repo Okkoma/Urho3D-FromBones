@@ -52,7 +52,8 @@ enum LoopMode
 
 struct NodeUpdater
 {
-    SpriteTimelineKey* timekey_;
+    NodeUpdater() : timekey_(0), ucomponent_(0) { }
+    PointTimelineKey* timekey_;
     void* ucomponent_;
 };
 
@@ -98,7 +99,7 @@ public:
     /// Return animation triggers.
     HashMap<String, NodeUpdater >& GetNodeUpdaters() { return nodeUpdaters_; }
     const HashMap<String, NodeUpdater >& GetNodeUpdaters() const { return nodeUpdaters_; }
-    const HashMap<Timeline*, SpriteTimelineKey* >& GetEventTriggers() const { return eventTriggers_; }
+    const HashMap<Timeline*, PointTimelineKey* >& GetEventTriggers() const { return eventTriggers_; }
     const HashMap<Timeline*, BoxTimelineKey* >& GetPhysicTriggers() const { return physicTriggers_; }
     /// Return time passed on the current animation.
     float GetCurrentTime() const { return currentTime_; }
@@ -124,7 +125,7 @@ private:
     void UpdateTimelineKeys();
 
     /// Get timeline key by ref.
-    TimelineKey* GetTimelineKey(Ref* ref, float targetTime) const;
+    TimelineKey* GetTimelineKey(Ref* ref, float targetTime, TimelineKey* reuse) const;
 
     /// Parent component.
     Component* owner_;
@@ -154,8 +155,7 @@ private:
 
     /// Current event keys.
     HashMap<String, NodeUpdater > nodeUpdaters_;
-//    HashMap<String, SpriteTimelineKey* > nodeUpdaters_;
-    HashMap<Timeline*, SpriteTimelineKey* > eventTriggers_;
+    HashMap<Timeline*, PointTimelineKey* > eventTriggers_;
     HashMap<Timeline*, BoxTimelineKey* > physicTriggers_;
 };
 
