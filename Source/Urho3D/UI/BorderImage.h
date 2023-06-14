@@ -24,6 +24,7 @@
 
 #include "../Graphics/GraphicsDefs.h"
 #include "../UI/UIElement.h"
+#include "../Urho2D/Sprite2D.h"
 
 namespace Urho3D
 {
@@ -94,6 +95,7 @@ public:
 
     void SetSprite(const String& spritename);
     void SetSpriteHover(const String& spritename);
+    void SetSprite(Sprite2D* sprite);
     const String& GetEmptyAttr() const;
 
 protected:

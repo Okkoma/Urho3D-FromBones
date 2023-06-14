@@ -293,6 +293,15 @@ void BorderImage::SetSprite(const String& refname)
     }
 }
 
+void BorderImage::SetSprite(Sprite2D* sprite)
+{
+    if (sprite)
+    {
+        SetTexture(sprite->GetTexture());
+        SetImageRect(sprite->GetRectangle());
+    }
+}
+
 const String& BorderImage::GetEmptyAttr() const
 {
     return String::EMPTY;

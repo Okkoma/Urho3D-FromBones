@@ -102,6 +102,9 @@ bool Sound::BeginLoad(Deserializer& source)
 
 bool Sound::LoadOggVorbis(Deserializer& source)
 {
+    if (!source.GetSize())
+        return false;
+
     unsigned dataSize = source.GetSize();
     SharedArrayPtr<signed char> data(new signed char[dataSize]);
     source.Read(data.Get(), dataSize);

@@ -306,6 +306,9 @@ const Vector<SourceBatch2D*>& Drawable2D::GetSourceBatchesToRender(Camera* camer
         return sourceBatchesToRender_[0];
     }
 
+    if (sourceBatchesToRender_[batchsetid].Empty())
+        sourceBatchesDirty_ = true;
+
     if (sourceBatchesDirty_)
     {
 //        if (enableDebugLog_)

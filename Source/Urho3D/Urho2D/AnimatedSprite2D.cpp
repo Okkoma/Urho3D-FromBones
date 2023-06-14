@@ -80,6 +80,7 @@ AnimatedSprite2D::AnimatedSprite2D(Context* context) :
     characterMapDirty_(true),
     renderEnabled_(true),
     dynamicBBox_(false),
+    colorsDirty_(false),
     mappingScaleRatio_(1.f),
     customSourceBatches_(0),
     animationIndex_(0)
@@ -736,7 +737,13 @@ void AnimatedSprite2D::UnSwapSprite(Sprite2D* original)
     swappedSprites_.Erase(original);
 }
 
-void AnimatedSprite2D::ResetCharacterMapping()
+void AnimatedSprite2D::SetSpriteColor(unsigned key, const Color& color)
+{
+    colorMapping_[key] = color;
+    colorsDirty_ = sourceBatchesDirty_ = true;
+}
+
+void AnimatedSprite2D::ResetCharacterMapping(bool resetSwappedSprites)
 {
     ClearRenderedAnimations();
 
@@ -745,8 +752,10 @@ void AnimatedSprite2D::ResetCharacterMapping()
 
     spriteMapping_.Clear();
     spritesInfos_.Clear();
+    colorMapping_.Clear();
 
-    UnSwapAllSprites();
+    if (resetSwappedSprites)
+        UnSwapAllSprites();
 
     characterMapDirty_ = false;
     useCharacterMap_ = false;
@@ -888,17 +897,30 @@ Sprite2D* AnimatedSprite2D::GetSwappedSprite(Sprite2D* original) const
     return it != swappedSprites_.End() ? it->second_.Get() : original;
 }
 
-SpriteInfo* AnimatedSprite2D::GetSpriteInfo(Sprite2D* sprite, Sprite2D* origin)
+const Color& AnimatedSprite2D::GetSpriteColor(unsigned key) const
+{
+    HashMap<unsigned, Color >::ConstIterator it = colorMapping_.Find(key);
+    return it != colorMapping_.End() ? it->second_ : Color::WHITE;
+}
+
+SpriteInfo* AnimatedSprite2D::GetSpriteInfo(unsigned key, Sprite2D* sprite, Sprite2D* origin)
 {
     SpriteInfo& info = spriteInfoMapping_[sprite][origin];
     if (!info.sprite_)
     {
+        info.key_ = key;
         info.sprite_ = sprite;
         info.scalex_ = 1.f;
         info.scaley_ = 1.f;
         info.deltaHotspotx_ = 0.f;
         info.deltaHotspoty_ = 0.f;
     }
+
+    if (colorsDirty_)
+    {
+        info.pcolor_ = &GetSpriteColor(key);
+    }
+
     return &info;
 }
 
@@ -916,11 +938,15 @@ const PODVector<SpriteInfo*>& AnimatedSprite2D::GetSpriteInfos()
         Sprite2D *sprite, *origin;
         Spriter::SpriteTimelineKey* spriteKey;
 
+        unsigned key;
+
         // Get Sprite Keys only
         for (size_t i = 0; i < spriteKeys.Size(); ++i)
         {
             spriteKey = spriteKeys[i];
-            origin = GetMappedSprite(spriteKey->folderId_, spriteKey->fileId_);
+
+            key = (spriteKey->folderId_ << 16) + spriteKey->fileId_;
+            origin = GetMappedSprite(key);
 
             if (!origin)
                 continue;
@@ -932,8 +958,11 @@ const PODVector<SpriteInfo*>& AnimatedSprite2D::GetSpriteInfos()
 
             spritesKeys_.Push(spriteKey);
 
-            spritesInfos_.Push(GetSpriteInfo(sprite, origin));
+            spritesInfos_.Push(GetSpriteInfo(key, sprite, origin));
         }
+
+        if (colorsDirty_)
+            colorsDirty_ = false;
 
 //        if (!spritesInfos_.Size())
 //            URHO3D_LOGWARNINGF("AnimatedSprite2D() - CreateSpriteInfos : node=%s ... No Spriter Keys !", node_->GetName().CString());
@@ -2217,6 +2246,7 @@ void AnimatedSprite2D::UpdateSourceBatchesSpriter(Vector<SourceBatch2D>* sourceB
 
     Sprite2D* sprite;
     Spriter::SpriteTimelineKey* spriteKey;
+    unsigned fileKey;
 
     if (!sourceBatches[0][0].material_)
     {
@@ -2286,7 +2316,10 @@ void AnimatedSprite2D::UpdateSourceBatchesSpriter(Vector<SourceBatch2D>* sourceB
     for (size_t i = 0; i < spriteKeys.Size(); ++i)
     {
         spriteKey = spriteKeys[i];
-        sprite = animationSet_->GetSpriterFileSprite((spriteKey->folderId_ << 16) + spriteKey->fileId_);
+
+        fileKey = (spriteKey->folderId_ << 16) + spriteKey->fileId_;
+
+        sprite = animationSet_->GetSpriterFileSprite(fileKey);
         if (!sprite)
         {
 //            if (GetScene() == sRttScene_)
@@ -2369,7 +2402,7 @@ void AnimatedSprite2D::UpdateSourceBatchesSpriter(Vector<SourceBatch2D>* sourceB
         vertex3.uv_ = Vector2(textureRect.max_.x_, textureRect.min_.y_);
 
         color.a_ = spriteKey->info_.alpha_ * color_.a_;
-        vertex0.color_ = vertex1.color_ = vertex2.color_ = vertex3.color_ = (spriteKey->color_ * color).ToUInt();
+        vertex0.color_ = vertex1.color_ = vertex2.color_ = vertex3.color_ = (GetSpriteColor(fileKey) * spriteKey->color_ * color).ToUInt();
         vertex0.texmode_ = vertex1.texmode_ = vertex2.texmode_ = vertex3.texmode_ = texmode;
 
         vertices1.Push(vertex0);
@@ -2620,7 +2653,10 @@ void AnimatedSprite2D::UpdateSourceBatchesSpriter_Custom(Vector<SourceBatch2D>* 
         // Set Batch
         Vector<Vertex2D>& vertices1 = sourceBatches[0][iBatch].vertices_;
         color.a_ = spriteKey->info_.alpha_ * color_.a_;
-        vertex0.color_ = vertex1.color_ = vertex2.color_ = vertex3.color_ = (spriteKey->color_ * color).ToUInt();
+        if (spriteinfo->pcolor_)
+            vertex0.color_ = vertex1.color_ = vertex2.color_ = vertex3.color_ = ((*spriteinfo->pcolor_) * spriteKey->color_ * color).ToUInt();
+        else
+            vertex0.color_ = vertex1.color_ = vertex2.color_ = vertex3.color_ =  (spriteKey->color_ * color).ToUInt();
         vertex0.texmode_ = vertex1.texmode_ = vertex2.texmode_ = vertex3.texmode_ = texmode;
 
 		vertices1.Push(vertex0);

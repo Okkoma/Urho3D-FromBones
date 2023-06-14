@@ -61,9 +61,11 @@ class Texture;
 
     struct SpriteInfo
     {
-        SpriteInfo() : sprite_(0) { }
+        SpriteInfo() : sprite_(0), pcolor_(0) { }
 
+        unsigned key_;
         Sprite2D* sprite_;
+        const Color* pcolor_;
         float scalex_;
         float scaley_;
         float deltaHotspotx_;
@@ -200,10 +202,12 @@ public:
     void SwapSprite(const String& characterMap, Sprite2D* replacement, unsigned index=0, bool keepProportion=false);
     void SwapSprites(const String& characterMap, const PODVector<Sprite2D*>& replacements, bool keepProportion=false);
 
+    void SetSpriteColor(unsigned key, const Color& color);
+
     void UnSwapSprite(Sprite2D* original);
     void UnSwapAllSprites();
 
-    void ResetCharacterMapping();
+    void ResetCharacterMapping(bool resetSwappedSprites=true);
 
     void SetMappingScaleRatio(float ratio);
 
@@ -211,6 +215,7 @@ public:
 
 //    String GetCharacterMapAttr() const;
     const VariantVector& GetAppliedCharacterMapsAttr() const;
+    const PODVector<Spriter::CharacterMap*>& GetAppliedCharacterMaps() const { return characterMaps_; }
     const String& GetEmptyString() const { return String::EMPTY; }
 
     bool HasCharacterMapping() const;
@@ -229,7 +234,12 @@ public:
     Sprite2D* GetMappedSprite(unsigned key) const;
     Sprite2D* GetMappedSprite(int folderid, int fileid) const;
     Sprite2D* GetSwappedSprite(Sprite2D* original) const;
+    const Color& GetSpriteColor(unsigned key) const;
+
     const PODVector<SpriteInfo*>& GetSpriteInfos();
+    const HashMap<unsigned, SharedPtr<Sprite2D> >& GetSpriteMapping() const { return spriteMapping_; }
+    const HashMap<unsigned, Color >& GetSpriteColorMapping() const { return colorMapping_; }
+    const HashMap<Sprite2D*, HashMap<Sprite2D*, SpriteInfo> >& GetSpriteSwapping() const { return spriteInfoMapping_; }
 
     float GetMappingScaleRatio() const { return mappingScaleRatio_; }
 
@@ -295,7 +305,7 @@ protected:
     void SwapSprite(Sprite2D* original, Sprite2D* replacement, bool keepProportion=false);
     void SwapSprites(const PODVector<Sprite2D*>& originals, const PODVector<Sprite2D*>& replacements, bool keepProportion=false);
 
-    SpriteInfo* GetSpriteInfo(Sprite2D* sprite, Sprite2D* origin);
+    SpriteInfo* GetSpriteInfo(unsigned key, Sprite2D* sprite, Sprite2D* origin);
 
     /// Speed.
     float speed_;
@@ -316,6 +326,7 @@ protected:
     bool characterMapDirty_;
     bool renderEnabled_;
     bool dynamicBBox_;
+    bool colorsDirty_;
 	int renderZIndex_;
 	unsigned firstKeyIndex_, stopKeyIndex_;
     float mappingScaleRatio_;
@@ -336,8 +347,10 @@ protected:
     PODVector<Spriter::CharacterMap* > characterMaps_;
     VariantVector characterMapApplied_;
 
-    /// Current Sprite Mapping.
+    /// Current Sprite Mapping (key = Spriter(folder-file) )
     HashMap<unsigned, SharedPtr<Sprite2D> > spriteMapping_;
+    /// Color Sprite Mapping (key = Spriter(folder-file) )
+    HashMap<unsigned, Color > colorMapping_;
     /// Swap Sprite Mapping
     HashMap<Sprite2D*, SharedPtr<Sprite2D> > swappedSprites_;
     /// Swap Sprite Mapping Info
