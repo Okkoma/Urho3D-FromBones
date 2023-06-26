@@ -29,7 +29,6 @@ class xml_document;
 }
 
 //#define USE_KEYPOOLS
-#define DEFAULT_KEYPOOLSIZE 1000U
 
 namespace Urho3D
 {
@@ -46,6 +45,8 @@ struct Entity;
 struct ObjInfo;
 struct CharacterMap;
 struct MapInstruction;
+struct ColorMap;
+struct ColorMapInstruction;
 struct Animation;
 
 struct Ref;
@@ -95,8 +96,6 @@ struct URHO3D_API SpriterData
     void UpdateKeyInfos();
 
     static void Register();
-    static void UnRegister();
-
     static float GetFactor(TimeKey* keyA, TimeKey* keyB, float length, float targetTime);
     static float AdjustTime(TimeKey* keyA, TimeKey* keyB, float length, float targetTime);
 
@@ -116,26 +115,24 @@ namespace KeyPool
         for (unsigned i=0; i < T::keypool_.Size(); i++)
             T::freeindexes_[i] = &T::keypool_[i];
     }
-    template< typename T > static void Create()
+    template< typename T > static void Create(unsigned poolsize)
     {
-        T::keypool_.Resize(DEFAULT_KEYPOOLSIZE);
+        T::keypool_.Resize(poolsize);
         Restore<T>();
-    }
-    template< typename T > static void Release()
-    {
-        T::freeindexes_.Clear();
-        T::keypool_.Clear();
     }
     template< typename T > static T* Get()
     {
         if (!T::freeindexes_.Size())
         {
-            T::keypool_.Resize(T::keypool_.Size()+1);
-            T::freeindexes_.Push(&T::keypool_.Back());
+            URHO3D_LOGERRORF("No More Key for %s", T::GetStaticType());
+            return 0;
         }
-        T* key = T::freeindexes_.Back();
-        T::freeindexes_.Pop();
-        return key;
+        else
+        {
+            T* key = T::freeindexes_.Back();
+            T::freeindexes_.Pop();
+            return key;
+        }
     }
     template< typename T > static void Free(T* elt)
     {
@@ -194,6 +191,7 @@ struct URHO3D_API Entity
 
     HashMap<StringHash, ObjInfo > objInfos_;
     PODVector<CharacterMap*> characterMaps_;
+    PODVector<ColorMap*> colorMaps_;
     PODVector<Animation*> animations_;
 };
 
@@ -245,6 +243,38 @@ struct MapInstruction
     int targetFile_;
 };
 
+/// Color map.
+struct URHO3D_API ColorMap
+{
+    ColorMap();
+    ~ColorMap();
+
+    void Reset();
+    bool Load(const pugi::xml_node& node);
+    bool Save(pugi::xml_node& node) const;
+
+    void SetColor(unsigned key, const Color& color);
+    const Color& GetColor(unsigned key) const;
+
+    int id_;
+    String name_;
+    StringHash hashname_;
+    PODVector<ColorMapInstruction*> maps_;
+};
+
+/// Color Map instruction.
+struct ColorMapInstruction
+{
+    ColorMapInstruction();
+    ~ColorMapInstruction();
+
+    bool Load(const pugi::xml_node& node);
+    bool Save(pugi::xml_node& node) const;
+
+    int folder_;
+    int file_;
+    Color color_;
+};
 /// Animation.
 struct URHO3D_API Animation
 {
@@ -314,8 +344,8 @@ struct URHO3D_API SpatialInfo
     float alpha_;
     int spin;
 
-    SpatialInfo(float x = 0.0f, float y = 0.0f, float angle = 0.0f, float scale_x = 1, float scale_y = 1, float a = 1, int spin = 1);
-    SpatialInfo UnmapFromParent(const SpatialInfo& parentInfo) const;
+    SpatialInfo(float x = 0.0f, float y = 0.0f, float angle = 0.0f, float scale_x = 1, float scale_y = 1, float a = 1, int sp = 1);
+    void UnmapFromParent(const SpatialInfo& parentInfo);
     void Interpolate(const SpatialInfo& other, float t);
 };
 
@@ -364,6 +394,7 @@ struct URHO3D_API TimelineKey : public TimeKey
 
     ObjectType GetObjectType() const { return timeline_->objectType_; }
     virtual TimelineKey* Clone() const = 0;
+    virtual void Copy(TimelineKey* copy) const = 0;
 
     virtual void Interpolate(const TimelineKey& other, float t) = 0;
     TimelineKey& operator=(const TimelineKey& rhs);
@@ -378,6 +409,7 @@ struct URHO3D_API SpatialTimelineKey : TimelineKey
 
     SpatialTimelineKey(Timeline* timeline);
     virtual ~SpatialTimelineKey();
+
     virtual bool Load(const pugi::xml_node& node);
     virtual bool Save(pugi::xml_node& node) const;
     virtual void Interpolate(const TimelineKey& other, float t);
@@ -394,7 +426,10 @@ struct URHO3D_API BoneTimelineKey : SpatialTimelineKey
     BoneTimelineKey(Timeline* timeline);
     virtual ~BoneTimelineKey();
 
+    static const char* GetStaticType() { return "BoneTimelineKey"; }
+
     virtual TimelineKey* Clone() const;
+    virtual void Copy(TimelineKey* copy) const;
     virtual bool Load(const pugi::xml_node& node);
     virtual bool Save(pugi::xml_node& node) const;
     virtual void Interpolate(const TimelineKey& other, float t);
@@ -403,28 +438,6 @@ struct URHO3D_API BoneTimelineKey : SpatialTimelineKey
 #ifdef USE_KEYPOOLS
     static PODVector<BoneTimelineKey*> freeindexes_;
     static Vector<BoneTimelineKey> keypool_;
-#endif
-};
-
-/// Point timeline key.
-struct URHO3D_API PointTimelineKey : SpatialTimelineKey
-{
-    // Run time data.
-    int zIndex_;
-
-    PointTimelineKey();
-    PointTimelineKey(Timeline* timeline);
-    virtual ~PointTimelineKey();
-
-    virtual TimelineKey* Clone() const;
-    virtual bool Load(const pugi::xml_node& node);
-    virtual bool Save(pugi::xml_node& node) const;
-    virtual void Interpolate(const TimelineKey& other, float t);
-    PointTimelineKey& operator=(const PointTimelineKey& rhs);
-
-#ifdef USE_KEYPOOLS
-    static PODVector<PointTimelineKey*> freeindexes_;
-    static Vector<PointTimelineKey> keypool_;
 #endif
 };
 
@@ -446,7 +459,10 @@ struct URHO3D_API SpriteTimelineKey : SpatialTimelineKey
     SpriteTimelineKey(Timeline* timeline);
     virtual ~SpriteTimelineKey();
 
+    static const char* GetStaticType() { return "SpriteTimelineKey"; }
+
     virtual TimelineKey* Clone() const;
+    virtual void Copy(TimelineKey* copy) const;
     virtual bool Load(const pugi::xml_node& node);
     virtual bool Save(pugi::xml_node& node) const;
     virtual void Interpolate(const TimelineKey& other, float t);
@@ -471,7 +487,10 @@ struct URHO3D_API BoxTimelineKey : SpatialTimelineKey
     BoxTimelineKey(Timeline* timeline);
     virtual ~BoxTimelineKey();
 
+    static const char* GetStaticType() { return "BoxTimelineKey"; }
+
     virtual TimelineKey* Clone() const;
+    virtual void Copy(TimelineKey* copy) const;
     virtual bool Load(const pugi::xml_node& node);
     virtual bool Save(pugi::xml_node& node) const;
     virtual void Interpolate(const TimelineKey& other, float t);
@@ -480,6 +499,31 @@ struct URHO3D_API BoxTimelineKey : SpatialTimelineKey
 #ifdef USE_KEYPOOLS
     static PODVector<BoxTimelineKey*> freeindexes_;
     static Vector<BoxTimelineKey> keypool_;
+#endif
+};
+
+/// Point timeline key.
+struct URHO3D_API PointTimelineKey : SpatialTimelineKey
+{
+    // Run time data.
+    int zIndex_;
+
+    PointTimelineKey();
+    PointTimelineKey(Timeline* timeline);
+    virtual ~PointTimelineKey();
+
+    static const char* GetStaticType() { return "PointTimelineKey"; }
+
+    virtual TimelineKey* Clone() const;
+    virtual void Copy(TimelineKey* copy) const;
+    virtual bool Load(const pugi::xml_node& node);
+    virtual bool Save(pugi::xml_node& node) const;
+    virtual void Interpolate(const TimelineKey& other, float t);
+    PointTimelineKey& operator=(const PointTimelineKey& rhs);
+
+#ifdef USE_KEYPOOLS
+    static PODVector<PointTimelineKey*> freeindexes_;
+    static Vector<PointTimelineKey> keypool_;
 #endif
 };
 

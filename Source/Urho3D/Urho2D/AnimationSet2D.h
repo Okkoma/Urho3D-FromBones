@@ -117,6 +117,7 @@ private:
     void Dispose();
 
     SharedPtr<Sprite2D> sprite_;
+
     /// Spriter data.
     UniquePtr<Spriter::SpriterData> spriterData_;
     /// Has sprite sheet.

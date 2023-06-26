@@ -47,6 +47,7 @@
 #include "../Graphics/RenderPath.h"
 #include "../Resource/XMLFile.h"
 
+
 #ifdef URHO3D_SPINE
 #include <spine/spine.h>
 #endif
@@ -111,6 +112,7 @@ void AnimatedSprite2D::RegisterObject(Context* context)
     context->RegisterFactory<AnimatedSprite2D>(URHO2D_CATEGORY);
 
     URHO3D_COPY_BASE_ATTRIBUTES(StaticSprite2D);
+//    URHO3D_REMOVE_ATTRIBUTE("Sprite");
     URHO3D_ACCESSOR_ATTRIBUTE("Speed", GetSpeed, SetSpeed, float, 1.0f, AM_DEFAULT);
     URHO3D_ACCESSOR_ATTRIBUTE("Rotation", GetLocalRotation, SetLocalRotation, float, 0.0f, AM_DEFAULT);
     URHO3D_ACCESSOR_ATTRIBUTE("Position", GetLocalPosition, SetLocalPosition, Vector2, Vector2::ZERO, AM_DEFAULT);
@@ -124,6 +126,7 @@ void AnimatedSprite2D::RegisterObject(Context* context)
     URHO3D_ACCESSOR_ATTRIBUTE("Apply Character Map", GetEmptyString, SetCharacterMapAttr, String, String::EMPTY, AM_DEFAULT);
     URHO3D_ACCESSOR_ATTRIBUTE("MappingScaleRatio", GetMappingScaleRatio, SetMappingScaleRatio, float, 1.f, AM_DEFAULT);
     URHO3D_ENUM_ACCESSOR_ATTRIBUTE("Loop Mode", GetLoopMode, SetLoopMode, LoopMode2D, loopModeNames, LM_DEFAULT, AM_DEFAULT);
+//    URHO3D_MIXED_ACCESSOR_ATTRIBUTE("Sprite", GetSpriteAttr, SetSpriteAttr, ResourceRef, ResourceRef(Sprite2D::GetTypeStatic(), String::EMPTY), AM_DEFAULT);
 }
 
 
@@ -193,7 +196,12 @@ void AnimatedSprite2D::SetAnimationSet(AnimationSet2D* animationSet)
     }
 
     if (!StaticSprite2D::GetSprite())
-        SetSprite(animationSet_->GetSprite());
+    {
+        if (animationSet_->GetSprite())
+            StaticSprite2D::SetSprite(animationSet_->GetSprite());
+        else
+            StaticSprite2D::SetSprite(GetSprite(0));
+    }
 
 //    if (enableDebugLog_)
 //        URHO3D_LOGERRORF("AnimatedSprite2D() - SetAnimationSet : node=%s(%u) entity=%s",
@@ -263,7 +271,7 @@ void AnimatedSprite2D::SetAnimation(const String& name, LoopMode2D loopMode)
             animationName_ = name;
     }
 
-    if (animationName_.Empty() || (!animationName_.Empty() && !animationSet_->HasAnimation(animationName_)))
+    if (animationName_.Empty() || !animationSet_->HasAnimation(animationName_))
         animationName_ = GetDefaultAnimation();
 
     if (animationName_.Empty())
@@ -277,7 +285,6 @@ void AnimatedSprite2D::SetAnimation(const String& name, LoopMode2D loopMode)
     if (enableDebugLog_)
         URHO3D_LOGERRORF("AnimatedSprite2D() - SetAnimation : node=%s(%u) animation=%s",
              node_->GetName().CString(), node_->GetID(), animationName_.CString());
-
 #ifdef URHO3D_SPINE
     if (skeleton_)
         SetSpineAnimation();
@@ -331,6 +338,12 @@ void AnimatedSprite2D::SetAnimationSetAttr(const ResourceRef& value)
     SetAnimationSet(cache->GetResource<AnimationSet2D>(value.name_));
     AnimationSet2D::customSpritesheetFile_.Clear();
 }
+
+//void AnimatedSprite2D::SetSpriteAttr(const ResourceRef& value)
+//{
+//    if (!value.name_.Empty())
+//        sprite_ = Sprite2D::LoadFromResourceRef(context_, value);
+//}
 
 void AnimatedSprite2D::SetAnimationAttr(const String& name)
 {
@@ -478,6 +491,11 @@ ResourceRef AnimatedSprite2D::GetAnimationSetAttr() const
     return GetResourceRef(animationSet_, AnimationSet2D::GetTypeStatic());
 }
 
+//ResourceRef AnimatedSprite2D::GetSpriteAttr() const
+//{
+//    return Sprite2D::SaveToResourceRef(sprite_);
+//}
+
 float AnimatedSprite2D::GetLocalRotation() const
 {
     return localRotation_;
@@ -599,6 +617,38 @@ bool AnimatedSprite2D::ApplyCharacterMap(Spriter::CharacterMap* characterMap)
     return true;
 }
 
+bool AnimatedSprite2D::ApplyColorMap(const StringHash& colorMap)
+{
+    return ApplyColorMap(GetColorMap(colorMap));
+}
+
+bool AnimatedSprite2D::ApplyColorMap(const String& colorMap)
+{
+    return ApplyColorMap(StringHash(colorMap));
+}
+
+bool AnimatedSprite2D::ApplyColorMap(Spriter::ColorMap* colorMap)
+{
+    if (!colorMap)
+        return false;
+
+    unsigned key;
+    const PODVector<Spriter::ColorMapInstruction*>& mapInstructions = colorMap->maps_;
+    for (PODVector<Spriter::ColorMapInstruction*>::ConstIterator it = mapInstructions.Begin(); it != mapInstructions.End(); ++it)
+    {
+        Spriter::ColorMapInstruction* map = *it;
+        colorMapping_[ (map->folder_ << 16) + map->file_] = map->color_;
+    }
+
+//    if (!IsCharacterMapApplied(characterMap->hashname_))
+//        characterMapApplied_.Push(characterMap->hashname_);
+
+    colorMaps_.Push(colorMap);
+
+    sourceBatchesDirty_ = colorsDirty_ = true;
+
+    return true;
+}
 void AnimatedSprite2D::SwapSprite(const StringHash& characterMap, Sprite2D* replacement, unsigned index, bool keepProportion)
 {
     Sprite2D* original = GetCharacterMapSprite(characterMap, index);
@@ -742,7 +792,6 @@ void AnimatedSprite2D::SetSpriteColor(unsigned key, const Color& color)
     colorMapping_[key] = color;
     colorsDirty_ = sourceBatchesDirty_ = true;
 }
-
 void AnimatedSprite2D::ResetCharacterMapping(bool resetSwappedSprites)
 {
     ClearRenderedAnimations();
@@ -755,9 +804,10 @@ void AnimatedSprite2D::ResetCharacterMapping(bool resetSwappedSprites)
     colorMapping_.Clear();
 
     if (resetSwappedSprites)
-        UnSwapAllSprites();
+    UnSwapAllSprites();
 
     characterMapDirty_ = false;
+    sourceBatchesDirty_ = colorsDirty_ = true;
     useCharacterMap_ = false;
 }
 
@@ -835,6 +885,30 @@ Spriter::CharacterMap* AnimatedSprite2D::GetCharacterMap(const StringHash& chara
 Spriter::CharacterMap* AnimatedSprite2D::GetCharacterMap(const String& characterMap) const
 {
     return GetCharacterMap(StringHash(characterMap));
+}
+
+Spriter::ColorMap* AnimatedSprite2D::GetColorMap(const StringHash& hashname) const
+{
+    if (!GetSpriterInstance())
+        return 0;
+
+    Spriter::Entity* entity = spriterInstance_->GetEntity();
+    if (!entity)
+        return 0;
+
+    const PODVector<Spriter::ColorMap*>& colorMaps = entity->colorMaps_;
+    for (PODVector<Spriter::ColorMap*>::ConstIterator it=colorMaps.Begin(); it != colorMaps.End(); ++it)
+    {
+        if ((*it)->hashname_ == hashname)
+            return *it;
+    }
+
+    return 0;
+}
+
+Spriter::ColorMap* AnimatedSprite2D::GetColorMap(const String& name) const
+{
+    return GetColorMap(StringHash(name));
 }
 
 bool AnimatedSprite2D::IsCharacterMapApplied(const StringHash& characterMap) const
@@ -915,12 +989,10 @@ SpriteInfo* AnimatedSprite2D::GetSpriteInfo(unsigned key, Sprite2D* sprite, Spri
         info.deltaHotspotx_ = 0.f;
         info.deltaHotspoty_ = 0.f;
     }
-
     if (colorsDirty_)
     {
         info.pcolor_ = &GetSpriteColor(key);
     }
-
     return &info;
 }
 
@@ -932,19 +1004,18 @@ const PODVector<SpriteInfo*>& AnimatedSprite2D::GetSpriteInfos()
     if (!spriterInstance_->GetSpriteKeys().Size())
         UpdateSpriterAnimation(0.f);
 
-	const PODVector<Spriter::SpriteTimelineKey* >& spriteKeys = spriterInstance_->GetSpriteKeys();
-    if (spriteKeys.Size())
+    unsigned numSpriteKeys = spriterInstance_->GetNumSpriteKeys();
+    if (numSpriteKeys)
     {
+        const PODVector<Spriter::SpriteTimelineKey* >& spriteKeys = spriterInstance_->GetSpriteKeys();
         Sprite2D *sprite, *origin;
         Spriter::SpriteTimelineKey* spriteKey;
-
         unsigned key;
 
         // Get Sprite Keys only
-        for (size_t i = 0; i < spriteKeys.Size(); ++i)
+        for (unsigned i = 0; i < numSpriteKeys; ++i)
         {
             spriteKey = spriteKeys[i];
-
             key = (spriteKey->folderId_ << 16) + spriteKey->fileId_;
             origin = GetMappedSprite(key);
 
@@ -960,7 +1031,6 @@ const PODVector<SpriteInfo*>& AnimatedSprite2D::GetSpriteInfos()
 
             spritesInfos_.Push(GetSpriteInfo(key, sprite, origin));
         }
-
         if (colorsDirty_)
             colorsDirty_ = false;
 
@@ -1372,7 +1442,7 @@ void AnimatedSprite2D::DumpSpritesInfos() const
 void AnimatedSprite2D::OnSetEnabled()
 {
     if (enableDebugLog_)
-        URHO3D_LOGERRORF("AnimatedSprite2D() - OnSetEnabled : node=%s(%u) enabled=%s ",
+        URHO3D_LOGINFOF("AnimatedSprite2D() - OnSetEnabled : node=%s(%u) enabled=%s ",
              node_->GetName().CString(), node_->GetID(), IsEnabledEffective() ? "true" : "false");
 
     Drawable2D::OnSetEnabled();
@@ -1470,14 +1540,18 @@ void AnimatedSprite2D::OnSceneSet(Scene* scene)
 
 void AnimatedSprite2D::HandleScenePostUpdate(StringHash eventType, VariantMap& eventData)
 {
-	if (GetRenderTarget())
-    {
-        worldBoundingBoxDirty_ = true;
-    }
-    else
+#ifdef URHO3D_SPINE
+    if (GetSpriterInstance() || (skeleton_ && animationState_))
+#else
+    if (GetSpriterInstance())
+#endif
     {
         if (speed_)
             UpdateAnimation(eventData[ScenePostUpdate::P_TIMESTEP].GetFloat());
+    }
+    else if (GetRenderTarget())
+    {
+        worldBoundingBoxDirty_ = true;
     }
 }
 
@@ -1582,9 +1656,6 @@ void AnimatedSprite2D::UpdateSpineAnimation(float timeStep)
 {
     URHO3D_PROFILE(AnimatedSprite2D_UpdateSpine);
 
-//    if (enableDebugLog_)
-//        URHO3D_LOGERRORF("AnimatedSprite2D() - UpdateSpineAnimation : node=%s timestep=%f... ", node_->GetName().CString(), timeStep);
-
     timeStep *= speed_;
 
     skeleton_->scaleX = flipX_ ? -1.f : 1.f;
@@ -1664,7 +1735,8 @@ void AnimatedSprite2D::UpdateSourceBatchesSpine()
             {
                 int index = mesh->triangles[j] << 1;
                 vertex.position_ = worldTransform2D * Vector2(slotVertices[index], slotVertices[index + 1]);
-                vertex.uv_       = Vector2(mesh->uvs[index], mesh->uvs[index + 1]);
+                vertex.uv_ = Vector2(mesh->uvs[index], mesh->uvs[index + 1]);
+
                 sourceBatch.vertices_.Push(vertex);
                 // Add padding vertex
                 if (j % 3 == 2)
@@ -1678,7 +1750,7 @@ void AnimatedSprite2D::UpdateSourceBatchesSpine()
 //			continue;
 //		}
 		else
-			continue;
+                continue;
     }
 }
 #endif
@@ -1863,8 +1935,9 @@ void AnimatedSprite2D::UpdateTriggers()
                     }
 					node_->SendEvent(triggerEvent);
                 }
+
 //                if (enableDebugLog_)
-//                    URHO3D_LOGWARNINGF("AnimatedSprite2D() - UpdateTriggers : Set Initial Event=%s(%u) got=%u data=%u ...",
+//                URHO3D_LOGWARNINGF("AnimatedSprite2D() - UpdateTriggers : Set Initial Event=%s(%u) got=%u data=%u ...",
 //                                       timeline->name_.CString(), triggerEvent.Value(), paramEvent[SPRITER_Event::TYPE].GetStringHash().Value(), paramEvent[SPRITER_Event::DATAS].GetVoidPtr());
             }
         }
@@ -2070,7 +2143,6 @@ bool AnimatedSprite2D::UpdateDrawRectangle()
         return true;
     }
 #endif
-
     // if RENDERED TARGET
     if (GetRenderTarget())
     {
@@ -2105,7 +2177,8 @@ bool AnimatedSprite2D::UpdateDrawRectangle()
     Sprite2D* sprite;
     Spriter::SpriteTimelineKey* spriteKey;
 
-    for (size_t i = 0; i < spriteKeys.Size(); ++i)
+    unsigned numSpriteKeys = spriterInstance_->GetNumSpriteKeys();
+    for (unsigned i = 0; i < numSpriteKeys; ++i)
     {
         spriteKey = spriteKeys[i];
         sprite = animationSet_->GetSpriterFileSprite((spriteKey->folderId_ << 16) + spriteKey->fileId_);
@@ -2166,16 +2239,15 @@ enum
 
 void AnimatedSprite2D::UpdateSourceBatches()
 {
-//    if (enableDebugLog_)
-//        URHO3D_LOGERRORF("AnimatedSprite2D() - UpdateSourceBatches : node=%s(%u) ... sourceBatchesDirty_=%s visibility_=%s renderEnabled_=%s !",
-//                             node_->GetName().CString(), node_->GetID(), sourceBatchesDirty_?"true":"false", visibility_?"true":"false", renderEnabled_?"true":"false");
-
     if (!sourceBatchesDirty_)
         return;
 
     if (!visibility_ || !renderEnabled_)
     {
         sourceBatchesDirty_ = false;
+
+//        URHO3D_LOGWARNINGF("AnimatedSprite2D() - UpdateSourceBatches : node=%s(%u) ... No Visibility or No Render !",
+//                             node_->GetName().CString(), node_->GetID());
         return;
     }
 
@@ -2240,8 +2312,9 @@ void AnimatedSprite2D::UpdateSourceBatchesSpriter(Vector<SourceBatch2D>* sourceB
         UpdateSpriterAnimation(0.f);
     }
 
+    unsigned numSpriteKeys = spriterInstance_->GetNumSpriteKeys();
 	const PODVector<Spriter::SpriteTimelineKey* >& spriteKeys = spriterInstance_->GetSpriteKeys();
-    if (!spriteKeys.Size())
+    if (!numSpriteKeys)
         return;
 
     Sprite2D* sprite;
@@ -2295,9 +2368,16 @@ void AnimatedSprite2D::UpdateSourceBatchesSpriter(Vector<SourceBatch2D>* sourceB
     Vertex2D vertex2;
     Vertex2D vertex3;
 
+#ifdef URHO3D_VULKAN
+    vertex0.z_ = vertex1.z_ = vertex2.z_ = vertex3.z_ = node_->GetWorldPosition().z_;
+#else
+    vertex0.position_.z_ = vertex1.position_.z_ = vertex2.position_.z_ = vertex3.position_.z_ = node_->GetWorldPosition().z_;
+#endif
+
     Vector2 position;
     Vector2 scale;
     Vector2 pivot;
+
 #ifdef URHO3D_VULKAN
     unsigned texmode = 0;
 #else
@@ -2313,10 +2393,9 @@ void AnimatedSprite2D::UpdateSourceBatchesSpriter(Vector<SourceBatch2D>* sourceB
 
     Texture *texture = 0, *ttexture = 0;
 
-    for (size_t i = 0; i < spriteKeys.Size(); ++i)
+    for (unsigned i = 0; i < numSpriteKeys; ++i)
     {
         spriteKey = spriteKeys[i];
-
         fileKey = (spriteKey->folderId_ << 16) + spriteKey->fileId_;
 
         sprite = animationSet_->GetSpriterFileSprite(fileKey);
@@ -2509,6 +2588,12 @@ void AnimatedSprite2D::UpdateSourceBatchesSpriter_Custom(Vector<SourceBatch2D>* 
     Vertex2D vertex2;
     Vertex2D vertex3;
 
+#ifdef URHO3D_VULKAN
+    vertex0.z_ = vertex1.z_ = vertex2.z_ = vertex3.z_ = node_->GetWorldPosition().z_;
+#else
+    vertex0.position_.z_ = vertex1.position_.z_ = vertex2.position_.z_ = vertex3.position_.z_ = node_->GetWorldPosition().z_;
+#endif
+
     Vector2 position;
     Vector2 scale;
     Vector2 pivot;
@@ -2532,7 +2617,7 @@ void AnimatedSprite2D::UpdateSourceBatchesSpriter_Custom(Vector<SourceBatch2D>* 
 
     SetTextureMode(TXM_FX, textureFX_, texmode);
 
-    for (size_t i = firstKeyIndex_; i < stopKeyIndex_; i++)
+    for (unsigned i = firstKeyIndex_; i < stopKeyIndex_; i++)
     {
         spriteKey = spritesKeys_[i];
         sprite = spritesInfos_[i]->sprite_;
@@ -2553,7 +2638,7 @@ void AnimatedSprite2D::UpdateSourceBatchesSpriter_Custom(Vector<SourceBatch2D>* 
 
                 material = tmaterial;
 
-                // get the new texture unit
+                // get the new texture unit	const PODVector<Spriter::SpriteTimelineKey* >& spriteKeys = spriterInstance_->GetSpriteKeys();
                 textureunit = (int)material->GetTextureUnit(ttexture);
                 if (textureunit == -1)
                     continue;
@@ -2656,7 +2741,7 @@ void AnimatedSprite2D::UpdateSourceBatchesSpriter_Custom(Vector<SourceBatch2D>* 
         if (spriteinfo->pcolor_)
             vertex0.color_ = vertex1.color_ = vertex2.color_ = vertex3.color_ = ((*spriteinfo->pcolor_) * spriteKey->color_ * color).ToUInt();
         else
-            vertex0.color_ = vertex1.color_ = vertex2.color_ = vertex3.color_ =  (spriteKey->color_ * color).ToUInt();
+            vertex0.color_ = vertex1.color_ = vertex2.color_ = vertex3.color_ = (GetSpriteColor((spriteKey->folderId_ << 16) + spriteKey->fileId_) * spriteKey->color_ * color).ToUInt();
         vertex0.texmode_ = vertex1.texmode_ = vertex2.texmode_ = vertex3.texmode_ = texmode;
 
 		vertices1.Push(vertex0);

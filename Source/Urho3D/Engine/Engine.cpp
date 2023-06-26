@@ -1045,10 +1045,6 @@ void Engine::HandleExitRequested(StringHash eventType, VariantMap& eventData)
 
 void Engine::DoExit()
 {
-#ifdef URHO3D_URHO2D
-    UnRegisterUrho2DLibrary();
-#endif
-
     Graphics* graphics = GetSubsystem<Graphics>();
     if (graphics)
         graphics->Close();

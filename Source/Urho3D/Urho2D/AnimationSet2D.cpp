@@ -107,6 +107,7 @@ namespace Urho3D
 
 String AnimationSet2D::customSpritesheetFile_;
 
+
 AnimationSet2D::AnimationSet2D(Context* context) :
     Resource(context),
 #ifdef URHO3D_SPINE
@@ -260,7 +261,6 @@ unsigned AnimationSet2D::GetNumAnimations() const
     return 0;
 }
 
-String sTempAnimationName_;
 const String& AnimationSet2D::GetAnimation(unsigned index) const
 {
     if (index >= GetNumAnimations())
@@ -269,7 +269,7 @@ const String& AnimationSet2D::GetAnimation(unsigned index) const
 #ifdef URHO3D_SPINE
     if (skeletonData_)
     {
-        sTempAnimationName_ = skeletonData_->animations[index]->name;
+        static String sTempAnimationName_ = skeletonData_->animations[index]->name;
         return sTempAnimationName_;
     }
 #endif
@@ -303,7 +303,6 @@ bool AnimationSet2D::HasAnimation(const String& animationName) const
 
     return false;
 }
-
 #ifdef URHO3D_SPINE
 Sprite2D* AnimationSet2D::GetSpineSprite() const
 {
@@ -367,9 +366,7 @@ void AnimationSet2D::GetCharacterMapSprites(const Spriter::CharacterMap* charact
     sprites.Resize(map.Size());
 
     for (unsigned i=0; i< map.Size(); ++i)
-    {
         sprites[i] = GetSpriterFileSprite(map[i]->targetFolder_, map[i]->targetFile_);
-    }
 }
 
 void AnimationSet2D::GetSpritesCharacterMapRef(Spriter::CharacterMap* characterMap, ResourceRefList& spriteRefList)
@@ -381,7 +378,6 @@ void AnimationSet2D::GetSpritesCharacterMapRef(Spriter::CharacterMap* characterM
 bool AnimationSet2D::BeginLoadSpine(Deserializer& source)
 {
     URHO3D_LOGERRORF("AnimationSet2D : this=%u - BeginLoadSpine !", this);
-
     if (GetName().Empty())
         SetName(source.GetName());
 
@@ -390,22 +386,6 @@ bool AnimationSet2D::BeginLoadSpine(Deserializer& source)
     source.Read(jsonData_, size);
     jsonData_[size] = '\0';
     SetMemoryUse(size);
-/*
-    String atlasFileName = ReplaceExtension(GetName(), ".atlas");
-    SharedPtr<SpineTextureLoader> spineTextureLoader(new SpineTextureLoader(context_));
-
-    File atlassource(context_, "Data/" + atlasFileName);
-    size = atlassource.GetSize();
-    SharedArrayPtr<char> atlasDatas(new char[size + 1]);
-    if (atlassource.Read(atlasDatas.Get(), size) != size)
-        return false;
-    atlasDatas[size] = '\0';
-
-    String atlasPath = GetPath(atlasFileName);
-
-    URHO3D_LOGERRORF("Create spine atlas : %s path=%s size=%u ...", atlasFileName.CString(), atlasPath.CString());
-    atlas_ = new spine::Atlas(atlasDatas, size, atlasPath.CString(), spineTextureLoader.Get());
-*/
     return true;
 }
 
@@ -456,6 +436,7 @@ bool AnimationSet2D::EndLoadSpine()
     jsonData_.Reset();
 
     currentAnimationSet = 0;
+
     return true;
 }
 #endif
@@ -589,7 +570,6 @@ bool AnimationSet2D::EndLoadSpriter()
 //        URHO3D_LOGERRORF("AnimationSet2D this=%u %s spritesheet=%s =>", this, GetName().CString(), spriteSheet_->GetName().CString());
 
         spriterFileSprites_.Clear();
-
         for (unsigned i = 0; i < spriterData_->folders_.Size(); ++i)
         {
             Spriter::Folder* folder = spriterData_->folders_[i];
@@ -614,18 +594,19 @@ bool AnimationSet2D::EndLoadSpriter()
                     }
 
                     sprite->SetHotSpot(hotSpot);
-
-                    unsigned key = (folder->id_ << 16) + file->id_;
-                    spriterFileSprites_[key] = sprite;
-//                    URHO3D_LOGERRORF("... sprite=%s => mapping size=%u", sprite ? sprite->GetName().CString() : "null",  spriterFileSprites_.Size());
-
 //                    URHO3D_LOGINFOF("  -> %s", sprite->Dump().CString());
                 }
+
+                unsigned key = (folder->id_ << 16) + file->id_;
+                spriterFileSprites_[key] = sprite;
             }
         }
 
 //        URHO3D_LOGERRORF(" ==> mapping size=%u", spriterFileSprites_.Size());
-        sprite_ = !spriterFileSprites_.Empty() ? spriterFileSprites_.Front().second_ : spriteSheet_->GetSpriteMapping().Front().second_;
+        if (!sprite_ && !spriterFileSprites_.Empty())
+            sprite_ = spriterFileSprites_.Front().second_;
+        if (!sprite_)
+            sprite_ = spriteSheet_->GetSpriteMapping().Front().second_;
     }
     else
     {
@@ -672,7 +653,7 @@ bool AnimationSet2D::EndLoadSpriter()
 
         if (spriteInfos.Size() > 1)
         {
-            URHO3D_LOGERRORF("AnimationSet2D() - EndLoadSpriter : create texture ...");
+            URHO3D_LOGINFOF("AnimationSet2D() - EndLoadSpriter : create texture ...");
 
             AreaAllocator allocator(128, 128, 2048, 2048);
             for (unsigned i = 0; i < spriteInfos.Size(); ++i)
@@ -748,7 +729,6 @@ bool AnimationSet2D::EndLoadSpriter()
         sprite_ = spriterFileSprites_.Front().second_;
     }
 
-    URHO3D_LOGERRORF("AnimationSet2D this=%u name=%s spritesheet=%s !", this, GetName().CString(), spriteSheet_ ? spriteSheet_->GetName().CString() : "none");
     return true;
 }
 
@@ -756,7 +736,6 @@ void AnimationSet2D::Dispose()
 {
 #ifdef URHO3D_SPINE
     spineSprite_.Reset();
-
     if (skeletonData_)
     {
         spSkeletonData_dispose(skeletonData_);
@@ -774,8 +753,6 @@ void AnimationSet2D::Dispose()
     spriterData_.Reset();
     spriterFileSprites_.Clear();
     spriteSheet_.Reset();
-
-//    URHO3D_LOGERRORF("AnimationSet2D this=%u name=%s Dispose !", this, GetName().CString());
 }
 
 

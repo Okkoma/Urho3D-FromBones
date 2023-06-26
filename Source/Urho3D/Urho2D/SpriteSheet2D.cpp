@@ -46,7 +46,6 @@ SpriteSheet2D::SpriteSheet2D(Context* context) :
 
 SpriteSheet2D::~SpriteSheet2D()
 {
-    URHO3D_LOGERRORF("SpriteSheet2D this=%u name=%s Dispose !", this, GetName().CString());
 }
 
 void SpriteSheet2D::RegisterObject(Context* context)

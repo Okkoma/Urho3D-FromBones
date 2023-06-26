@@ -111,9 +111,4 @@ void RegisterUrho2DLibrary(Context* context)
     ConstraintWheel2D::RegisterObject(context);
 }
 
-void UnRegisterUrho2DLibrary()
-{
-    Spriter::SpriterData::UnRegister();
-}
-
 }

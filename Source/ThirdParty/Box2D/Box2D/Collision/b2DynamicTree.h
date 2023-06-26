@@ -203,12 +203,16 @@ inline void b2DynamicTree::Query(T* callback, const b2AABB& aabb) const
 template <typename T>
 inline void b2DynamicTree::RayCast(T* callback, const b2RayCastInput& input) const
 {
-	b2Vec2 p1 = input.p1;
-	b2Vec2 p2 = input.p2;
-	b2Vec2 r = p2 - p1;
-	b2Assert(r.LengthSquared() > 0.0f);
-	r.Normalize();
+	const b2Vec2 p1 = input.p1;
+	const b2Vec2 p2 = input.p2;
+	const b2Vec2 delta = p2 - p1;
+	if (delta.LengthSquared() == 0.0f)
+        return;
 
+//	b2Assert(delta.LengthSquared() > 0.0f);
+
+    b2Vec2 r = delta;
+	r.Normalize();
 	// v is perpendicular to the segment.
 	b2Vec2 v = b2Cross(1.0f, r);
 	b2Vec2 abs_v = b2Abs(v);
@@ -221,7 +225,7 @@ inline void b2DynamicTree::RayCast(T* callback, const b2RayCastInput& input) con
 	// Build a bounding box for the segment.
 	b2AABB segmentAABB;
 	{
-		b2Vec2 t = p1 + maxFraction * (p2 - p1);
+		b2Vec2 t = p1 + maxFraction * delta;
 		segmentAABB.lowerBound = b2Min(p1, t);
 		segmentAABB.upperBound = b2Max(p1, t);
 	}
@@ -273,7 +277,7 @@ inline void b2DynamicTree::RayCast(T* callback, const b2RayCastInput& input) con
 			{
 				// Update segment bounding box.
 				maxFraction = value;
-				b2Vec2 t = p1 + maxFraction * (p2 - p1);
+				b2Vec2 t = p1 + maxFraction * delta;
 				segmentAABB.lowerBound = b2Min(p1, t);
 				segmentAABB.upperBound = b2Max(p1, t);
 			}

@@ -94,7 +94,9 @@ public:
     /// Return root spatial info.
     const SpatialInfo& GetSpatialInfo() const { return spatialInfo_; }
     /// Return animation result timeline keys.
+    unsigned GetNumBoneKeys() const { return numBoneKeys_; }
     const PODVector<BoneTimelineKey* >& GetBoneKeys() const { return boneKeys_; }
+    unsigned GetNumSpriteKeys() const { return numSpriteKeys_; }
     const PODVector<SpriteTimelineKey* >& GetSpriteKeys() const { return spriteKeys_; }
     /// Return animation triggers.
     HashMap<String, NodeUpdater >& GetNodeUpdaters() { return nodeUpdaters_; }
@@ -112,7 +114,8 @@ public:
 
 private:
     /// Clear mainline key and timeline keys.
-    void Clear();
+    void RestoreKeys();
+    void Dispose();
 
     /// Handle set entity.
     void OnSetEntity(Entity* entity);
@@ -125,7 +128,7 @@ private:
     void UpdateTimelineKeys();
 
     /// Get timeline key by ref.
-    TimelineKey* GetTimelineKey(Ref* ref, float targetTime, TimelineKey* reuse) const;
+    TimelineKey* GetTimelineKey(Timeline* timeline, Ref* ref, float targetTime, TimelineKey* reuse) const;
 
     /// Parent component.
     Component* owner_;
@@ -150,6 +153,7 @@ private:
     MainlineKey* mainlineKey_;
 
     /// Current timeline keys.
+    unsigned numBoneKeys_, numSpriteKeys_;
     PODVector<BoneTimelineKey* > boneKeys_;
     PODVector<SpriteTimelineKey* > spriteKeys_;
 

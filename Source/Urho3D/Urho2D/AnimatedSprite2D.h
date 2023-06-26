@@ -51,6 +51,7 @@ namespace Spriter
     class SpriterInstance;
     struct Animation;
     struct CharacterMap;
+    struct ColorMap;
     struct SpatialTimelineKey;
     struct SpriteTimelineKey;
 }
@@ -125,7 +126,7 @@ public:
     /// Set animation by name.
     void SetAnimationAttr(const String& name);
     /// Set sprite attribute.
-    void SetSpriteAttr(const ResourceRef& value);
+//    void SetSpriteAttr(const ResourceRef& value);
 
     void SetLocalRotation(float angle);
     void SetLocalPosition(const Vector2& position);
@@ -181,7 +182,7 @@ public:
     ResourceRef GetAnimationSetAttr() const;
 
     /// Return sprite attribute.
-    ResourceRef GetSpriteAttr() const;
+//    ResourceRef GetSpriteAttr() const;
 
     float GetLocalRotation() const;
     const Vector2& GetLocalPosition() const;
@@ -197,13 +198,14 @@ public:
     bool ApplyCharacterMap(const StringHash& hashname);
     bool ApplyCharacterMap(const String& name);
 
+    bool ApplyColorMap(const StringHash& hashname);
+    bool ApplyColorMap(const String& name);
     void SwapSprite(const StringHash& characterMap, Sprite2D* replacement, unsigned index=0, bool keepProportion=false);
     void SwapSprites(const StringHash& characterMap, const PODVector<Sprite2D*>& replacements, bool keepProportion=false);
     void SwapSprite(const String& characterMap, Sprite2D* replacement, unsigned index=0, bool keepProportion=false);
     void SwapSprites(const String& characterMap, const PODVector<Sprite2D*>& replacements, bool keepProportion=false);
 
     void SetSpriteColor(unsigned key, const Color& color);
-
     void UnSwapSprite(Sprite2D* original);
     void UnSwapAllSprites();
 
@@ -234,8 +236,9 @@ public:
     Sprite2D* GetMappedSprite(unsigned key) const;
     Sprite2D* GetMappedSprite(int folderid, int fileid) const;
     Sprite2D* GetSwappedSprite(Sprite2D* original) const;
+    Spriter::ColorMap* GetColorMap(const StringHash& hashname) const;
+    Spriter::ColorMap* GetColorMap(const String& name) const;
     const Color& GetSpriteColor(unsigned key) const;
-
     const PODVector<SpriteInfo*>& GetSpriteInfos();
     const HashMap<unsigned, SharedPtr<Sprite2D> >& GetSpriteMapping() const { return spriteMapping_; }
     const HashMap<unsigned, Color >& GetSpriteColorMapping() const { return colorMapping_; }
@@ -301,6 +304,7 @@ protected:
 
     /// Character Maps
     bool ApplyCharacterMap(Spriter::CharacterMap* characterMap);
+    bool ApplyColorMap(Spriter::ColorMap* colorMap);
 
     void SwapSprite(Sprite2D* original, Sprite2D* replacement, bool keepProportion=false);
     void SwapSprites(const PODVector<Sprite2D*>& originals, const PODVector<Sprite2D*>& replacements, bool keepProportion=false);
@@ -315,6 +319,7 @@ protected:
     SharedPtr<AnimationSet2D> animationSet_;
     /// Animation name.
     String animationName_;
+
     /// Local Positioning In Node
     float localRotation_;
     Vector2 localPosition_;
@@ -347,6 +352,9 @@ protected:
     PODVector<Spriter::CharacterMap* > characterMaps_;
     VariantVector characterMapApplied_;
 
+    PODVector<Spriter::ColorMap* > colorMaps_;
+    VariantVector colorMapApplied_;
+
     /// Current Sprite Mapping (key = Spriter(folder-file) )
     HashMap<unsigned, SharedPtr<Sprite2D> > spriteMapping_;
     /// Color Sprite Mapping (key = Spriter(folder-file) )
@@ -365,7 +373,6 @@ protected:
     EventTriggerInfo triggerInfo_;
 
     Vector<SourceBatch2D>* customSourceBatches_;
-
     int animationIndex_;
 
 #ifdef URHO3D_SPINE

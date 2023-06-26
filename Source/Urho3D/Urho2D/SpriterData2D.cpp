@@ -82,21 +82,12 @@ SpriterData::~SpriterData()
 
 void SpriterData::Register()
 {
+    URHO3D_LOGERRORF("SpriterData() - Register");
 #ifdef USE_KEYPOOLS
-    KeyPool::Create<BoneTimelineKey>();
-    KeyPool::Create<SpriteTimelineKey>();
-    KeyPool::Create<PointTimelineKey>();
-    KeyPool::Create<BoxTimelineKey>();
-#endif
-}
-
-void SpriterData::UnRegister()
-{
-#ifdef USE_KEYPOOLS
-    KeyPool::Release<BoneTimelineKey>();
-    KeyPool::Release<SpriteTimelineKey>();
-    KeyPool::Release<PointTimelineKey>();
-    KeyPool::Release<BoxTimelineKey>();
+    KeyPool::Create<BoneTimelineKey>(10000);
+    KeyPool::Create<SpriteTimelineKey>(20000);
+    KeyPool::Create<PointTimelineKey>(10000);
+    KeyPool::Create<BoxTimelineKey>(10000);
 #endif
 }
 
@@ -249,6 +240,7 @@ void SpriterData::UpdateKeyInfos()
                                 boxKey->pivotX_ = objit->second_.pivotX_;
                                 boxKey->pivotY_ = objit->second_.pivotY_;
                             }
+
 //                            objit->second_.name_ = timeline->name_;
                         }
                     }
@@ -388,6 +380,9 @@ void Entity::Reset()
         delete characterMaps_[i];
     characterMaps_.Clear();
 
+    for (size_t i = 0; i < colorMaps_.Size(); ++i)
+        delete colorMaps_[i];
+    colorMaps_.Clear();
     for (size_t i = 0; i < animations_.Size(); ++i)
         delete animations_[i];
     animations_.Clear();
@@ -431,6 +426,16 @@ bool Entity::Load(const pugi::xml_node& node)
         if (!characterMaps_.Back()->Load(characterMapNode))
         {
             URHO3D_LOGERRORF("SpriterData : Error In Entities:CharacterMap !");
+            return false;
+        }
+    }
+
+    for (xml_node colorMapNode = node.child("color_map"); !colorMapNode.empty(); colorMapNode = colorMapNode.next_sibling("color_map"))
+    {
+        colorMaps_.Push(new ColorMap());
+        if (!colorMaps_.Back()->Load(colorMapNode))
+        {
+            URHO3D_LOGERRORF("SpriterData : Error In Entities:ColorMap !");
             return false;
         }
     }
@@ -483,6 +488,15 @@ bool Entity::Save(pugi::xml_node& node) const
         }
     }
 
+    for (PODVector<ColorMap*>::ConstIterator it = colorMaps_.Begin(); it != colorMaps_.End(); ++it)
+    {
+        ColorMap* cmap = *it;
+        if (cmap)
+        {
+            pugi::xml_node child = node.append_child("color_map");
+            ok &= cmap->Save(child);
+        }
+    }
     for (PODVector<Animation*>::ConstIterator it = animations_.Begin(); it != animations_.End(); ++it)
     {
         Animation* animation = *it;
@@ -523,7 +537,7 @@ bool ObjInfo::Load(const pugi::xml_node& node, ObjInfo& objinfo)
         return false;
 
     objinfo.name_   = node.attribute("name").as_string();
-    objinfo.width_  = node.attribute("w").as_float(10.f);
+    objinfo.width_ = node.attribute("w").as_float(10.f);
     objinfo.height_ = node.attribute("h").as_float(10.f);
     objinfo.pivotX_ = node.attribute("pivot_x").as_float(0.f);
     objinfo.pivotY_ = node.attribute("pivot_y").as_float(1.f);
@@ -648,6 +662,138 @@ bool MapInstruction::Save(pugi::xml_node& node) const
      if (targetFile_ != -1)
         if (!const_cast<pugi::xml_node&>(node).append_attribute("target_file").set_value(targetFile_))
             return false;
+
+    return true;
+}
+
+ColorMap::ColorMap()
+{
+
+}
+
+ColorMap::~ColorMap()
+{
+    Reset();
+}
+
+void ColorMap::Reset()
+{
+    for (size_t i = 0; i < maps_.Size(); ++i)
+        delete maps_[i];
+    maps_.Clear();
+}
+
+bool ColorMap::Load(const pugi::xml_node& node)
+{
+    Reset();
+
+    if (strcmp(node.name(), "color_map"))
+        return false;
+
+    id_ = node.attribute("id").as_int();
+    name_ = String(node.attribute("name").as_string());
+    hashname_ = StringHash(name_);
+
+    for (xml_node mapNode = node.child("map"); !mapNode.empty(); mapNode = mapNode.next_sibling("map"))
+    {
+        maps_.Push(new ColorMapInstruction());
+        if (!maps_.Back()->Load(mapNode))
+        {
+            URHO3D_LOGERRORF("SpriterData : Error In Entities:ColorMap:ColorMapInstruction !");
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool ColorMap::Save(pugi::xml_node& node) const
+{
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("id").set_value(id_))
+        return false;
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("name").set_value(name_.CString()))
+        return false;
+
+    bool ok = true;
+
+    for (PODVector<ColorMapInstruction*>::ConstIterator it = maps_.Begin(); it != maps_.End(); ++it)
+    {
+        ColorMapInstruction* mapinstruct = *it;
+        if (mapinstruct)
+        {
+            pugi::xml_node child = node.append_child("map");
+            ok &= mapinstruct->Save(child);
+        }
+    }
+
+    return ok;
+}
+
+void ColorMap::SetColor(unsigned key, const Color& color)
+{
+    const unsigned folder = key >> 16;
+    const unsigned file = key & 0xFFFF;
+    for (PODVector<ColorMapInstruction*>::Iterator it = maps_.Begin(); it != maps_.End(); ++it)
+    {
+        if ((*it)->folder_ == folder && (*it)->file_ == file)
+        {
+            (*it)->color_ = color;
+            return;
+        }
+    }
+
+    maps_.Push(new ColorMapInstruction());
+    ColorMapInstruction& map = *maps_.Back();
+    map.folder_ = folder;
+    map.file_ = file;
+    map.color_ = color;
+}
+
+const Color& ColorMap::GetColor(unsigned key) const
+{
+    const unsigned folder = key >> 16;
+    const unsigned file = key & 0xFFFF;
+    for (PODVector<ColorMapInstruction*>::ConstIterator it = maps_.Begin(); it != maps_.End(); ++it)
+    {
+        if ((*it)->folder_ == folder && (*it)->file_ == file)
+            return (*it)->color_;
+    }
+    return Color::WHITE;
+}
+
+ColorMapInstruction::ColorMapInstruction()
+{
+
+}
+
+ColorMapInstruction::~ColorMapInstruction()
+{
+
+}
+
+bool ColorMapInstruction::Load(const pugi::xml_node& node)
+{
+    if (strcmp(node.name(), "map"))
+        return false;
+
+    folder_ = node.attribute("folder").as_int();
+    file_ = node.attribute("file").as_int();
+    color_ = ToColor(String(node.attribute("color").as_string()));
+
+    return true;
+}
+
+bool ColorMapInstruction::Save(pugi::xml_node& node) const
+{
+    if (color_ == Color::WHITE)
+        return true;
+
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("folder").set_value(folder_))
+        return false;
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("file").set_value(file_))
+        return false;
+    if (!const_cast<pugi::xml_node&>(node).append_attribute("color").set_value(color_.ToString().CString()))
+        return false;
 
     return true;
 }
@@ -1123,10 +1269,9 @@ bool Timeline::Save(pugi::xml_node& node) const
 }
 
 
-TimelineKey::TimelineKey(Timeline* timeline)
-{
-    this->timeline_ = timeline;
-}
+TimelineKey::TimelineKey(Timeline* timeline) :
+    timeline_(timeline)
+{ }
 
 TimelineKey::~TimelineKey()
 {
@@ -1155,17 +1300,15 @@ SpatialInfo::SpatialInfo(float x, float y, float angle, float scale_x, float sca
     this->spin = spin;
 }
 
-SpatialInfo SpatialInfo::UnmapFromParent(const SpatialInfo& parentInfo) const
+void SpatialInfo::UnmapFromParent(const SpatialInfo& parentInfo)
 {
-    float unmappedX;
-    float unmappedY;
-    float unmappedAngle = parentInfo.angle_ + Sign(parentInfo.scaleX_*parentInfo.scaleY_) * angle_;
-    if (unmappedAngle >= 360.f)
-        unmappedAngle -= 360.f;
+    angle_ = parentInfo.angle_ + Sign(parentInfo.scaleX_*parentInfo.scaleY_) * angle_;
+    if (angle_ >= 360.f)
+        angle_ -= 360.f;
 
-    float unmappedScaleX = scaleX_ * parentInfo.scaleX_;
-    float unmappedScaleY = scaleY_ * parentInfo.scaleY_;
-    float unmappedAlpha = alpha_ * parentInfo.alpha_;
+    scaleX_ = scaleX_ * parentInfo.scaleX_;
+    scaleY_ = scaleY_ * parentInfo.scaleY_;
+    alpha_ = alpha_ * parentInfo.alpha_;
 
     if (x_ != 0.0f || y_ != 0.0f)
     {
@@ -1175,16 +1318,14 @@ SpatialInfo SpatialInfo::UnmapFromParent(const SpatialInfo& parentInfo) const
         float s = Sin(parentInfo.angle_);
         float c = Cos(parentInfo.angle_);
 
-        unmappedX = (preMultX * c) - (preMultY * s) + parentInfo.x_;
-        unmappedY = (preMultX * s) + (preMultY * c) + parentInfo.y_;
+        x_ = (preMultX * c) - (preMultY * s) + parentInfo.x_;
+        y_ = (preMultX * s) + (preMultY * c) + parentInfo.y_;
     }
     else
     {
-        unmappedX = parentInfo.x_;
-        unmappedY = parentInfo.y_;
+        x_ = parentInfo.x_;
+        y_ = parentInfo.y_;
     }
-
-    return SpatialInfo(unmappedX, unmappedY, unmappedAngle, unmappedScaleX, unmappedScaleY, unmappedAlpha, spin);
 }
 
 
@@ -1213,15 +1354,9 @@ void SpatialInfo::Interpolate(const SpatialInfo& other, float t)
 
 
 SpatialTimelineKey::SpatialTimelineKey(Timeline* timeline) :
-    TimelineKey(timeline)
-{
+    TimelineKey(timeline) { }
 
-}
-
-SpatialTimelineKey::~SpatialTimelineKey()
-{
-
-}
+SpatialTimelineKey::~SpatialTimelineKey() { }
 
 bool SpatialTimelineKey::Load(const xml_node& node)
 {
@@ -1331,6 +1466,14 @@ TimelineKey* BoneTimelineKey::Clone() const
     return result;
 }
 
+void BoneTimelineKey::Copy(TimelineKey* copy) const
+{
+    BoneTimelineKey* c = static_cast<BoneTimelineKey*>(copy);
+    if (!c)
+        return;
+    *c = *this;
+}
+
 bool BoneTimelineKey::Load(const xml_node& node)
 {
     if (!SpatialTimelineKey::Load(node))
@@ -1372,73 +1515,6 @@ void BoneTimelineKey::Interpolate(const TimelineKey& other, float t)
 }
 
 
-PointTimelineKey::PointTimelineKey() :
-    SpatialTimelineKey(0)
-{
-
-}
-
-PointTimelineKey::PointTimelineKey(Timeline* timeline) :
-    SpatialTimelineKey(timeline)
-{
-
-}
-
-PointTimelineKey::~PointTimelineKey()
-{
-
-}
-
-TimelineKey* PointTimelineKey::Clone() const
-{
-#ifdef USE_KEYPOOLS
-    PointTimelineKey* result = KeyPool::Get<PointTimelineKey>();
-#else
-    PointTimelineKey* result = new PointTimelineKey(timeline_);
-#endif
-    *result = *this;
-    return result;
-}
-
-bool PointTimelineKey::Load(const xml_node& node)
-{
-    if (!SpatialTimelineKey::Load(node))
-        return false;
-
-    xml_node boneNode = node.child("bone");
-
-    return true;
-}
-
-bool PointTimelineKey::Save(pugi::xml_node& node) const
-{
-    xml_node child = node.append_child("bone");
-
-    if (!SpatialTimelineKey::Save(node))
-        return false;
-
-    return true;
-}
-
-PointTimelineKey& PointTimelineKey::operator=(const PointTimelineKey& rhs)
-{
-    SpatialTimelineKey::operator=(rhs);
-//    length_ = rhs.length_;
-//    width_ = rhs.width_;
-
-    return *this;
-}
-
-void PointTimelineKey::Interpolate(const TimelineKey& other, float t)
-{
-    SpatialTimelineKey::Interpolate(other, t);
-
-    const PointTimelineKey& o = (const PointTimelineKey&)other;
-//    length_ = Linear(length_, o.length_, t);
-//    width_ = Linear(width_, o.width_, t);
-}
-
-
 
 SpriteTimelineKey::SpriteTimelineKey() :
     SpatialTimelineKey(0)
@@ -1466,6 +1542,14 @@ TimelineKey* SpriteTimelineKey::Clone() const
 #endif
     *result = *this;
     return result;
+}
+
+void SpriteTimelineKey::Copy(TimelineKey* copy) const
+{
+    SpriteTimelineKey* c = static_cast<SpriteTimelineKey*>(copy);
+    if (!c)
+        return;
+    *c = *this;
 }
 
 bool SpriteTimelineKey::Load(const pugi::xml_node& node)
@@ -1542,6 +1626,7 @@ SpriteTimelineKey& SpriteTimelineKey::operator=(const SpriteTimelineKey& rhs)
     return *this;
 }
 
+
 BoxTimelineKey::BoxTimelineKey() :
     SpatialTimelineKey(0)
 {
@@ -1567,6 +1652,14 @@ TimelineKey* BoxTimelineKey::Clone() const
 #endif
     *result = *this;
     return result;
+}
+
+void BoxTimelineKey::Copy(TimelineKey* copy) const
+{
+    BoxTimelineKey* c = static_cast<BoxTimelineKey*>(copy);
+    if (!c)
+        return;
+    *c = *this;
 }
 
 bool BoxTimelineKey::Load(const pugi::xml_node& node)
@@ -1631,6 +1724,74 @@ BoxTimelineKey& BoxTimelineKey::operator=(const BoxTimelineKey& rhs)
     pivotY_ = rhs.pivotY_;
 
     return *this;
+}
+
+PointTimelineKey::PointTimelineKey() :
+    SpatialTimelineKey(0)
+{
+
+}
+
+PointTimelineKey::PointTimelineKey(Timeline* timeline) :
+    SpatialTimelineKey(timeline)
+{
+
+}
+
+PointTimelineKey::~PointTimelineKey()
+{
+
+}
+
+TimelineKey* PointTimelineKey::Clone() const
+{
+#ifdef USE_KEYPOOLS
+    PointTimelineKey* result = KeyPool::Get<PointTimelineKey>();
+#else
+    PointTimelineKey* result = new PointTimelineKey(timeline_);
+#endif
+    *result = *this;
+    return result;
+}
+
+void PointTimelineKey::Copy(TimelineKey* copy) const
+{
+    PointTimelineKey* c = static_cast<PointTimelineKey*>(copy);
+    if (!c)
+        return;
+    *c = *this;
+}
+
+bool PointTimelineKey::Load(const xml_node& node)
+{
+    if (!SpatialTimelineKey::Load(node))
+        return false;
+
+    xml_node boneNode = node.child("bone");
+
+    return true;
+}
+
+bool PointTimelineKey::Save(pugi::xml_node& node) const
+{
+    xml_node child = node.append_child("bone");
+
+    if (!SpatialTimelineKey::Save(node))
+        return false;
+
+    return true;
+}
+
+PointTimelineKey& PointTimelineKey::operator=(const PointTimelineKey& rhs)
+{
+    SpatialTimelineKey::operator=(rhs);
+
+    return *this;
+}
+
+void PointTimelineKey::Interpolate(const TimelineKey& other, float t)
+{
+    SpatialTimelineKey::Interpolate(other, t);
 }
 
 }
