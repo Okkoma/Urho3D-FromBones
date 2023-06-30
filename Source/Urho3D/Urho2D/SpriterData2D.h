@@ -222,6 +222,10 @@ struct URHO3D_API CharacterMap
     bool Load(const pugi::xml_node& node);
     bool Save(pugi::xml_node& node) const;
 
+    MapInstruction* GetInstruction(unsigned key) const;
+
+    bool GetTargetKey(unsigned key, int& targetfolder, int& targetfile) const;
+
     unsigned id_;
     String name_;
     StringHash hashname_;
@@ -229,7 +233,7 @@ struct URHO3D_API CharacterMap
 };
 
 /// Map instruction.
-struct MapInstruction
+struct URHO3D_API MapInstruction
 {
     MapInstruction();
     ~MapInstruction();
@@ -237,10 +241,18 @@ struct MapInstruction
     bool Load(const pugi::xml_node& node);
     bool Save(pugi::xml_node& node) const;
 
+    void SetOrigin(unsigned spritekey);
+    void SetTarget(unsigned targetkey);
+    void RemoveTarget();
+
     unsigned folder_;
     unsigned file_;
     int targetFolder_;
     int targetFile_;
+
+    float targetdx_;
+    float targetdy_;
+    float targetdangle_;
 };
 
 /// Color map.
@@ -263,7 +275,7 @@ struct URHO3D_API ColorMap
 };
 
 /// Color Map instruction.
-struct ColorMapInstruction
+struct URHO3D_API ColorMapInstruction
 {
     ColorMapInstruction();
     ~ColorMapInstruction();

@@ -649,6 +649,7 @@ bool AnimatedSprite2D::ApplyColorMap(Spriter::ColorMap* colorMap)
 
     return true;
 }
+
 void AnimatedSprite2D::SwapSprite(const StringHash& characterMap, Sprite2D* replacement, unsigned index, bool keepProportion)
 {
     Sprite2D* original = GetCharacterMapSprite(characterMap, index);
@@ -792,6 +793,7 @@ void AnimatedSprite2D::SetSpriteColor(unsigned key, const Color& color)
     colorMapping_[key] = color;
     colorsDirty_ = sourceBatchesDirty_ = true;
 }
+
 void AnimatedSprite2D::ResetCharacterMapping(bool resetSwappedSprites)
 {
     ClearRenderedAnimations();

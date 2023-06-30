@@ -404,7 +404,7 @@ LaunchLinuxBuild()
 	                cp bin/FromBones$EXE $HOME/exe/FromBones$VERSION$APITAG$EDTAG$LIBTYPETAG$EXE      
 
 	                if [[ $LIBSHARED -eq 1 ]]; then
-					    cp $U_HOME/$DIR_RELEASE/lib/libUrho3D.so $HOME/lib/$APILIB
+					    cp $U_HOME/$DIR_RELEASE/lib/libUrho3D.so $HOME/lib/$APILIB/libUrho3D.so.0
 					    cp $HOME/$DIR_RELEASE/app/src/main/cpp/libFromBonesLib.so $HOME/lib/$APILIB
 					    cp $HOME/$DIR_RELEASE/app/src/main/cppeditor/libFromBonesEditor.so $HOME/lib/$APILIB
 				    fi				

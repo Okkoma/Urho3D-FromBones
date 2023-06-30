@@ -265,6 +265,9 @@ public:
     bool RemoveRenderedAnimation(const String& characterMapName);
     const PODVector<AnimatedSprite2D*>& GetRenderedAnimations() const { return renderedAnimations_; }
 
+    /// Update animation.
+    void UpdateAnimation(float timeStep);
+
 /// HELPERS
 
     void DumpSpritesInfos() const;
@@ -279,9 +282,6 @@ protected:
 
     /// Handle scene post update.
     void HandleScenePostUpdate(StringHash eventType, VariantMap& eventData);
-
-    /// Update animation.
-    void UpdateAnimation(float timeStep);
 
     /// Update spriter triggers.
     void HideTriggers();

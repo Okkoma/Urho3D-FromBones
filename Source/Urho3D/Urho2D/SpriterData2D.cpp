@@ -627,15 +627,52 @@ bool CharacterMap::Save(pugi::xml_node& node) const
     return ok;
 }
 
-MapInstruction::MapInstruction()
+MapInstruction* CharacterMap::GetInstruction(unsigned key) const
 {
+    const unsigned folder = key >> 16;
+    const unsigned file   = key & 0xFFFF;
 
+    for (PODVector<MapInstruction*>::ConstIterator it = maps_.Begin(); it != maps_.End(); ++it)
+    {
+        MapInstruction* mapinstruct = *it;
+        if (mapinstruct->folder_ == folder && mapinstruct->file_ == file)
+        {
+            return mapinstruct;
+        }
+    }
+
+    return 0;
 }
+
+bool CharacterMap::GetTargetKey(unsigned key, int& targetfolder, int& targetfile) const
+{
+    const unsigned folder = key >> 16;
+    const unsigned file   = key & 0xFFFF;
+
+    for (PODVector<MapInstruction*>::ConstIterator it = maps_.Begin(); it != maps_.End(); ++it)
+    {
+        MapInstruction* mapinstruct = *it;
+        if (mapinstruct->folder_ == folder && mapinstruct->file_ == file)
+        {
+            targetfolder = mapinstruct->targetFolder_;
+            targetfile = mapinstruct->targetFile_;
+            return true;
+        }
+    }
+
+    targetfolder = folder;
+    targetfile = file;
+    return false;
+}
+
+MapInstruction::MapInstruction() :
+    targetdx_(0.f),
+    targetdy_(0.f),
+    targetdangle_(0.f)
+{ }
 
 MapInstruction::~MapInstruction()
-{
-
-}
+{ }
 
 bool MapInstruction::Load(const pugi::xml_node& node)
 {
@@ -647,6 +684,9 @@ bool MapInstruction::Load(const pugi::xml_node& node)
     targetFolder_ = node.attribute("target_folder").as_int(-1);
     targetFile_ = node.attribute("target_file").as_int(-1);
 
+    targetdx_ = node.attribute("target_dx").as_float(0.f);
+    targetdy_ = node.attribute("target_dy").as_float(0.f);
+    targetdangle_ = node.attribute("target_dangle").as_float(0.f);
     return true;
 }
 
@@ -662,8 +702,35 @@ bool MapInstruction::Save(pugi::xml_node& node) const
      if (targetFile_ != -1)
         if (!const_cast<pugi::xml_node&>(node).append_attribute("target_file").set_value(targetFile_))
             return false;
+    if (targetdx_ != 0.f)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("target_dx").set_value(targetdx_))
+            return false;
+    if (targetdy_ != 0.f)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("target_dy").set_value(targetdy_))
+            return false;
+    if (targetdangle_ != 0.f)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("target_dangle").set_value(targetdangle_))
+            return false;
 
     return true;
+}
+
+void MapInstruction::SetOrigin(unsigned spritekey)
+{
+    folder_ = spritekey >> 16;
+    file_   = spritekey & 0xFFFF;
+}
+
+void MapInstruction::SetTarget(unsigned targetkey)
+{
+    targetFolder_ = targetkey >> 16;
+    targetFile_   = targetkey & 0xFFFF;
+}
+
+void MapInstruction::RemoveTarget()
+{
+    targetFolder_ = -1;
+    targetFile_   = -1;
 }
 
 ColorMap::ColorMap()
