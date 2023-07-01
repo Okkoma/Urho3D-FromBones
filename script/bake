@@ -15,6 +15,9 @@
 # ex: bake android vulkan install release (sous linux, build et install la version release sur android device)
 # ex: bake win config install release (sous linux, config crosscompile pour windows et install)
 
+FROMBONES="FromBones"
+URHO3D="Urho3D"
+
 U_GRAPHICS_OPENGL="-DURHO3D_OPENGL=1 -DURHO3D_VULKAN=0"
 U_GRAPHICS_VULKAN="-DURHO3D_OPENGL=0 -DURHO3D_VULKAN=1 -DURHO3D_VMA=1 -DURHO3D_VOLK=1"
 U_GRAPHICS=$U_GRAPHICS_OPENGL
@@ -60,9 +63,14 @@ while [[ $# -gt 0 ]]; do
 		rpi4)
 		RPI4CROSS=1
 		shift # past argument
-		;;		
-		vulkan)
-		VULKAN=1
+		;;
+		opengl|gl|GL)
+		GRAPHICS_GL=1
+		U_GRAPHICS="$U_GRAPHICS_OPENGL"
+		shift # past argument
+		;;
+		vulkan|vk|VK)
+		GRAPHICS_VK=1
 		U_GRAPHICS="$U_GRAPHICS_VULKAN"
 		shift # past argument
 		;;
@@ -211,15 +219,15 @@ elif [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "msys" ]]; then
 fi
 
 if [[ "$PLATFORM" == "linux" ]]; then
-	U_HOME=$DEVPATH/Urho3D/Urho3D
-	F_HOME=$DEVPATH/Projets/FromBones
+	U_HOME=$DEVPATH/Urho3D/$URHO3D
+	F_HOME=$DEVPATH/Projets/$FROMBONES
 
 elif [[ "$PLATFORM" == "win64" ]]; then
 	MINGW_DRIVE=/mnt/d
 	DRIVE="D:"
-	U_HOME=$MINGW_DRIVE/DEV/Urho3D/Urho3D-Vulkan
-	F_HOME=$MINGW_DRIVE/DEV/Projets/FromBones-Vulkan
-	U_HOME_WIN=$DRIVE/DEV/Urho3D/Urho3D-Vulkan
+	U_HOME=$MINGW_DRIVE/DEV/Urho3D/$URHO3D
+	F_HOME=$MINGW_DRIVE/DEV/Projets/$FROMBONES
+	U_HOME_WIN=$DRIVE/DEV/Urho3D/$URHO3D
 fi
 		
 HOME=`pwd`
@@ -269,12 +277,12 @@ LaunchLinuxBuild()
 		OSVERSION=$OSVERSION-vulkan
     fi
     
-	if [[ $EDITOR -eq 1 ]]; then
-		OSVERSION=$OSVERSION-editorinside
-		EDITOR_OPT="-DURHO3D_ANGELSCRIPT=1"
-	else
-		EDITOR_OPT="-DURHO3D_ANGELSCRIPT=0"
-	fi
+#	if [[ $EDITOR -eq 1 ]]; then
+#		OSVERSION=$OSVERSION-editorinside
+#		EDITOR_OPT="-DURHO3D_ANGELSCRIPT=1"
+#	else
+#		EDITOR_OPT="-DURHO3D_ANGELSCRIPT=0"
+#	fi
 	    	
 	if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
 		
@@ -297,7 +305,7 @@ LaunchLinuxBuild()
 
 				if [[ $BUILD -eq 1 ]] || [[ $U_HOME != $HOME ]]; then
 					cd $DIR_DEBUG
-					make -j $NUMPROC
+					make -j $NUMPROC	
 				fi
 			fi
 		fi
@@ -315,7 +323,7 @@ LaunchLinuxBuild()
 
 		    if [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $U_HOME != $HOME ]]; then
 			    cd $DIR_RELEASE
-			    make -j $NUMPROC
+			    make -j $NUMPROC	    
 		    fi
 		fi
 	fi
@@ -389,9 +397,7 @@ LaunchLinuxBuild()
 	                    LIBTYPETAG="-static"
 	                fi
 	                if [[ $EDITOR -eq 1 ]]; then
-	                    EDTAG="-ed"
-	                else
-	                    EDTAG="-noed"
+	                    EDTAG="-edscript"
 	                fi
 	                if [[ $VULKAN -eq 1 ]]; then
 	                    APITAG="Vk"
@@ -401,12 +407,13 @@ LaunchLinuxBuild()
 	                	APILIB="gl"
 	                fi     
 
-	                cp bin/FromBones$EXE $HOME/exe/FromBones$VERSION$APITAG$EDTAG$LIBTYPETAG$EXE      
+	                cp bin/FromBones$EXE $HOME/exe/$APILIB/FromBones$VERSION$APITAG$EDTAG$LIBTYPETAG$EXE      
 
 	                if [[ $LIBSHARED -eq 1 ]]; then
-					    cp $U_HOME/$DIR_RELEASE/lib/libUrho3D.so $HOME/lib/$APILIB/libUrho3D.so.0
-					    cp $HOME/$DIR_RELEASE/app/src/main/cpp/libFromBonesLib.so $HOME/lib/$APILIB
-					    cp $HOME/$DIR_RELEASE/app/src/main/cppeditor/libFromBonesEditor.so $HOME/lib/$APILIB
+	                	mkdir -p $HOME/exe/$APILIB
+					    cp $U_HOME/$DIR_RELEASE/lib/libUrho3D.so $HOME/exe/$APILIB/libUrho3D.so.0
+					    cp $HOME/$DIR_RELEASE/app/src/main/cpp/libFromBonesLib.so $HOME/exe/$APILIB
+					    cp $HOME/$DIR_RELEASE/app/src/main/cppeditor/libFromBonesEditor.so $HOME/exe/$APILIB
 				    fi				
 			    fi
 			fi				
@@ -510,7 +517,32 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 			LaunchLinuxBuild
 
 			RestoreConfig
+
+		elif [[ $GRAPHICS_GL -eq 1 ]] || [[ $GRAPHICS_VK -eq 1 ]]; then
+
+			if [[ $GRAPHICS_GL -eq 1 ]]; then
+
+				SaveConfig
+				
+				VULKAN=0
+				U_GRAPHICS="$U_GRAPHICS_OPENGL"
+				LaunchLinuxBuild
+
+				RestoreConfig
+			fi
+			
+			if [[ $GRAPHICS_VK -eq 1 ]]; then
+				
+				SaveConfig
+				
+				VULKAN=1
+				U_GRAPHICS="$U_GRAPHICS_VULKAN"		
+				LaunchLinuxBuild
+
+				RestoreConfig
+			fi
 		else
+
 			# build avec la configuration définie
 			LaunchLinuxBuild
 		fi
@@ -946,9 +978,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 	                LIBTYPETAG="-static"
 	            fi
 	            if [[ $EDITOR -eq 1 ]]; then
-	                EDTAG="-ed"
-	            else
-	                EDTAG="-noed"
+	                EDTAG="-edscript"
 	            fi
 	            if [[ $VULKAN -eq 1 ]]; then
 	                APITAG="Vk"
@@ -961,9 +991,8 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 	            cp bin/FromBones$EXE $HOME/exe/FromBones$VERSION$APITAG$EDTAG$LIBTYPETAG$EXE      
 
 	            if [[ $LIBSHARED -eq 1 ]]; then
-					cp $U_HOME/$DIR_RELEASE/lib/libUrho3D.so $HOME/lib/$APILIB
-					cp $HOME/$DIR_RELEASE/app/src/main/cpp/libFromBonesLib.so $HOME/lib/$APILIB
-					cp $HOME/$DIR_RELEASE/app/src/main/cppeditor/libFromBonesEditor.so $HOME/lib/$APILIB
+	            	echo .
+					# TODO for Windows with dll ?
 				fi				
 			fi	
 
@@ -1050,9 +1079,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 					cd $HOME/$DIR_RELEASE
 
 	                if [[ $EDITOR -eq 1 ]]; then
-	                    EDTAG="-ed"
-	                else
-	                	EDTAG="-noed"
+	                    EDTAG="-edscript"
 	                fi
 	                if [[ $VULKAN -eq 1 ]]; then
 	                    APITAG="Vk"
