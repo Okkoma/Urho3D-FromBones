@@ -10,3 +10,4 @@
 /lib/*/*.so
 /Local
 /*-tmp
+.fuse*

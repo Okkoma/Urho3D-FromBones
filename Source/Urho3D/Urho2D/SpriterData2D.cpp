@@ -471,7 +471,7 @@ bool Entity::Save(pugi::xml_node& node) const
     for (HashMap<StringHash, ObjInfo >::ConstIterator it = objInfos_.Begin(); it != objInfos_.End(); ++it)
     {
         const ObjInfo& objinfo = it->second_;
-        if (objinfo.type_ > ObjectType::BOX)
+        if (objinfo.type_ > SpriterObjectType::BOX)
             break;
 
         pugi::xml_node child = node.append_child("obj_info");
@@ -627,10 +627,11 @@ bool CharacterMap::Save(pugi::xml_node& node) const
     return ok;
 }
 
-MapInstruction* CharacterMap::GetInstruction(unsigned key) const
+MapInstruction* CharacterMap::GetInstruction(unsigned key, bool add)
 {
-    const unsigned folder = key >> 16;
-    const unsigned file   = key & 0xFFFF;
+    unsigned folder;
+    unsigned file;
+    GetFolderFile(key, folder, file);
 
     for (PODVector<MapInstruction*>::ConstIterator it = maps_.Begin(); it != maps_.End(); ++it)
     {
@@ -641,34 +642,42 @@ MapInstruction* CharacterMap::GetInstruction(unsigned key) const
         }
     }
 
+    if (add)
+    {
+        MapInstruction* instruction = new MapInstruction();
+        instruction->SetOrigin(key);
+        maps_.Push(instruction);
+        return instruction;
+    }
+
     return 0;
 }
 
-bool CharacterMap::GetTargetKey(unsigned key, int& targetfolder, int& targetfile) const
+void CharacterMap::RemoveInstruction(unsigned key)
 {
-    const unsigned folder = key >> 16;
-    const unsigned file   = key & 0xFFFF;
+    unsigned folder;
+    unsigned file;
+    GetFolderFile(key, folder, file);
 
-    for (PODVector<MapInstruction*>::ConstIterator it = maps_.Begin(); it != maps_.End(); ++it)
+    for (PODVector<MapInstruction*>::Iterator it = maps_.Begin(); it != maps_.End(); ++it)
     {
         MapInstruction* mapinstruct = *it;
         if (mapinstruct->folder_ == folder && mapinstruct->file_ == file)
         {
-            targetfolder = mapinstruct->targetFolder_;
-            targetfile = mapinstruct->targetFile_;
-            return true;
+            maps_.Erase(it);
+            delete mapinstruct;
+            return;
         }
     }
-
-    targetfolder = folder;
-    targetfile = file;
-    return false;
 }
+
 
 MapInstruction::MapInstruction() :
     targetdx_(0.f),
     targetdy_(0.f),
-    targetdangle_(0.f)
+    targetdangle_(0.f),
+    targetscalex_(1.f),
+    targetscaley_(1.f)
 { }
 
 MapInstruction::~MapInstruction()
@@ -687,6 +696,8 @@ bool MapInstruction::Load(const pugi::xml_node& node)
     targetdx_ = node.attribute("target_dx").as_float(0.f);
     targetdy_ = node.attribute("target_dy").as_float(0.f);
     targetdangle_ = node.attribute("target_dangle").as_float(0.f);
+    targetscalex_ = node.attribute("target_scalex").as_float(1.f);
+    targetscaley_ = node.attribute("target_scaley").as_float(1.f);
     return true;
 }
 
@@ -711,20 +722,26 @@ bool MapInstruction::Save(pugi::xml_node& node) const
     if (targetdangle_ != 0.f)
         if (!const_cast<pugi::xml_node&>(node).append_attribute("target_dangle").set_value(targetdangle_))
             return false;
-
+    if (targetscalex_ != 1.f)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("target_scalex").set_value(targetscalex_))
+            return false;
+    if (targetscaley_ != 1.f)
+        if (!const_cast<pugi::xml_node&>(node).append_attribute("target_scaley").set_value(targetscaley_))
+            return false;
     return true;
 }
 
 void MapInstruction::SetOrigin(unsigned spritekey)
 {
-    folder_ = spritekey >> 16;
-    file_   = spritekey & 0xFFFF;
+    GetFolderFile(spritekey, folder_, file_);
 }
 
 void MapInstruction::SetTarget(unsigned targetkey)
 {
-    targetFolder_ = targetkey >> 16;
-    targetFile_   = targetkey & 0xFFFF;
+    unsigned targetFolder, targetFile;
+    GetFolderFile(targetkey, targetFolder, targetFile);
+    targetFolder_ = targetFolder;
+    targetFile_ = targetFile;
 }
 
 void MapInstruction::RemoveTarget()
@@ -951,6 +968,21 @@ bool Animation::Save(pugi::xml_node& node) const
     }
 
     return true;
+}
+
+void Animation::GetObjectRefs(unsigned timeline, PODVector<Ref*>& refs)
+{
+    refs.Clear();
+    for (PODVector<MainlineKey*>::ConstIterator jt = mainlineKeys_.Begin(); jt != mainlineKeys_.End(); ++jt)
+    {
+        MainlineKey* mkey = *jt;
+        for (PODVector<Spriter::Ref*>::ConstIterator kt = mkey->objectRefs_.Begin(); kt != mkey->objectRefs_.End(); ++kt)
+        {
+            Ref* ref = *kt;
+            if (ref->timeline_ == timeline)
+                refs.Push(ref);
+        }
+    }
 }
 
 // From http://www.brashmonkey.com/ScmlDocs/ScmlReference.html
@@ -1197,9 +1229,9 @@ bool Ref::Load(const pugi::xml_node& node)
     zIndex_ = node.attribute("z_index").as_int(-1);
     xml_attribute colorAttr = node.attribute("color");
     color_ = colorAttr.empty() ? Color::WHITE : ToColor(colorAttr.as_string());
-    offsetPosition_.x_ = node.attribute("x").as_float(0.f);
-    offsetPosition_.y_ = node.attribute("y").as_float(0.f);
-    offsetAngle_ = node.attribute("angle").as_float(0.f);
+//    offsetPosition_.x_ = node.attribute("x").as_float(0.f);
+//    offsetPosition_.y_ = node.attribute("y").as_float(0.f);
+//    offsetAngle_ = node.attribute("angle").as_float(0.f);
 
     return true;
 }
@@ -1222,16 +1254,16 @@ bool Ref::Save(pugi::xml_node& node) const
     if (color_ != Color::WHITE)
         if (!const_cast<pugi::xml_node&>(node).append_attribute("color").set_value(color_.ToString().CString()))
             return false;
-    if (offsetPosition_ != Vector2::ZERO)
-    {
-        if (!const_cast<pugi::xml_node&>(node).append_attribute("x").set_value(GetFloatStr(offsetPosition_.x_, FloatPrecision).CString()))
-            return false;
-        if (!const_cast<pugi::xml_node&>(node).append_attribute("y").set_value(GetFloatStr(offsetPosition_.y_, FloatPrecision).CString()))
-            return false;
-    }
-    if (offsetAngle_ != 0.f)
-        if (!const_cast<pugi::xml_node&>(node).append_attribute("angle").set_value(GetFloatStr(offsetAngle_, FloatPrecision).CString()))
-            return false;
+//    if (offsetPosition_ != Vector2::ZERO)
+//    {
+//        if (!const_cast<pugi::xml_node&>(node).append_attribute("x").set_value(GetFloatStr(offsetPosition_.x_, FloatPrecision).CString()))
+//            return false;
+//        if (!const_cast<pugi::xml_node&>(node).append_attribute("y").set_value(GetFloatStr(offsetPosition_.y_, FloatPrecision).CString()))
+//            return false;
+//    }
+//    if (offsetAngle_ != 0.f)
+//        if (!const_cast<pugi::xml_node&>(node).append_attribute("angle").set_value(GetFloatStr(offsetAngle_, FloatPrecision).CString()))
+//            return false;
 
     return true;
 }

@@ -58,7 +58,7 @@ struct NodeUpdater
 };
 
 /// Spriter instance.
-class SpriterInstance
+class URHO3D_API SpriterInstance
 {
 public:
     /// Constructor with spriter data.
@@ -111,6 +111,8 @@ public:
 
     /// Update animation.
     bool Update(float deltaTime);
+    /// Update timeline keys.
+    void UpdateTimelineKeys();
 
 private:
     /// Clear mainline key and timeline keys.
@@ -124,8 +126,6 @@ private:
 
     /// Update mainline keys.
     bool UpdateMainlineKeys(float deltaTime);
-    /// Update timeline keys.
-    void UpdateTimelineKeys();
 
     /// Get timeline key by ref.
     TimelineKey* GetTimelineKey(Timeline* timeline, Ref* ref, float targetTime, TimelineKey* reuse) const;

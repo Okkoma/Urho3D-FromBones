@@ -71,6 +71,27 @@ const char* loopModeNames[] =
     0
 };
 
+static Matrix2x3 sWorldTransform_, sLocalTransform_;
+// Rotation 90°
+static Matrix2x3 sRotatedMatrix_(-4.37114e-08f, -1.f, 0.f, 1.f, -4.37114e-08f, 0.f);
+
+SpriteMapInfo::SpriteMapInfo()
+{ }
+
+void SpriteMapInfo::Clear()
+{
+    sprite_.Reset();
+    map_ = 0;
+    instruction_ = 0;
+}
+
+void SpriteMapInfo::Set(unsigned key, Sprite2D* sprite, Spriter::CharacterMap* map, Spriter::MapInstruction* instruction)
+{
+    key_ = key;
+    sprite_ = sprite;
+    map_ = map;
+    instruction_ = instruction;
+}
 
 AnimatedSprite2D::AnimatedSprite2D(Context* context) :
     StaticSprite2D(context),
@@ -449,43 +470,6 @@ Spriter::Animation* AnimatedSprite2D::GetSpriterAnimation(const String& animatio
     return animationName != String::EMPTY ? GetSpriterInstance() ? GetSpriterInstance()->GetAnimation(animationName) : 0 : 0;
 }
 
-void AnimatedSprite2D::GetLocalSpritePositions(unsigned spriteindex, Vector2& position, float& angle, Vector2& scale)
-{
-    const Spriter::SpriteTimelineKey& spritekey = *spritesKeys_[spriteindex];
-    const Spriter::SpatialInfo& spatialinfo = spritekey.info_;
-    const SpriteInfo* spriteinfo  = spritesInfos_[spriteindex];
-
-    position.x_ = spatialinfo.x_ * PIXEL_SIZE;
-    position.y_ = spatialinfo.y_ * PIXEL_SIZE;
-
-    if (flipX_)
-        position.x_ = -position.x_;
-    if (flipY_)
-        position.y_ = -position.y_;
-
-    angle = spatialinfo.angle_;
-    if (flipX_ != flipY_)
-        angle = -angle;
-
-//    if (spriteinfo->sprite_->GetRotated())
-//        angle -= 90;
-
-//    if (spriteinfo->rotate_)
-//        angle = (angle+180);
-
-    scale.x_ = spatialinfo.scaleX_ * spriteinfo->scalex_;
-    scale.y_ = spatialinfo.scaleY_ * spriteinfo->scaley_;
-
-//    Rect drawRect;
-//    spriteinfo->sprite_->GetDrawRectangle(drawRect, Vector2(spritekey.pivotX_, spritekey.pivotY_));
-//    position = drawRect.Transformed(Matrix2x3(position, angle, scale)).Center();
-}
-
-Sprite2D* AnimatedSprite2D::GetSprite(unsigned spriteindex) const
-{
-    return spritesInfos_[spriteindex]->sprite_;
-}
-
 ResourceRef AnimatedSprite2D::GetAnimationSetAttr() const
 {
     return GetResourceRef(animationSet_, AnimationSet2D::GetTypeStatic());
@@ -589,20 +573,15 @@ bool AnimatedSprite2D::ApplyCharacterMap(Spriter::CharacterMap* characterMap)
     const PODVector<Spriter::MapInstruction*>& mapInstructions = characterMap->maps_;
     for (PODVector<Spriter::MapInstruction*>::ConstIterator it = mapInstructions.Begin(); it != mapInstructions.End(); ++it)
     {
-        Spriter::MapInstruction* map = *it;
+        Spriter::MapInstruction* instruct = *it;
 
-        key = (map->folder_ << 16) + map->file_;
+        key = Spriter::GetKey(instruct->folder_, instruct->file_);
+//        key = (instruct->folder_ << 16) + instruct->file_;
 
-        if (map->targetFolder_ == -1)
-        {
-            spriteMapping_[key].Reset();
-        }
+        if (instruct->targetFolder_ == -1)
+            spriteMapping_[key].Clear();
         else
-        {
-            Sprite2D* sprite = animationSet_->GetSpriterFileSprite(map->targetFolder_, map->targetFile_);
-
-            spriteMapping_[key] = SharedPtr<Sprite2D>(sprite);
-        }
+            spriteMapping_[key].Set(key, animationSet_->GetSpriterFileSprite(instruct->targetFolder_, instruct->targetFile_), characterMap, instruct);
     }
 
     if (!IsCharacterMapApplied(characterMap->hashname_))
@@ -735,15 +714,15 @@ void AnimatedSprite2D::SwapSprite(Sprite2D* original, Sprite2D* replacement, boo
 
         SpriteInfo& info = spriteInfoMapping_[replacement][original];
         info.sprite_ = replacement;
-        info.deltaHotspotx_ = replacement->GetHotSpot().x_ - original->GetHotSpot().x_;
-        info.deltaHotspoty_ = replacement->GetHotSpot().y_ - original->GetHotSpot().y_;
+        info.dPivot_.x_ = replacement->GetHotSpot().x_ - original->GetHotSpot().x_;
+        info.dPivot_.y_ = replacement->GetHotSpot().y_ - original->GetHotSpot().y_;
 
-        info.scalex_ = (float)(orect.right_ - orect.left_) / (rrect.right_ - rrect.left_);
-        info.scaley_ = (float)(orect.bottom_ - orect.top_) / (rrect.bottom_ - rrect.top_);
+        info.scale_.x_ = (float)(orect.right_ - orect.left_) / (rrect.right_ - rrect.left_);
+        info.scale_.y_ = (float)(orect.bottom_ - orect.top_) / (rrect.bottom_ - rrect.top_);
 
         if (keepRatio)
         {
-            info.scalex_ = info.scaley_ = mappingScaleRatio_;
+            info.scale_.x_ = info.scale_.y_ = mappingScaleRatio_;
             //info.scalex_ = info.scaley_ = (info.scalex_ + info.scaley_) * 0.5f * mappingScaleRatio_;
         }
 
@@ -788,10 +767,15 @@ void AnimatedSprite2D::UnSwapSprite(Sprite2D* original)
     swappedSprites_.Erase(original);
 }
 
+void AnimatedSprite2D::SetColorDirty()
+{
+    colorsDirty_ = sourceBatchesDirty_ = true;
+}
+
 void AnimatedSprite2D::SetSpriteColor(unsigned key, const Color& color)
 {
     colorMapping_[key] = color;
-    colorsDirty_ = sourceBatchesDirty_ = true;
+    SetColorDirty();
 }
 
 void AnimatedSprite2D::ResetCharacterMapping(bool resetSwappedSprites)
@@ -806,7 +790,7 @@ void AnimatedSprite2D::ResetCharacterMapping(bool resetSwappedSprites)
     colorMapping_.Clear();
 
     if (resetSwappedSprites)
-    UnSwapAllSprites();
+        UnSwapAllSprites();
 
     characterMapDirty_ = false;
     sourceBatchesDirty_ = colorsDirty_ = true;
@@ -923,6 +907,82 @@ bool AnimatedSprite2D::IsCharacterMapApplied(const String& characterMap) const
     return IsCharacterMapApplied(StringHash(characterMap));
 }
 
+unsigned AnimatedSprite2D::GetNumSpriteKeys() const
+{
+    return spritesInfos_.Size() ? spritesKeys_.Size() : spriterInstance_->GetNumSpriteKeys();
+}
+
+const PODVector<Spriter::SpriteTimelineKey* >& AnimatedSprite2D::GetSpriteKeys() const
+{
+    return spritesInfos_.Size() ? spritesKeys_ : spriterInstance_->GetSpriteKeys();
+}
+
+const SpriteMapInfo* AnimatedSprite2D::GetSpriteMapInfo(unsigned key) const
+{
+    HashMap<unsigned, SpriteMapInfo >::ConstIterator it = spriteMapping_.Find(key);
+    return it != spriteMapping_.End() ? &it->second_ : 0;
+}
+
+SpriteInfo* AnimatedSprite2D::GetSpriteInfo(unsigned key, const SpriteMapInfo* mapinfo, Sprite2D* sprite, Sprite2D* origin)
+{
+    SpriteInfo& info = spriteInfoMapping_[sprite][origin];
+    if (info.sprite_ != sprite)
+        info.Set(sprite);
+    if (info.mapinfo_ != mapinfo)
+        info.mapinfo_ = mapinfo;
+    if (colorsDirty_)
+        info.pcolor_ = &GetSpriteColor(key);
+
+    return &info;
+}
+
+const PODVector<SpriteInfo*>& AnimatedSprite2D::GetSpriteInfos()
+{
+    spritesKeys_.Clear();
+    spritesInfos_.Clear();
+
+    if (!spriterInstance_->GetSpriteKeys().Size())
+        UpdateSpriterAnimation(0.f);
+
+    unsigned numSpriteKeys = spriterInstance_->GetNumSpriteKeys();
+    if (numSpriteKeys)
+    {
+        const PODVector<Spriter::SpriteTimelineKey* >& spriteKeys = spriterInstance_->GetSpriteKeys();
+        Sprite2D *sprite, *origin;
+        Spriter::SpriteTimelineKey* spriteKey;
+        unsigned key;
+
+        // Get Sprite Keys only
+        for (unsigned i = 0; i < numSpriteKeys; ++i)
+        {
+            spriteKey = spriteKeys[i];
+
+            key = Spriter::GetKey(spriteKey->folderId_, spriteKey->fileId_);
+            const SpriteMapInfo* mapinfo = GetSpriteMapInfo(key);
+            origin = mapinfo ? mapinfo->sprite_ : animationSet_->GetSpriterFileSprite(key);
+            if (!origin)
+                continue;
+
+            sprite = GetSwappedSprite(origin);
+            if (!sprite)
+                continue;
+
+            spritesKeys_.Push(spriteKey);
+
+            spritesInfos_.Push(GetSpriteInfo(key, mapinfo, sprite, origin));
+        }
+        if (colorsDirty_)
+            colorsDirty_ = false;
+
+//        if (!spritesInfos_.Size())
+//            URHO3D_LOGWARNINGF("AnimatedSprite2D() - CreateSpriteInfos : node=%s ... No Spriter Keys !", node_->GetName().CString());
+    }
+
+    return spritesInfos_;
+}
+
+/// Sprites Getters
+
 Sprite2D* AnimatedSprite2D::GetCharacterMapSprite(const StringHash& characterMap, unsigned index) const
 {
     return animationSet_->GetCharacterMapSprite(GetCharacterMap(characterMap), index);
@@ -955,8 +1015,8 @@ void AnimatedSprite2D::GetMappedSprites(Spriter::CharacterMap* characterMap, POD
 
 Sprite2D* AnimatedSprite2D::GetMappedSprite(unsigned key) const
 {
-    HashMap<unsigned, SharedPtr<Sprite2D> >::ConstIterator it = spriteMapping_.Find(key);
-    return it != spriteMapping_.End() ? it->second_.Get() : animationSet_->GetSpriterFileSprite(key);
+    HashMap<unsigned, SpriteMapInfo >::ConstIterator it = spriteMapping_.Find(key);
+    return it != spriteMapping_.End() ? it->second_.sprite_.Get() : animationSet_->GetSpriterFileSprite(key);
 }
 
 Sprite2D* AnimatedSprite2D::GetMappedSprite(int folderid, int fileid) const
@@ -979,68 +1039,223 @@ const Color& AnimatedSprite2D::GetSpriteColor(unsigned key) const
     return it != colorMapping_.End() ? it->second_ : Color::WHITE;
 }
 
-SpriteInfo* AnimatedSprite2D::GetSpriteInfo(unsigned key, Sprite2D* sprite, Sprite2D* origin)
+void AnimatedSprite2D::GetSpriteLocalPositions(unsigned spriteindex, Vector2& position, float& angle, Vector2& scale)
 {
-    SpriteInfo& info = spriteInfoMapping_[sprite][origin];
-    if (!info.sprite_)
-    {
-        info.key_ = key;
-        info.sprite_ = sprite;
-        info.scalex_ = 1.f;
-        info.scaley_ = 1.f;
-        info.deltaHotspotx_ = 0.f;
-        info.deltaHotspoty_ = 0.f;
-    }
-    if (colorsDirty_)
-    {
-        info.pcolor_ = &GetSpriteColor(key);
-    }
-    return &info;
+    const Spriter::SpriteTimelineKey& spritekey = *spritesKeys_[spriteindex];
+    const Spriter::SpatialInfo& spatialinfo = spritekey.info_;
+    const SpriteInfo* spriteinfo  = spritesInfos_[spriteindex];
+
+    position.x_ = spatialinfo.x_ * PIXEL_SIZE;
+    position.y_ = spatialinfo.y_ * PIXEL_SIZE;
+
+    if (flipX_)
+        position.x_ = -position.x_;
+    if (flipY_)
+        position.y_ = -position.y_;
+
+    angle = spatialinfo.angle_;
+    if (flipX_ != flipY_)
+        angle = -angle;
+
+//    if (spriteinfo->sprite_->GetRotated())
+//        angle -= 90;
+
+//    if (spriteinfo->rotate_)
+//        angle = (angle+180);
+
+    scale.x_ = spatialinfo.scaleX_ * spriteinfo->scale_.x_;
+    scale.y_ = spatialinfo.scaleY_ * spriteinfo->scale_.y_;
+
+//    Rect drawRect;
+//    spriteinfo->sprite_->GetDrawRectangle(drawRect, Vector2(spritekey.pivotX_, spritekey.pivotY_));
+//    position = drawRect.Transformed(Matrix2x3(position, angle, scale)).Center();
 }
 
-const PODVector<SpriteInfo*>& AnimatedSprite2D::GetSpriteInfos()
+bool AnimatedSprite2D::GetSpriteAt(const Vector2& wposition, bool findbottomsprite, float minalpha, SpriteDebugInfo& info)
 {
-    spritesKeys_.Clear();
-    spritesInfos_.Clear();
+    if (useCharacterMap_ && !spritesInfos_.Size())
+        GetSpriteInfos();
 
-    if (!spriterInstance_->GetSpriteKeys().Size())
-        UpdateSpriterAnimation(0.f);
+    unsigned numspritekeys = GetNumSpriteKeys();
+    const PODVector<Spriter::SpriteTimelineKey* >& spriteKeys = GetSpriteKeys();
 
-    unsigned numSpriteKeys = spriterInstance_->GetNumSpriteKeys();
-    if (numSpriteKeys)
+    unsigned spriteindex = findbottomsprite ? 0 : numspritekeys-1;
+    const int inc = findbottomsprite ? 1 : -1;
+
+    for (;numspritekeys > 0;numspritekeys--,spriteindex += inc)
     {
-        const PODVector<Spriter::SpriteTimelineKey* >& spriteKeys = spriterInstance_->GetSpriteKeys();
-        Sprite2D *sprite, *origin;
-        Spriter::SpriteTimelineKey* spriteKey;
-        unsigned key;
+        const Spriter::SpriteTimelineKey& spriteKey = *spriteKeys[spriteindex];
 
-        // Get Sprite Keys only
-        for (unsigned i = 0; i < numSpriteKeys; ++i)
+        SpriteInfo* spriteinfo = spritesInfos_.Size() ? spritesInfos_[spriteindex] : 0;
+        unsigned key = (spriteKey.folderId_ << 16) + spriteKey.fileId_;
+        Sprite2D* msprite = GetMappedSprite(key);
+        Sprite2D* sprite = spriteinfo ? spriteinfo->sprite_ : msprite;
+        if (!sprite)
+            continue;
+
+        // 1. check if inside the drawrect
+        Vector2 position, pivot, scale;
+        Rect drawRect;
+        float angle;
+
+        const Spriter::SpatialInfo& spatialinfo = spriteKey.info_;
+        if (spriteinfo)
         {
-            spriteKey = spriteKeys[i];
-            key = (spriteKey->folderId_ << 16) + spriteKey->fileId_;
-            origin = GetMappedSprite(key);
-
-            if (!origin)
-                continue;
-
-            sprite = GetSwappedSprite(origin);
-
-            if (!sprite)
-                continue;
-
-            spritesKeys_.Push(spriteKey);
-
-            spritesInfos_.Push(GetSpriteInfo(key, sprite, origin));
+            if (spriteinfo->mapinfo_)
+            {
+                if (!flipX_)
+                {
+                    position.x_ = spatialinfo.x_ + spriteinfo->mapinfo_->instruction_->targetdx_;
+                    pivot.x_ = spriteKey.pivotX_ + spriteinfo->dPivot_.x_;
+                }
+                else
+                {
+                    position.x_ = -spatialinfo.x_ - spriteinfo->mapinfo_->instruction_->targetdx_;
+                    pivot.x_ = 1.0f - spriteKey.pivotX_ - spriteinfo->dPivot_.x_;
+                }
+                if (!flipY_)
+                {
+                    position.y_ = spatialinfo.y_ + spriteinfo->mapinfo_->instruction_->targetdy_;
+                    pivot.y_ = spriteKey.pivotY_ + spriteinfo->dPivot_.y_;
+                }
+                else
+                {
+                    position.y_ = -spatialinfo.y_ - spriteinfo->mapinfo_->instruction_->targetdy_;
+                    pivot.y_ = 1.0f - spriteKey.pivotY_ - spriteinfo->dPivot_.y_;
+                }
+                angle = spatialinfo.angle_ + spriteinfo->mapinfo_->instruction_->targetdangle_;
+            }
+            else
+            {
+                if (!flipX_)
+                {
+                    position.x_ = spatialinfo.x_;
+                    pivot.x_ = spriteKey.pivotX_ + spriteinfo->dPivot_.x_;
+                }
+                else
+                {
+                    position.x_ = -spatialinfo.x_;
+                    pivot.x_ = 1.0f - spriteKey.pivotX_ - spriteinfo->dPivot_.x_;
+                }
+                if (!flipY_)
+                {
+                    position.y_ = spatialinfo.y_;
+                    pivot.y_ = spriteKey.pivotY_ + spriteinfo->dPivot_.y_;
+                }
+                else
+                {
+                    position.y_ = -spatialinfo.y_;
+                    pivot.y_ = 1.0f - spriteKey.pivotY_ - spriteinfo->dPivot_.y_;
+                }
+                angle = spatialinfo.angle_;
+            }
         }
-        if (colorsDirty_)
-            colorsDirty_ = false;
+        else
+        {
+            if (!flipX_)
+            {
+                position.x_ = spatialinfo.x_;
+                pivot.x_ = spriteKey.pivotX_;
+            }
+            else
+            {
+                position.x_ = -spatialinfo.x_;
+                pivot.x_ = 1.0f - spriteKey.pivotX_;
+            }
+            if (!flipY_)
+            {
+                position.y_ = spatialinfo.y_;
+                pivot.y_ = spriteKey.pivotY_;
+            }
+            else
+            {
+                position.y_ = -spatialinfo.y_;
+                pivot.y_ = 1.0f - spriteKey.pivotY_;
+            }
+            angle = spatialinfo.angle_;
+        }
+        if (flipX_ != flipY_)
+            angle = -angle;
 
-//        if (!spritesInfos_.Size())
-//            URHO3D_LOGWARNINGF("AnimatedSprite2D() - CreateSpriteInfos : node=%s ... No Spriter Keys !", node_->GetName().CString());
+        scale.x_ = spatialinfo.scaleX_;
+        scale.y_ = spatialinfo.scaleY_;
+        if (spriteinfo)
+        {
+            scale.x_ *= spriteinfo->scale_.x_;
+            scale.y_ *= spriteinfo->scale_.y_;
+            if (spriteinfo->mapinfo_)
+            {
+                scale.x_ *= spriteinfo->mapinfo_->instruction_->targetscalex_;
+                scale.y_ *= spriteinfo->mapinfo_->instruction_->targetscaley_;
+            }
+        }
+
+        sLocalTransform_.Set(position * PIXEL_SIZE, angle, scale);
+
+        if (sprite->GetRotated())
+        {
+            // set the translation part
+            sRotatedMatrix_.m02_ = -pivot.x_ * (float)sprite->GetSourceSize().x_ * PIXEL_SIZE;
+            sRotatedMatrix_.m12_ = (1.f-pivot.y_) * (float)sprite->GetSourceSize().y_ * PIXEL_SIZE;
+            sLocalTransform_ = sLocalTransform_ * sRotatedMatrix_;
+        }
+
+        position = sLocalTransform_.Inverse() * wposition;
+        sprite->GetDrawRectangle(drawRect, pivot);
+        if (drawRect.IsInside(position) == OUTSIDE)
+            continue;
+
+        // 2. check if inside the texture
+        // normalize the position inside drawrect and use it in texture rectangle to retrieve the pixel color
+        position -= drawRect.min_;
+        position /= drawRect.Size();
+
+        // Get Sprite Rectangle in the texture
+        const IntRect& rect = sprite->GetRectangle();
+
+        // Get the pixel in the sprite rectangle
+        IntVector2 pixelcoord(flipX_ ? rect.right_ - position.x_ * (rect.right_ - rect.left_) : rect.left_ + position.x_ * (rect.right_ - rect.left_),
+                              flipY_ ? rect.top_ - position.y_ * (rect.top_ - rect.bottom_) : rect.bottom_ + position.y_ * (rect.top_ - rect.bottom_));
+        if (rect.IsInside(pixelcoord) == OUTSIDE)
+            continue;
+        if (sprite->GetTexture()->GetImage()->GetPixel(pixelcoord.x_, pixelcoord.y_).a_ < minalpha)
+            continue;
+
+        // 3. set the debug info
+        info.key_ = key;
+        info.spriteindex_ = spriteindex;
+        info.sprite_ = msprite;
+        info.spriteinfo_ = spriteinfo;
+        info.localposition_ = sLocalTransform_.Translation();
+
+        Matrix2x3 nodeWorldTransform;
+        if (localRotation_ != 0.f || localPosition_ != Vector2::ZERO)
+            nodeWorldTransform = GetNode()->GetWorldTransform2D() * Matrix2x3(localPosition_, localRotation_, Vector2::ONE);
+        else
+            nodeWorldTransform = GetNode()->GetWorldTransform2D();
+
+        sWorldTransform_ = nodeWorldTransform * sLocalTransform_;
+        info.vertices_.Clear();
+        info.vertices_.Push(sWorldTransform_ * drawRect.min_);
+        info.vertices_.Push(sWorldTransform_ * Vector2(drawRect.min_.x_, drawRect.max_.y_));
+        info.vertices_.Push(sWorldTransform_ * drawRect.max_);
+        info.vertices_.Push(sWorldTransform_ * Vector2(drawRect.max_.x_, drawRect.min_.y_));
+
+        return true;
     }
+    return false;
+}
 
-    return spritesInfos_;
+Sprite2D* AnimatedSprite2D::GetSprite(unsigned zorder) const
+{
+    if (zorder >= GetNumSpriteKeys())
+        return 0;
+
+    if (zorder < spritesInfos_.Size())
+        return spritesInfos_[zorder]->sprite_;
+
+    const Spriter::SpriteTimelineKey& spriteKey = *spriterInstance_->GetSpriteKeys()[zorder];
+    return GetMappedSprite((spriteKey.folderId_ << 16) + spriteKey.fileId_);
 }
 
 /// RENDERTARGET
@@ -1559,12 +1774,6 @@ void AnimatedSprite2D::HandleScenePostUpdate(StringHash eventType, VariantMap& e
 
 
 /// UPDATERS
-
-
-static Matrix2x3 sWorldTransform_, sLocalTransform_;
-// Rotation 90°
-static Matrix2x3 sRotatedMatrix_(-4.37114e-08f, -1.f, 0.f, 1.f, -4.37114e-08f, 0.f);
-
 
 void AnimatedSprite2D::UpdateAnimation(float timeStep)
 {
@@ -2622,7 +2831,8 @@ void AnimatedSprite2D::UpdateSourceBatchesSpriter_Custom(Vector<SourceBatch2D>* 
     for (unsigned i = firstKeyIndex_; i < stopKeyIndex_; i++)
     {
         spriteKey = spritesKeys_[i];
-        sprite = spritesInfos_[i]->sprite_;
+        const SpriteInfo* spriteinfo = spritesInfos_[i];
+        sprite = spriteinfo->sprite_;
 
         if (!sprite->GetTextureRectangle(textureRect, flipX_, flipY_))
             continue;
@@ -2682,37 +2892,64 @@ void AnimatedSprite2D::UpdateSourceBatchesSpriter_Custom(Vector<SourceBatch2D>* 
         }
 
         const Spriter::SpatialInfo& spatialinfo = spriteKey->info_;
-        const SpriteInfo* spriteinfo = spritesInfos_[i];
-
-        if (!flipX_)
+        if (spriteinfo->mapinfo_)
         {
-            position.x_ = spatialinfo.x_;
-            pivot.x_ = spriteKey->pivotX_ + spriteinfo->deltaHotspotx_;
+            if (!flipX_)
+            {
+                position.x_ = spatialinfo.x_ + spriteinfo->mapinfo_->instruction_->targetdx_;
+                pivot.x_ = spriteKey->pivotX_ + spriteinfo->dPivot_.x_;
+            }
+            else
+            {
+                position.x_ = -spatialinfo.x_ - spriteinfo->mapinfo_->instruction_->targetdx_;
+                pivot.x_ = 1.0f - spriteKey->pivotX_ - spriteinfo->dPivot_.x_;
+            }
+            if (!flipY_)
+            {
+                position.y_ = spatialinfo.y_ + spriteinfo->mapinfo_->instruction_->targetdy_;
+                pivot.y_ = spriteKey->pivotY_ + spriteinfo->dPivot_.y_;
+            }
+            else
+            {
+                position.y_ = -spatialinfo.y_ - spriteinfo->mapinfo_->instruction_->targetdy_;
+                pivot.y_ = 1.0f - spriteKey->pivotY_ - spriteinfo->dPivot_.y_;
+            }
+            angle = spatialinfo.angle_ + spriteinfo->mapinfo_->instruction_->targetdangle_;
         }
         else
         {
-            position.x_ = -spatialinfo.x_;
-            pivot.x_ = 1.0f - spriteKey->pivotX_ - spriteinfo->deltaHotspotx_;
+            if (!flipX_)
+            {
+                position.x_ = spatialinfo.x_;
+                pivot.x_ = spriteKey->pivotX_ + spriteinfo->dPivot_.x_;
+            }
+            else
+            {
+                position.x_ = -spatialinfo.x_;
+                pivot.x_ = 1.0f - spriteKey->pivotX_ - spriteinfo->dPivot_.x_;
+            }
+            if (!flipY_)
+            {
+                position.y_ = spatialinfo.y_;
+                pivot.y_ = spriteKey->pivotY_ + spriteinfo->dPivot_.y_;
+            }
+            else
+            {
+                position.y_ = -spatialinfo.y_;
+                pivot.y_ = 1.0f - spriteKey->pivotY_ - spriteinfo->dPivot_.y_;
+            }
+            angle = spatialinfo.angle_;
         }
-
-        if (!flipY_)
-        {
-            position.y_ = spatialinfo.y_;
-            pivot.y_ = spriteKey->pivotY_;
-            pivot.y_ = spriteKey->pivotY_ + spriteinfo->deltaHotspoty_;
-        }
-        else
-        {
-            position.y_ = -spatialinfo.y_;
-            pivot.y_ = 1.0f - spriteKey->pivotY_ - spriteinfo->deltaHotspoty_;
-        }
-
-        angle = spatialinfo.angle_;
         if (flipX_ != flipY_)
             angle = -angle;
 
-        scale.x_ = spatialinfo.scaleX_ * spriteinfo->scalex_;
-        scale.y_ = spatialinfo.scaleY_ * spriteinfo->scaley_;
+        scale.x_ = spatialinfo.scaleX_ * spriteinfo->scale_.x_;
+        scale.y_ = spatialinfo.scaleY_ * spriteinfo->scale_.y_;
+        if (spriteinfo->mapinfo_)
+        {
+            scale.x_ *= spriteinfo->mapinfo_->instruction_->targetscalex_;
+            scale.y_ *= spriteinfo->mapinfo_->instruction_->targetscaley_;
+        }
 
         sLocalTransform_.Set(position * PIXEL_SIZE, angle, scale);// / texture->GetDpiRatio());
 

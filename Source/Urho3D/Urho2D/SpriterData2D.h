@@ -63,7 +63,7 @@ struct BoneTimelineKey;
 struct BoxTimelineKey;
 
 /// Object type.
-enum ObjectType
+enum SpriterObjectType
 {
     BONE = 0,
     SPRITE,
@@ -124,7 +124,7 @@ namespace KeyPool
     {
         if (!T::freeindexes_.Size())
         {
-            URHO3D_LOGERRORF("No More Key for %s", T::GetStaticType());
+            URHO3D_LOGERRORF("No More Key for %d", T::GetObjectType());
             return 0;
         }
         else
@@ -205,12 +205,15 @@ struct URHO3D_API ObjInfo
     bool Save(pugi::xml_node& node) const;
 
     String name_;
-    ObjectType type_;
+    SpriterObjectType type_;
     float width_;
     float height_;
     float pivotX_;
     float pivotY_;
 };
+
+inline unsigned GetKey(unsigned folderid, unsigned fileid) { return (folderid << 16) + fileid; }
+inline void GetFolderFile(unsigned key, unsigned& folderid, unsigned& fileid) { folderid = key >> 16; fileid = key & 0xFFFF; }
 
 /// Character map.
 struct URHO3D_API CharacterMap
@@ -222,9 +225,8 @@ struct URHO3D_API CharacterMap
     bool Load(const pugi::xml_node& node);
     bool Save(pugi::xml_node& node) const;
 
-    MapInstruction* GetInstruction(unsigned key) const;
-
-    bool GetTargetKey(unsigned key, int& targetfolder, int& targetfile) const;
+    MapInstruction* GetInstruction(unsigned key, bool add=false);
+    void RemoveInstruction(unsigned key);
 
     unsigned id_;
     String name_;
@@ -253,6 +255,8 @@ struct URHO3D_API MapInstruction
     float targetdx_;
     float targetdy_;
     float targetdangle_;
+    float targetscalex_;
+    float targetscaley_;
 };
 
 /// Color map.
@@ -297,6 +301,8 @@ struct URHO3D_API Animation
     bool Load(const pugi::xml_node& node);
     bool Save(pugi::xml_node& node) const;
 
+    void GetObjectRefs(unsigned timeline, PODVector<Ref*>& refs);
+
     unsigned id_;
     String name_;
     float length_;
@@ -321,8 +327,8 @@ struct Ref
     int zIndex_;
 
     Color color_;
-    Vector2 offsetPosition_;
-    float offsetAngle_;
+//    Vector2 offsetPosition_;
+//    float offsetAngle_;
 };
 
 
@@ -340,7 +346,7 @@ struct URHO3D_API Timeline
     unsigned id_;
     String name_;
     StringHash hashname_;
-    ObjectType objectType_;
+    SpriterObjectType objectType_;
     PODVector<SpatialTimelineKey*> keys_;
 };
 
@@ -404,7 +410,8 @@ struct URHO3D_API TimelineKey : public TimeKey
     TimelineKey(Timeline* timeline);
     virtual ~TimelineKey();
 
-    ObjectType GetObjectType() const { return timeline_->objectType_; }
+    SpriterObjectType GetObjectType() const { return timeline_->objectType_; }
+
     virtual TimelineKey* Clone() const = 0;
     virtual void Copy(TimelineKey* copy) const = 0;
 
@@ -428,6 +435,8 @@ struct URHO3D_API SpatialTimelineKey : TimelineKey
     SpatialTimelineKey& operator=(const SpatialTimelineKey& rhs);
 };
 
+
+
 /// Bone timeline key.
 struct URHO3D_API BoneTimelineKey : SpatialTimelineKey
 {
@@ -437,8 +446,6 @@ struct URHO3D_API BoneTimelineKey : SpatialTimelineKey
     BoneTimelineKey();
     BoneTimelineKey(Timeline* timeline);
     virtual ~BoneTimelineKey();
-
-    static const char* GetStaticType() { return "BoneTimelineKey"; }
 
     virtual TimelineKey* Clone() const;
     virtual void Copy(TimelineKey* copy) const;
@@ -471,8 +478,6 @@ struct URHO3D_API SpriteTimelineKey : SpatialTimelineKey
     SpriteTimelineKey(Timeline* timeline);
     virtual ~SpriteTimelineKey();
 
-    static const char* GetStaticType() { return "SpriteTimelineKey"; }
-
     virtual TimelineKey* Clone() const;
     virtual void Copy(TimelineKey* copy) const;
     virtual bool Load(const pugi::xml_node& node);
@@ -499,8 +504,6 @@ struct URHO3D_API BoxTimelineKey : SpatialTimelineKey
     BoxTimelineKey(Timeline* timeline);
     virtual ~BoxTimelineKey();
 
-    static const char* GetStaticType() { return "BoxTimelineKey"; }
-
     virtual TimelineKey* Clone() const;
     virtual void Copy(TimelineKey* copy) const;
     virtual bool Load(const pugi::xml_node& node);
@@ -523,8 +526,6 @@ struct URHO3D_API PointTimelineKey : SpatialTimelineKey
     PointTimelineKey();
     PointTimelineKey(Timeline* timeline);
     virtual ~PointTimelineKey();
-
-    static const char* GetStaticType() { return "PointTimelineKey"; }
 
     virtual TimelineKey* Clone() const;
     virtual void Copy(TimelineKey* copy) const;

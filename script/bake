@@ -433,30 +433,28 @@ LaunchLinuxBuild()
 
 		if [[ $TOOL -eq 1 ]]; then
 
-			BUILDTOOL=build/tool
-			SRCTOOL=../../source-tool
+			BUILDTOOL=$HOME/build/tool
+			SRCTOOL=$HOME/source-tool
 
 			echo ""
 			echo "---------------------------------------------------------------------------------------------"
-			echo "... BUILDING FROMBONES TOOL $HOME/$BUILDTOOL ..."
+			echo "... BUILDING FROMBONES TOOL $BUILDTOOL ..."
 			echo "---------------------------------------------------------------------------------------------"
 
-			cd $HOME
+			cd $SRCTOOL
 
 			if [[ $CONFIG -eq 1 ]]; then
-				mkdir -p $HOME/$BUILDTOOL
-				cd $HOME/$BUILDTOOL
-				$CMAKESCRIPT $CROSSPREFIX -DURHO3D_HOME=$U_HOME/$DIR_RELEASE -DCMAKE_BUILD_TYPE=Release $SRCTOOL
+		        /usr/bin/cmake -E make_directory "$BUILDTOOL" && /usr/bin/cmake -E chdir "$BUILDTOOL" /usr/bin/cmake -G "CodeBlocks - Unix Makefiles" -DURHO3D_HOME=$U_HOME/$DIR_RELEASE -DCMAKE_BUILD_TYPE=Release "$SRCTOOL" 
 			fi
 
 			if [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
-				cd $HOME/$BUILDTOOL
+				cd $BUILDTOOL
 				make -j $NUMPROC
 			fi
 
 			if [[ $INSTALL -eq 1 ]]; then
 				mkdir -p $HOME/bin-tool
-				cd $HOME/$BUILDTOOL
+				cd $BUILDTOOL
 				cp bin/tool/* $HOME/bin-tool
 			fi
 		fi

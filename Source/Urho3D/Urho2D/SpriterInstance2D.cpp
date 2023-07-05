@@ -356,6 +356,9 @@ TimelineKey* SpriterInstance::GetTimelineKey(Timeline* timeline, Ref* ref, float
         timelineKey = timeline->keys_[ref->key_]->Clone();
     }
 
+    // keep ref to timeline
+    timelineKey->timeline_ = timeline;
+
     if (mainlineKey_->curveType_ == INSTANT)
         return timelineKey;
 

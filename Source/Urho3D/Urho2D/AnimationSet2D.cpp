@@ -216,6 +216,7 @@ void AnimationSet2D::GetEntityObjectRefs(Spriter::Entity* entity, const String& 
     }
 }
 
+
 void AnimationSet2D::SetEntityObjectRefAttr(const String& entityname, const String& name, const String& parentname, const Color& color, const Vector2& offset, float angle)
 {
     // Find the entity
@@ -244,8 +245,8 @@ void AnimationSet2D::SetObjectRefAttr(const PODVector<Spriter::Ref*>& objrefs, c
     for (PODVector<Spriter::Ref*>::ConstIterator it = objrefs.Begin(); it != objrefs.End(); ++it)
     {
         Spriter::Ref* ref = *it;
-        ref->offsetPosition_ = offset;
-        ref->offsetAngle_ = angle;
+//        ref->offsetPosition_ = offset;
+//        ref->offsetAngle_ = angle;
         ref->color_ = color;
     }
 }

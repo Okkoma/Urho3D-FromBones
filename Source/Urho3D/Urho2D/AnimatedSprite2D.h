@@ -51,6 +51,7 @@ namespace Spriter
     class SpriterInstance;
     struct Animation;
     struct CharacterMap;
+    struct MapInstruction;
     struct ColorMap;
     struct SpatialTimelineKey;
     struct SpriteTimelineKey;
@@ -60,19 +61,46 @@ class AnimationSet2D;
 class Viewport;
 class Texture;
 
-    struct SpriteInfo
+    struct SpriteMapInfo
     {
-        SpriteInfo() : sprite_(0), pcolor_(0) { }
+        SpriteMapInfo();
+
+        void Clear();
+        void Set(unsigned key, Sprite2D* sprite, Spriter::CharacterMap* map, Spriter::MapInstruction* instruction);
 
         unsigned key_;
+        SharedPtr<Sprite2D> sprite_;
+        Spriter::CharacterMap* map_;
+        Spriter::MapInstruction* instruction_;
+    };
+    struct SpriteInfo
+    {
+        SpriteInfo() : mapinfo_(0), sprite_(0), pcolor_(0) { }
+
+        void Set(Sprite2D* sprite, Color* pcolor=0, const Vector2& scale=Vector2::ONE, const Vector2& dPivot=Vector2::ZERO)
+        {
+            sprite_ = sprite;
+            pcolor_ = pcolor;
+            scale_ = scale;
+            dPivot_ = dPivot;
+        }
+
+        const SpriteMapInfo* mapinfo_;
         Sprite2D* sprite_;
         const Color* pcolor_;
-        float scalex_;
-        float scaley_;
-        float deltaHotspotx_;
-        float deltaHotspoty_;
+        Vector2 scale_, dPivot_;
     };
+    struct SpriteDebugInfo
+    {
+        SpriteDebugInfo() : sprite_(0), spriteinfo_(0) { }
 
+        unsigned key_;
+        unsigned spriteindex_;
+        Sprite2D* sprite_;
+        SpriteInfo* spriteinfo_;
+        Vector2 localposition_;
+        PODVector<Vector2> vertices_;
+    };
     struct EventTriggerInfo
     {
         StringHash type_;
@@ -172,9 +200,6 @@ public:
     /// Return SpriterInstance
     Spriter::SpriterInstance* GetSpriterInstance() const;
 
-    void GetLocalSpritePositions(unsigned spriteindex, Vector2& position, float& angle, Vector2& scale);
-    Sprite2D* GetSprite(unsigned spriteindex) const; //, bool fromInstance=false) const;
-
     /// Get Event Trigger Infos
     const EventTriggerInfo& GetEventTriggerInfo() const { return triggerInfo_; }
 
@@ -205,6 +230,7 @@ public:
     void SwapSprite(const String& characterMap, Sprite2D* replacement, unsigned index=0, bool keepProportion=false);
     void SwapSprites(const String& characterMap, const PODVector<Sprite2D*>& replacements, bool keepProportion=false);
 
+    void SetColorDirty();
     void SetSpriteColor(unsigned key, const Color& color);
     void UnSwapSprite(Sprite2D* original);
     void UnSwapAllSprites();
@@ -232,19 +258,27 @@ public:
     Spriter::CharacterMap* GetCharacterMap(const String& characterMap) const;
     Sprite2D* GetCharacterMapSprite(const String& characterMap, unsigned index=0) const;
 
-    void GetMappedSprites(Spriter::CharacterMap* characterMap, PODVector<Sprite2D*>& sprites) const;
-    Sprite2D* GetMappedSprite(unsigned key) const;
-    Sprite2D* GetMappedSprite(int folderid, int fileid) const;
-    Sprite2D* GetSwappedSprite(Sprite2D* original) const;
     Spriter::ColorMap* GetColorMap(const StringHash& hashname) const;
     Spriter::ColorMap* GetColorMap(const String& name) const;
     const Color& GetSpriteColor(unsigned key) const;
+    unsigned GetNumSpriteKeys() const;
+    const PODVector<Spriter::SpriteTimelineKey* >& GetSpriteKeys() const;
     const PODVector<SpriteInfo*>& GetSpriteInfos();
-    const HashMap<unsigned, SharedPtr<Sprite2D> >& GetSpriteMapping() const { return spriteMapping_; }
+    const HashMap<unsigned, SpriteMapInfo >& GetSpriteMapping() const { return spriteMapping_; }
+    const SpriteMapInfo* GetSpriteMapInfo(unsigned key) const;
     const HashMap<unsigned, Color >& GetSpriteColorMapping() const { return colorMapping_; }
     const HashMap<Sprite2D*, HashMap<Sprite2D*, SpriteInfo> >& GetSpriteSwapping() const { return spriteInfoMapping_; }
 
     float GetMappingScaleRatio() const { return mappingScaleRatio_; }
+
+    /// Sprite Getters
+    void GetMappedSprites(Spriter::CharacterMap* characterMap, PODVector<Sprite2D*>& sprites) const;
+    Sprite2D* GetMappedSprite(unsigned key) const;
+    Sprite2D* GetMappedSprite(int folderid, int fileid) const;
+    Sprite2D* GetSwappedSprite(Sprite2D* original) const;
+    void GetSpriteLocalPositions(unsigned spriteindex, Vector2& position, float& angle, Vector2& scale);
+    Sprite2D* GetSprite(unsigned spriteindex) const; //, bool fromInstance=false) const;
+    bool GetSpriteAt(const Vector2& position, bool findbottomsprite, float minalpha, SpriteDebugInfo& info);
 
 /// RENDER TARGET
     static void SetRenderTargetContext(Texture2D* texture=0, Viewport* viewport=0, Material* material=0);
@@ -309,7 +343,7 @@ protected:
     void SwapSprite(Sprite2D* original, Sprite2D* replacement, bool keepProportion=false);
     void SwapSprites(const PODVector<Sprite2D*>& originals, const PODVector<Sprite2D*>& replacements, bool keepProportion=false);
 
-    SpriteInfo* GetSpriteInfo(unsigned key, Sprite2D* sprite, Sprite2D* origin);
+    SpriteInfo* GetSpriteInfo(unsigned key, const SpriteMapInfo* mapinfo, Sprite2D* sprite, Sprite2D* origin);
 
     /// Speed.
     float speed_;
@@ -356,7 +390,7 @@ protected:
     VariantVector colorMapApplied_;
 
     /// Current Sprite Mapping (key = Spriter(folder-file) )
-    HashMap<unsigned, SharedPtr<Sprite2D> > spriteMapping_;
+    HashMap<unsigned, SpriteMapInfo > spriteMapping_;
     /// Color Sprite Mapping (key = Spriter(folder-file) )
     HashMap<unsigned, Color > colorMapping_;
     /// Swap Sprite Mapping
