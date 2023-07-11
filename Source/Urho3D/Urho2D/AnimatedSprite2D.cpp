@@ -513,7 +513,7 @@ void AnimatedSprite2D::AddPhysicalNode(Node* node)
 
 void AnimatedSprite2D::SetAppliedCharacterMapsAttr(const VariantVector& characterMapApplied)
 {
-    characterMapApplied_.Clear();
+    ResetCharacterMapping(false);
 
     if (characterMapApplied.Empty())
         return;
@@ -1210,23 +1210,25 @@ bool AnimatedSprite2D::GetSpriteAt(const Vector2& wposition, bool findbottomspri
         position -= drawRect.min_;
         position /= drawRect.Size();
 
-        // Get Sprite Rectangle in the texture
-        const IntRect& rect = sprite->GetRectangle();
-
         // Get the pixel in the sprite rectangle
+        const IntRect& rect = sprite->GetRectangle();
         IntVector2 pixelcoord(flipX_ ? rect.right_ - position.x_ * (rect.right_ - rect.left_) : rect.left_ + position.x_ * (rect.right_ - rect.left_),
                               flipY_ ? rect.top_ - position.y_ * (rect.top_ - rect.bottom_) : rect.bottom_ + position.y_ * (rect.top_ - rect.bottom_));
         if (rect.IsInside(pixelcoord) == OUTSIDE)
             continue;
-        if (sprite->GetTexture()->GetImage()->GetPixel(pixelcoord.x_, pixelcoord.y_).a_ < minalpha)
-            continue;
+        // Is the Pixel inside the image ?
+        if (sprite->GetTexture()->GetLoadImageStored())
+            if (sprite->GetTexture()->GetLoadImage()->GetPixel(pixelcoord.x_, pixelcoord.y_).a_ < minalpha)
+                continue;
 
         // 3. set the debug info
         info.key_ = key;
         info.spriteindex_ = spriteindex;
         info.sprite_ = msprite;
         info.spriteinfo_ = spriteinfo;
-        info.localposition_ = sLocalTransform_.Translation();
+        info.localposition_ = position;
+        info.localscale_ = scale;
+        info.localrotation_ = angle;
 
         Matrix2x3 nodeWorldTransform;
         if (localRotation_ != 0.f || localPosition_ != Vector2::ZERO)

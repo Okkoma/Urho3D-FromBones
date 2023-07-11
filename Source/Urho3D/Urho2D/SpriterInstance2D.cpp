@@ -185,8 +185,8 @@ bool SpriterInstance::Update(float deltaTime)
     if (HasFinishedAnimation())
         return false;
 
-    if (!deltaTime)
-        currentTime_ = 0.f;
+//    if (!deltaTime)
+//        currentTime_ = 0.f;
 
     if (!UpdateMainlineKeys(deltaTime))
         return false;

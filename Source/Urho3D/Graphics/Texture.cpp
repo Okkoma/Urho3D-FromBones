@@ -78,7 +78,8 @@ Texture::Texture(Context* context) :
     resolveDirty_(false),
     levelsDirty_(false),
     dpiScale_(1.f),
-    dpiRatio_(1.f)
+    dpiRatio_(1.f),
+    loadImageStored_(false)
 {
     for (int i = 0; i < MAX_COORDS; ++i)
         addressMode_[i] = ADDRESS_WRAP;
@@ -141,6 +142,11 @@ void Texture::SetDpiScale(float scale)
 void Texture::SetDpiRatio(float ratio)
 {
     dpiRatio_ = ratio;
+}
+
+void Texture::SetLoadImageStored(bool enable)
+{
+    loadImageStored_ = enable;
 }
 
 void Texture::SetMipsToSkip(int quality, int toSkip)
@@ -270,6 +276,9 @@ void Texture::SetParameters(const XMLElement& element)
 
         if (name == "dpiscml")
             SetDpiRatio(paramElem.GetFloat("ratio"));
+
+        if (name == "image")
+            SetLoadImageStored(paramElem.GetBool("stored"));
     }
 }
 

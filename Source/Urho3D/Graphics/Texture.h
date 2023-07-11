@@ -62,6 +62,7 @@ public:
     void SetBorderColor(const Color& color);
     /// Set sRGB sampling and writing mode.
     void SetSRGB(bool enable);
+
     /// Set backup texture to use when rendering to this texture.
     void SetBackupTexture(Texture* texture);
 //#ifdef URHO3D_VULKAN
@@ -93,6 +94,9 @@ public:
     float GetDpiScale() const { return dpiScale_; }
     void SetDpiRatio(float ratio);
     float GetDpiRatio() const { return dpiRatio_; }
+    /// Set if the Image used to load the texture must be keeped in the memory
+    void SetLoadImageStored(bool enable);
+    bool GetLoadImageStored() const { return loadImageStored_; }
 
     /// Return API-specific texture format.
     unsigned GetFormat() const { return format_; }
@@ -279,6 +283,8 @@ protected:
     bool resolveDirty_;
     /// Mipmap levels regeneration needed -flag.
     bool levelsDirty_;
+    /// Keep Image needed flag
+    bool loadImageStored_;
     /// Backup texture.
     SharedPtr<Texture> backupTexture_;
 

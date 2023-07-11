@@ -497,6 +497,7 @@ bool Entity::Save(pugi::xml_node& node) const
             ok &= cmap->Save(child);
         }
     }
+
     for (PODVector<Animation*>::ConstIterator it = animations_.Begin(); it != animations_.End(); ++it)
     {
         Animation* animation = *it;
@@ -633,6 +634,8 @@ MapInstruction* CharacterMap::GetInstruction(unsigned key, bool add)
     unsigned file;
     GetFolderFile(key, folder, file);
 
+    MapInstruction* instruction = GetInstruction(folder, file);
+
     for (PODVector<MapInstruction*>::ConstIterator it = maps_.Begin(); it != maps_.End(); ++it)
     {
         MapInstruction* mapinstruct = *it;
@@ -642,18 +645,28 @@ MapInstruction* CharacterMap::GetInstruction(unsigned key, bool add)
         }
     }
 
-    if (add)
+    if (!instruction && add)
     {
-        MapInstruction* instruction = new MapInstruction();
+        instruction = new MapInstruction();
         instruction->SetOrigin(key);
         maps_.Push(instruction);
-        return instruction;
     }
 
+    return instruction;
+}
+
+MapInstruction* CharacterMap::GetInstruction(unsigned folder, unsigned file)
+{
+    for (PODVector<MapInstruction*>::ConstIterator it = maps_.Begin(); it != maps_.End(); ++it)
+    {
+        MapInstruction* mapinstruct = *it;
+        if (mapinstruct->folder_ == folder && mapinstruct->file_ == file)
+            return mapinstruct;
+    }
     return 0;
 }
 
-void CharacterMap::RemoveInstruction(unsigned key)
+MapInstruction*  CharacterMap::RemoveInstruction(unsigned key)
 {
     unsigned folder;
     unsigned file;
@@ -666,9 +679,11 @@ void CharacterMap::RemoveInstruction(unsigned key)
         {
             maps_.Erase(it);
             delete mapinstruct;
-            return;
+            return 0;
         }
     }
+
+    return 0;
 }
 
 
@@ -973,17 +988,53 @@ bool Animation::Save(pugi::xml_node& node) const
 void Animation::GetObjectRefs(unsigned timeline, PODVector<Ref*>& refs)
 {
     refs.Clear();
-    for (PODVector<MainlineKey*>::ConstIterator jt = mainlineKeys_.Begin(); jt != mainlineKeys_.End(); ++jt)
+
+    for (PODVector<MainlineKey*>::ConstIterator it = mainlineKeys_.Begin(); it != mainlineKeys_.End(); ++it)
     {
-        MainlineKey* mkey = *jt;
-        for (PODVector<Spriter::Ref*>::ConstIterator kt = mkey->objectRefs_.Begin(); kt != mkey->objectRefs_.End(); ++kt)
-        {
-            Ref* ref = *kt;
-            if (ref->timeline_ == timeline)
-                refs.Push(ref);
-        }
+        Ref* ref = (*it)->GetObjectRef(timeline);
+        if (ref)
+            refs.Push(ref);
     }
 }
+
+MainlineKey* Animation::GetMainlineKey(float time) const
+{
+    MainlineKey* mainkey = mainlineKeys_.Front();
+    for (PODVector<MainlineKey*>::ConstIterator it = mainlineKeys_.End() - 1; it != mainlineKeys_.Begin(); --it)
+    {
+        if (time >= (*it)->time_)
+        {
+            mainkey = *it;
+            break;
+        }
+    }
+    return mainkey;
+}
+
+void Animation::UnMapToRoot(SpatialTimelineKey* tkey, float time, bool includeFirstKey, SpatialInfo& info) const
+{
+    const unsigned timeline = tkey->timeline_->id_;
+
+    if (includeFirstKey)
+        info = tkey->info_;
+
+    // Get the Main Key at time
+    MainlineKey* mainkey = GetMainlineKey(time);
+
+    // Get the Ref of the timeline in the boneRefs
+    Ref* ref = mainkey->GetBoneRef(timeline);
+    // Get the Ref of the timeline in the objectRefs if has no ref in the bone.
+    if (!ref)
+        ref = mainkey->GetObjectRef(timeline);
+
+    // UnMap the spatialinfo until reaching the root
+    while (ref && ref->parent_ != -1)
+    {
+        ref = mainkey->boneRefs_[ref->parent_];
+        info.UnmapFromParent(timelines_[ref->timeline_]->GetTimeKey(time)->info_);
+    }
+}
+
 
 // From http://www.brashmonkey.com/ScmlDocs/ScmlReference.html
 
@@ -1206,15 +1257,30 @@ bool MainlineKey::Save(pugi::xml_node& node) const
     return true;
 }
 
-
-Ref::Ref()
+Ref* MainlineKey::GetBoneRef(unsigned timeline) const
 {
-
+    for (PODVector<Ref*>::ConstIterator it = boneRefs_.Begin(); it != boneRefs_.End(); ++it)
+    {
+        if ((*it)->timeline_ == timeline)
+            return *it;
+    }
+    return 0;
 }
 
-Ref::~Ref()
+Ref* MainlineKey::GetObjectRef(unsigned timeline) const
 {
+    for (PODVector<Ref*>::ConstIterator it = objectRefs_.Begin(); it != objectRefs_.End(); ++it)
+    {
+        if ((*it)->timeline_ == timeline)
+            return *it;
+    }
+    return 0;
 }
+
+
+Ref::Ref() { }
+
+Ref::~Ref() { }
 
 bool Ref::Load(const pugi::xml_node& node)
 {
@@ -1367,6 +1433,19 @@ bool Timeline::Save(pugi::xml_node& node) const
     return true;
 }
 
+SpatialTimelineKey* Timeline::GetTimeKey(float time) const
+{
+    if (time == 0.f)
+        return keys_.Front();
+
+    for (PODVector<SpatialTimelineKey*>::ConstIterator it = keys_.End()-1; it != keys_.Begin(); --it)
+    {
+        if (time >= (*it)->time_)
+            return *it;
+    }
+
+    return keys_.Front();
+}
 
 TimelineKey::TimelineKey(Timeline* timeline) :
     timeline_(timeline)

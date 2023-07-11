@@ -2418,6 +2418,9 @@ void Input::HandleScreenMode(StringHash eventType, VariantMap& eventData)
     // Re-enable cursor clipping, and re-center the cursor (if needed) to the new screen size, so that there is no erroneous
     // mouse move event. Also get new window ID if it changed
     SDL_Window* window = graphics_->GetWindow();
+    if (!window)
+        return;
+
     windowID_ = SDL_GetWindowID(window);
 
     // If screen mode happens due to mouse drag resize, do not recenter the mouse as that would lead to erratic window sizes

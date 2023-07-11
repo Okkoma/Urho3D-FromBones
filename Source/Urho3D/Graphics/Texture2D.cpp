@@ -103,7 +103,8 @@ bool Texture2D::EndLoad()
     SetParameters(loadParameters_);
     bool success = SetData(loadImage_);
 
-    loadImage_.Reset();
+    if (!loadImageStored_)
+        loadImage_.Reset();
     loadParameters_.Reset();
 
 //    URHO3D_LOGERRORF("Texture2D() - EndLoad : name=%s !", GetName().CString());
@@ -186,6 +187,8 @@ SharedPtr<Image> Texture2D::GetImage() const
     GetData(0, rawImage->GetData());
     return SharedPtr<Image>(rawImage);
 }
+
+Image* Texture2D::GetLoadImage() const { return loadImage_.Get(); }
 
 void Texture2D::HandleRenderSurfaceUpdate(StringHash eventType, VariantMap& eventData)
 {

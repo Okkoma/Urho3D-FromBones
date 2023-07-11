@@ -105,7 +105,7 @@ public:
     const HashMap<Timeline*, BoxTimelineKey* >& GetPhysicTriggers() const { return physicTriggers_; }
     /// Return time passed on the current animation.
     float GetCurrentTime() const { return currentTime_; }
-
+    int GetCurrentMainKeyId() const { return mainlineKey_ ? mainlineKey_->id_ : -1; }
     void ResetCurrentTime();
     bool HasFinishedAnimation() const;
 

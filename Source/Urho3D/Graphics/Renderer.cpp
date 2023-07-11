@@ -1697,6 +1697,47 @@ void Renderer::Initialize()
     shadersDirty_ = true;
     initialized_ = true;
 
+    frame_.frameNumber_ = 0U;
+
+#ifdef URHO3D_VULKAN
+    URHO3D_LOGINFO("Renderer() - Initialize : RegisterPipelineInfo : ...");
+
+    PODVector<VertexElement> vertexElements;
+    vertexElements.Push(VertexElement(TYPE_VECTOR3, SEM_POSITION));
+    vertexElements.Push(VertexElement(TYPE_UBYTE4_NORM, SEM_COLOR));
+    VertexBuffer::UpdateOffsets(vertexElements);
+
+    ShaderVariation* noTextureVS = graphics_->GetShader(VS, "Basic");
+    ShaderVariation* noTexturePS = graphics_->GetShader(PS, "Basic");
+
+    unsigned stateBlendAlphaMS1 = graphics_->GetImpl()->GetDefaultPipelineStates(PIPELINESTATE_BLENDMODE, BLEND_ALPHA);
+    unsigned stateBlendAlphaMS4 = graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS1, PIPELINESTATE_SAMPLES, 2);
+
+    // Primitive Triangle
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassWithTarget, noTextureVS, noTexturePS, stateBlendAlphaMS1, 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassWithTarget, noTextureVS, noTexturePS, stateBlendAlphaMS4, 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassNoClear, noTextureVS, noTexturePS, stateBlendAlphaMS1, 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassNoClear, noTextureVS, noTexturePS, stateBlendAlphaMS4, 1, &vertexElements);
+
+    // Primitive Line
+    stateBlendAlphaMS1 = graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS1, PIPELINESTATE_PRIMITIVE, 1);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassWithTarget, noTextureVS, noTexturePS, stateBlendAlphaMS1, 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassWithTarget, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS1, PIPELINESTATE_LINEWIDTH, 1), 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassWithTarget, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS1, PIPELINESTATE_LINEWIDTH, 2), 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassNoClear, noTextureVS, noTexturePS, stateBlendAlphaMS1, 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassNoClear, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS1, PIPELINESTATE_LINEWIDTH, 1), 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassNoClear, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS1, PIPELINESTATE_LINEWIDTH, 2), 1, &vertexElements);
+
+    stateBlendAlphaMS4 = graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS4, PIPELINESTATE_PRIMITIVE, 1);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassWithTarget, noTextureVS, noTexturePS, stateBlendAlphaMS4, 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassWithTarget, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS4, PIPELINESTATE_LINEWIDTH, 1), 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassWithTarget, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS4, PIPELINESTATE_LINEWIDTH, 2), 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassNoClear, noTextureVS, noTexturePS, stateBlendAlphaMS4, 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassNoClear, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS4, PIPELINESTATE_LINEWIDTH, 1), 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassNoClear, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS4, PIPELINESTATE_LINEWIDTH, 2), 1, &vertexElements);
+
+#endif
+
     SubscribeToEvent(E_RENDERUPDATE, URHO3D_HANDLER(Renderer, HandleRenderUpdate));
 
     URHO3D_LOGINFO("Initialized renderer");

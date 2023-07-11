@@ -99,6 +99,8 @@ class Texture;
         Sprite2D* sprite_;
         SpriteInfo* spriteinfo_;
         Vector2 localposition_;
+        Vector2 localscale_;
+        float localrotation_;
         PODVector<Vector2> vertices_;
     };
     struct EventTriggerInfo
@@ -229,6 +231,8 @@ public:
     void SwapSprites(const StringHash& characterMap, const PODVector<Sprite2D*>& replacements, bool keepProportion=false);
     void SwapSprite(const String& characterMap, Sprite2D* replacement, unsigned index=0, bool keepProportion=false);
     void SwapSprites(const String& characterMap, const PODVector<Sprite2D*>& replacements, bool keepProportion=false);
+    void SwapSprite(Sprite2D* original, Sprite2D* replacement, bool keepProportion=false);
+    void SwapSprites(const PODVector<Sprite2D*>& originals, const PODVector<Sprite2D*>& replacements, bool keepProportion=false);
 
     void SetColorDirty();
     void SetSpriteColor(unsigned key, const Color& color);
@@ -339,9 +343,6 @@ protected:
     /// Character Maps
     bool ApplyCharacterMap(Spriter::CharacterMap* characterMap);
     bool ApplyColorMap(Spriter::ColorMap* colorMap);
-
-    void SwapSprite(Sprite2D* original, Sprite2D* replacement, bool keepProportion=false);
-    void SwapSprites(const PODVector<Sprite2D*>& originals, const PODVector<Sprite2D*>& replacements, bool keepProportion=false);
 
     SpriteInfo* GetSpriteInfo(unsigned key, const SpriteMapInfo* mapinfo, Sprite2D* sprite, Sprite2D* origin);
 

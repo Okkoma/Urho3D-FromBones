@@ -226,7 +226,8 @@ struct URHO3D_API CharacterMap
     bool Save(pugi::xml_node& node) const;
 
     MapInstruction* GetInstruction(unsigned key, bool add=false);
-    void RemoveInstruction(unsigned key);
+    MapInstruction* GetInstruction(unsigned folder, unsigned file);
+    MapInstruction* RemoveInstruction(unsigned key);
 
     unsigned id_;
     String name_;
@@ -291,6 +292,7 @@ struct URHO3D_API ColorMapInstruction
     int file_;
     Color color_;
 };
+
 /// Animation.
 struct URHO3D_API Animation
 {
@@ -302,6 +304,9 @@ struct URHO3D_API Animation
     bool Save(pugi::xml_node& node) const;
 
     void GetObjectRefs(unsigned timeline, PODVector<Ref*>& refs);
+
+    MainlineKey* GetMainlineKey(float time) const;
+    void UnMapToRoot(SpatialTimelineKey* tkey, float time, bool includeFirstKey, SpatialInfo& info) const;
 
     unsigned id_;
     String name_;
@@ -342,6 +347,8 @@ struct URHO3D_API Timeline
     void Reset();
     bool Load(const pugi::xml_node& node);
     bool Save(pugi::xml_node& node) const;
+
+    SpatialTimelineKey* GetTimeKey(float time) const;
 
     unsigned id_;
     String name_;
@@ -400,6 +407,9 @@ struct URHO3D_API MainlineKey : public TimeKey
 
     void Reset();
 
+    Ref* GetBoneRef(unsigned timeline) const;
+    Ref* GetObjectRef(unsigned timeline) const;
+
     PODVector<Ref*> boneRefs_;
     PODVector<Ref*> objectRefs_;
 };
@@ -432,6 +442,7 @@ struct URHO3D_API SpatialTimelineKey : TimelineKey
     virtual bool Load(const pugi::xml_node& node);
     virtual bool Save(pugi::xml_node& node) const;
     virtual void Interpolate(const TimelineKey& other, float t);
+
     SpatialTimelineKey& operator=(const SpatialTimelineKey& rhs);
 };
 

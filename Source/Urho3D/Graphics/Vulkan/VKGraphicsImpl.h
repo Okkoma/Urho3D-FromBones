@@ -366,6 +366,7 @@ public:
     unsigned GetPipelineState(unsigned pipelineStates, PipelineState state) const;
     unsigned GetDefaultPipelineStates() const;
     unsigned GetDefaultPipelineStates(PipelineState stateToModify, unsigned value);
+    unsigned GetPipelineStateVariation(unsigned entrypipelineStates, PipelineState state, unsigned value);
 
     PipelineInfo* GetPipelineInfo(unsigned renderPassKey, ShaderVariation* vs, ShaderVariation* ps, unsigned states, unsigned stencilvalue=0) const;
     PipelineInfo* GetPipelineInfo(const StringHash& key) const;

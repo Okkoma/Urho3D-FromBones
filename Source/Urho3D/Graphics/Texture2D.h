@@ -70,6 +70,7 @@ public:
     bool GetData(unsigned level, void* dest) const;
     /// Get image data from zero mip level. Only RGB and RGBA textures are supported.
     SharedPtr<Image> GetImage() const;
+    Image* GetLoadImage() const;
 
     /// Return render surface.
     RenderSurface* GetRenderSurface() const { return renderSurface_; }

@@ -1756,6 +1756,7 @@ void Graphics::SetLineAntiAlias(bool enable)
     if (enable != lineAntiAlias_)
     {
         lineAntiAlias_ = enable;
+        impl_->SetPipelineState(impl_->pipelineStates_, PIPELINESTATE_SAMPLES, enable ? 2 : 0);
     }
 }
 

@@ -183,8 +183,8 @@ const char* PipelineStateNames_[PIPELINESTATE_MAX] =
 static const float LineWidthValues_[] =
 {
     1.f,
-    5.f,
-    10.f
+    2.5f,
+    5.f
 };
 
 
@@ -570,14 +570,14 @@ void PipelineBuilder::AddDynamicState(VkDynamicState state)
     dynamicState_.pDynamicStates    = numDynamicStates_ ? dynamicStates_ : nullptr;
 }
 
-void PipelineBuilder::SetMultiSampleState(int samples)
+void PipelineBuilder::SetMultiSampleState(int p)
 {
-    int p = RoundToInt(Sqrt(Clamp((float)samples, 1.f, 64.f))) - 1;
-    URHO3D_LOGDEBUGF("multisample = %d (%d)", samples, 1 << p);
-//    multiSampleState_.sampleShadingEnable  = samples > 1 ? VK_TRUE : VK_FALSE;
-//    multiSampleState_.rasterizationSamples = (VkSampleCountFlagBits)(1 << p);
-    multiSampleState_.sampleShadingEnable  = VK_FALSE;
-    multiSampleState_.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    int samples = Min(1 << p, VK_SAMPLE_COUNT_64_BIT);
+    URHO3D_LOGDEBUGF("multisample = numSamples=%d (puissance=%d)", samples, p);
+    multiSampleState_.sampleShadingEnable  = p > 0 ? VK_TRUE : VK_FALSE;
+    multiSampleState_.rasterizationSamples = (VkSampleCountFlagBits)(samples);
+    //multiSampleState_.sampleShadingEnable  = VK_FALSE;
+    //multiSampleState_.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 }
 
 void PipelineBuilder::SetColorBlend(bool enable, VkLogicOp logicOp, float b0, float b1, float b2, float b3)
@@ -2606,6 +2606,14 @@ void GraphicsImpl::SetPipelineState(unsigned& pipelineStates, PipelineState stat
     }
 }
 
+unsigned GraphicsImpl::GetPipelineStateVariation(unsigned entrypipelineStates, PipelineState state, unsigned value)
+{
+    unsigned offset = PipelineStateMaskBits[state][0];
+    unsigned mask   = (PipelineStateMaskBits[state][1] << offset);
+
+    return ((value << offset) & mask) + (entrypipelineStates & ~mask);
+}
+
 PipelineInfo* GraphicsImpl::RegisterPipelineInfo(unsigned renderPassKey, ShaderVariation* vs, ShaderVariation* ps, unsigned states, unsigned numVertexTables, const PODVector<VertexElement>* vertexTables)
 {
     // Hash vertex elements
@@ -2715,11 +2723,11 @@ PipelineInfo* GraphicsImpl::RegisterPipelineInfo(unsigned renderPassKey, ShaderV
         table.Resize(stencilValue_+1);
     table[stencilValue_] = &info;
 
-    URHO3D_LOGDEBUGF("RegisterPipelineInfo name=%s key=%u keyname=%s ...", vs->GetName().CString(), key.Value(), keyname.CString());
-    URHO3D_LOGDEBUGF("                     renderPassKey=%u ...", renderPassKey);
-    URHO3D_LOGDEBUGF("                     %s vs=%s(%u)", vs->GetCachedFileName().CString(), vs->GetDefines().CString(), vs->GetVariationHash().Value());
-    URHO3D_LOGDEBUGF("                     %s ps=%s(%u)", ps->GetCachedFileName().CString(), ps->GetDefines().CString(), ps->GetVariationHash().Value());
-    URHO3D_LOGDEBUGF("                     states=%u(%s) stencilValue=%u", states, DumpPipelineStates(states).CString(), stencilValue_);
+    URHO3D_LOGERRORF("RegisterPipelineInfo name=%s key=%u keyname=%s ...", vs->GetName().CString(), key.Value(), keyname.CString());
+    URHO3D_LOGERRORF("                     renderPassKey=%u ...", renderPassKey);
+    URHO3D_LOGERRORF("                     %s vs=%s(%u)", vs->GetCachedFileName().CString(), vs->GetDefines().CString(), vs->GetVariationHash().Value());
+    URHO3D_LOGERRORF("                     %s ps=%s(%u)", ps->GetCachedFileName().CString(), ps->GetDefines().CString(), ps->GetVariationHash().Value());
+    URHO3D_LOGERRORF("                     states=%u(%s) stencilValue=%u", states, DumpPipelineStates(states).CString(), stencilValue_);
 
     return &info;
 }
@@ -2791,11 +2799,12 @@ VkPipeline GraphicsImpl::CreatePipeline(PipelineInfo* info)
     bool depthenable = depthtest != CMP_ALWAYS || depthwrite != 0;
     bool stenciltest = GetPipelineStateInternal(info, PIPELINESTATE_STENCILTEST);
     int stencilmode = GetPipelineStateInternal(info, PIPELINESTATE_STENCILMODE);
+    int samples = GetPipelineStateInternal(info, PIPELINESTATE_SAMPLES);
 
-    URHO3D_LOGDEBUGF("CreatePipeline name=%s key=%u vs=%s ps=%s prim=%d fill=%d cull=%d linew=%F blend=%u colorwrite=%s depthtest=%d depthwrite=%s depthenable=%s stencil=%s stencilvalue=%u",
+    URHO3D_LOGERRORF("CreatePipeline name=%s key=%u vs=%s ps=%s prim=%d fill=%d cull=%d linew=%F blend=%u colorwrite=%s depthtest=%d depthwrite=%s depthenable=%s stencil=%s stencilvalue=%u samples=%d",
                      info->vs_->GetName().CString(), info->key_.Value(), info->vs_->GetDefines().CString(),
                      info->ps_->GetDefines().CString(), primitive, fillmode, cullmode, LineWidthValues_[linewidth], blendmode, colormask ? "true":"false", depthtest, depthwrite ? "true":"false",
-                     depthenable ? "true":"false", stenciltest ? "true":"false", info->stencilValue_);
+                     depthenable ? "true":"false", stenciltest ? "true":"false", info->stencilValue_, samples);
 
     pipelineBuilder_.CleanUp();
     pipelineBuilder_.AddShaderStage(info->vs_);
@@ -2806,6 +2815,7 @@ VkPipeline GraphicsImpl::CreatePipeline(PipelineInfo* info)
     pipelineBuilder_.SetDepthStencil(depthenable, depthtest, depthwrite, stenciltest, stencilmode, info->stencilValue_);
     pipelineBuilder_.AddDynamicState(VK_DYNAMIC_STATE_VIEWPORT);
     pipelineBuilder_.AddDynamicState(VK_DYNAMIC_STATE_SCISSOR);
+    pipelineBuilder_.SetMultiSampleState(samples);
 //    pipelineBuilder_.SetMultiSampleState(1);
 //    pipelineBuilder_.SetColorBlend(true);
     const RenderPassInfo* renderPassInfo = GetRenderPassInfo(info->renderPassKey_);
