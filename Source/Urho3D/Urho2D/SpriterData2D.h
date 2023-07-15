@@ -83,6 +83,8 @@ enum CurveType
     BEZIER
 };
 
+extern const char* CurveTypeStr[];
+
 /// Spriter data.
 struct URHO3D_API SpriterData
 {
@@ -303,7 +305,8 @@ struct URHO3D_API Animation
     bool Load(const pugi::xml_node& node);
     bool Save(pugi::xml_node& node) const;
 
-    void GetObjectRefs(unsigned timeline, PODVector<Ref*>& refs);
+    void GetBoneRefs(unsigned timeline, PODVector<Ref*>& refs, unsigned startmainkeyid=0);
+    void GetObjectRefs(unsigned timeline, PODVector<Ref*>& refs, unsigned startmainkeyid=0);
 
     MainlineKey* GetMainlineKey(float time) const;
     void UnMapToRoot(SpatialTimelineKey* tkey, float time, bool includeFirstKey, SpatialInfo& info) const;
@@ -324,6 +327,8 @@ struct Ref
 
     bool Load(const pugi::xml_node& node);
     bool Save(pugi::xml_node& node) const;
+
+    void Copy(Ref& copy) const;
 
     unsigned id_;
     int parent_;
@@ -407,6 +412,7 @@ struct URHO3D_API MainlineKey : public TimeKey
 
     void Reset();
 
+    Ref* GetRef(unsigned timeline) const;
     Ref* GetBoneRef(unsigned timeline) const;
     Ref* GetObjectRef(unsigned timeline) const;
 

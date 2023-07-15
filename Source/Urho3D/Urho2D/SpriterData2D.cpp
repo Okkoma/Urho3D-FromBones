@@ -985,13 +985,27 @@ bool Animation::Save(pugi::xml_node& node) const
     return true;
 }
 
-void Animation::GetObjectRefs(unsigned timeline, PODVector<Ref*>& refs)
+void Animation::GetBoneRefs(unsigned timeline, PODVector<Ref*>& refs, unsigned startmainkeyid)
 {
-    refs.Clear();
-
-    for (PODVector<MainlineKey*>::ConstIterator it = mainlineKeys_.Begin(); it != mainlineKeys_.End(); ++it)
+    if (!mainlineKeys_.Size())
+        return;
+//    startmainkeyid = Clamp(startmainkeyid, 0U, mainlineKeys_.Size()-1);
+    for (unsigned i = startmainkeyid; i < mainlineKeys_.Size(); i++)
     {
-        Ref* ref = (*it)->GetObjectRef(timeline);
+        Ref* ref = mainlineKeys_[i]->GetBoneRef(timeline);
+        if (ref)
+            refs.Push(ref);
+    }
+}
+
+void Animation::GetObjectRefs(unsigned timeline, PODVector<Ref*>& refs, unsigned startmainkeyid)
+{
+    if (!mainlineKeys_.Size())
+        return;
+//    startmainkeyid = Clamp(startmainkeyid, 0U, mainlineKeys_.Size()-1);
+    for (unsigned i = startmainkeyid; i < mainlineKeys_.Size(); i++)
+    {
+        Ref* ref = mainlineKeys_[i]->GetObjectRef(timeline);
         if (ref)
             refs.Push(ref);
     }
@@ -1257,6 +1271,21 @@ bool MainlineKey::Save(pugi::xml_node& node) const
     return true;
 }
 
+Ref* MainlineKey::GetRef(unsigned timeline) const
+{
+    for (PODVector<Ref*>::ConstIterator it = boneRefs_.Begin(); it != boneRefs_.End(); ++it)
+    {
+        if ((*it)->timeline_ == timeline)
+            return *it;
+    }
+    for (PODVector<Ref*>::ConstIterator it = objectRefs_.Begin(); it != objectRefs_.End(); ++it)
+    {
+        if ((*it)->timeline_ == timeline)
+            return *it;
+    }
+    return 0;
+}
+
 Ref* MainlineKey::GetBoneRef(unsigned timeline) const
 {
     for (PODVector<Ref*>::ConstIterator it = boneRefs_.Begin(); it != boneRefs_.End(); ++it)
@@ -1334,6 +1363,16 @@ bool Ref::Save(pugi::xml_node& node) const
     return true;
 }
 
+void Ref::Copy(Ref& copy) const
+{
+    copy = *this;
+//    copy.id_ = id_;
+//    copy.parent_ = parent_;
+//    copy.timeline_ = timeline_;
+//    copy.key_ = key_;
+//    copy.zIndex_= zIndex_;
+//    copy.color_ = color_;
+}
 
 Timeline::Timeline()
 {
@@ -1447,6 +1486,7 @@ SpatialTimelineKey* Timeline::GetTimeKey(float time) const
     return keys_.Front();
 }
 
+
 TimelineKey::TimelineKey(Timeline* timeline) :
     timeline_(timeline)
 { }
@@ -1466,6 +1506,7 @@ TimelineKey& TimelineKey::operator=(const TimelineKey& rhs)
     c4_ = rhs.c4_;
     return *this;
 }
+
 
 SpatialInfo::SpatialInfo(float x, float y, float angle, float scale_x, float scale_y, float a, int spin)
 {
@@ -1506,7 +1547,6 @@ void SpatialInfo::UnmapFromParent(const SpatialInfo& parentInfo)
     }
 }
 
-
 void SpatialInfo::Interpolate(const SpatialInfo& other, float t)
 {
     x_ = Linear(x_, other.x_, t);
@@ -1515,19 +1555,6 @@ void SpatialInfo::Interpolate(const SpatialInfo& other, float t)
     scaleY_ = Linear(scaleY_, other.scaleY_, t);
     alpha_ = Linear(alpha_, other.alpha_, t);
     angle_ = AngleLinear(angle_, other.angle_, spin, t);
-
-//    if (spin > 0.0f && (other.angle_ - angle_ < 0.0f))
-//    {
-//        angle_ = Linear(angle_, other.angle_ + 360.0f, t);
-//    }
-//    else if (spin < 0.0f && (other.angle_ - angle_ > 0.0f))
-//    {
-//        angle_ = Linear(angle_, other.angle_ - 360.0f, t);
-//    }
-//    else
-//    {
-//        angle_ = Linear(angle_, other.angle_, t);
-//    }
 }
 
 
