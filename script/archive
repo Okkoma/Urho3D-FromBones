@@ -8,11 +8,11 @@
 
 DISKSTATIONPATH="Users/chris/Dev/Frombones"
 URHO=Urho3D
-FB=FromBones
+APP=FromBones
 RES=FromBones-Ressources
 U_HOME=Urho3D/$URHO
 
-F_HOME=Projets/$FB
+A_HOME=Projets/$APP
 R_HOME=Projets/$RES
 
 # checks the platform
@@ -80,8 +80,8 @@ while [[ $# -gt 0 ]]; do
 		URHO3D=1
 		shift # past argument
 		;;		
-		fb|frombones|FromBones)
-		FROMBONES=1
+		app|App|fb|FB|FromBones|SpaceMatch)
+		APPLICATION=1
 		shift # past argument
 		;;		
 		res|ressources|Resources)
@@ -104,7 +104,7 @@ if [[ ${#COMMENTARIES[@]} -gt 0 ]]; then
 	COMMENT="${COMMENTARIES[0]}"
 fi
 
-if [[ $ALL -eq 1 ]] || [[ $URHO3D -eq 1 ]] || [[ $FROMBONES -eq 1 ]] || [[ $RESSOURCES -eq 1 ]]; then
+if [[ $ALL -eq 1 ]] || [[ $URHO3D -eq 1 ]] || [[ $APPLICATION -eq 1 ]] || [[ $RESSOURCES -eq 1 ]]; then
 	if [[ $ALL -eq 1 ]] || [[ $URHO3D -eq 1 ]]; then
 		FOLDER=$URHO
 		if [[ "$COMMENT" != "" ]]; then
@@ -130,8 +130,8 @@ if [[ $ALL -eq 1 ]] || [[ $URHO3D -eq 1 ]] || [[ $FROMBONES -eq 1 ]] || [[ $RESS
 		echo ..
 	fi
 
-	if [[ $ALL -eq 1 ]] || [[ $FROMBONES -eq 1 ]]; then
-		FOLDER=$FB
+	if [[ $ALL -eq 1 ]] || [[ $APPLICATION -eq 1 ]]; then
+		FOLDER=$APP
 		if [[ "$COMMENT" != "" ]]; then
 			NAME="../$FOLDER-$DATE-BCv2-$COMMENT.zip"
 		else
@@ -139,18 +139,18 @@ if [[ $ALL -eq 1 ]] || [[ $URHO3D -eq 1 ]] || [[ $FROMBONES -eq 1 ]] || [[ $RESS
 		fi
 		if [[ $COPYNVME -eq 1 ]]; then
 			echo ..
-			echo ".. Copying FromBones $NVME/$F_HOME to $DEVPATH/$F_HOME"
+			echo ".. Copying Application $NVME/$A_HOME to $DEVPATH/$A_HOME"
 			echo ..
-			rm -Rf $DEVPATH/$F_HOME/app/src/main/cpp
-			rm -Rf $DEVPATH/$F_HOME/bin
-			cp -Rf $NVME/$F_HOME/app/src/main/cpp $DEVPATH/$F_HOME/app/src/main/cpp
-			cp -Rf $NVME/$F_HOME/bin $DEVPATH/$F_HOME/bin
-			cp -u $NVME/$F_HOME/exe/* $DEVPATH/$F_HOME/exe
+			rm -Rf $DEVPATH/$A_HOME/app/src/main/cpp
+			rm -Rf $DEVPATH/$A_HOME/bin
+			cp -Rf $NVME/$A_HOME/app/src/main/cpp $DEVPATH/$A_HOME/app/src/main/cpp
+			cp -Rf $NVME/$A_HOME/bin $DEVPATH/$A_HOME/bin
+			cp -u $NVME/$A_HOME/exe/* $DEVPATH/$A_HOME/exe
 		fi		
 		echo ..
 		echo ".. Archiving Project $FOLDER to $NAME and copy on DiskStation"
 		echo ..	
-		cd "$DEVPATH/$F_HOME"
+		cd "$DEVPATH/$A_HOME"
 		$ZIPPER . "$COMMENT"
         
     	cp "$NAME" "$DISKSTATION/"
@@ -182,7 +182,7 @@ else
 	echo " sources can be :"
 	echo "   all,All,ALL               => archive engine, project and resources"
 	echo "   ur,urho,URHO,Urho3D       => archive engine"
-	echo "   fb,frombones,FromBones    => archive project"
+	echo "   app,fb,frombones,FromBones,SpaceMatch    => archive project"
 	echo "   res,ressources,Resources  => archive resources"
 	echo ""
 	echo " commentary is optional and the purpose is to add a note in the name of the zip file."

@@ -2229,7 +2229,7 @@ void AnimatedSprite2D::UpdateTriggers()
             char collidertype = timeline->name_.Front();
             bool isAbox = collidertype == 'B';
 
-            physicNode = node_->GetChild(timeline->name_);
+            physicNode = node_->GetChild(timeline->name_, LOCAL);
 
             /*
                 Timeline name begin by
@@ -2252,6 +2252,7 @@ void AnimatedSprite2D::UpdateTriggers()
                     collisionBox = physicNode->CreateComponent<CollisionBox2D>(LOCAL);
                     collisionBox->SetChangeModeEnable(false);
                     collisionBox->SetTrigger(false);
+                    collisionBox->SetExtraContactBits(3); // Top Contact Only & Stable
                 }
                 else
                 {
@@ -2285,7 +2286,7 @@ void AnimatedSprite2D::UpdateTriggers()
 
 //                collisionBox->SetBox(center, size, pivot, angle);
                 // Test 01/11/2020 : prevent to recreate fixtures (that destroy contact in box2D without any warning for the End of the Contact : that is problematic for Fall Cases).
-                // the following method doesn't destroy fixture, just modify the shape but it's not good because FromBones doesn't temporize and it's a pingpong between FALL-TOUCHGROUND Animations... so keep SetBox Method.
+                // the following method doesn't destroy fixture, just modify the shape but it's not good because FromBones doesn't temporize and it's a pingpong between FALL-TOUCHGROUND Animations... so keep SetBox Method.                
                 collisionBox->UpdateBox(center, size, pivot, angle);
             }
             else
@@ -2390,7 +2391,7 @@ bool AnimatedSprite2D::UpdateDrawRectangle()
     Sprite2D* sprite;
     Spriter::SpriteTimelineKey* spriteKey;
 
-    unsigned numSpriteKeys = spriterInstance_->GetNumSpriteKeys();
+    unsigned numSpriteKeys = Min(spriterInstance_->GetNumSpriteKeys(), spriteKeys.Size());
     for (unsigned i = 0; i < numSpriteKeys; ++i)
     {
         spriteKey = spriteKeys[i];

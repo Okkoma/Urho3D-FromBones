@@ -1,8 +1,5 @@
-// Modified by Yao Wei Tjong for Urho3D
-
 package org.libsdl.app;
 
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.PendingIntent;
@@ -108,8 +105,6 @@ public class HIDDeviceManager {
     private HIDDeviceManager(final Context context) {
         mContext = context;
 
-        // Urho3D - HIDAPI is built-in inside our custom SDL library, so no need to load libhidapi.so
-
         HIDDeviceRegisterCallback();
 
         mSharedPreferences = mContext.getSharedPreferences("hidapi", Context.MODE_PRIVATE);
@@ -123,13 +118,6 @@ public class HIDDeviceManager {
 //        else
         {
             mNextDeviceId = mSharedPreferences.getInt("next_device_id", 0);
-        }
-
-        initializeUSB();
-
-        // Urho3D - check first if Bluetooth is available
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
-            initializeBluetooth();
         }
     }
 
@@ -153,6 +141,9 @@ public class HIDDeviceManager {
 
     private void initializeUSB() {
         mUsbManager = (UsbManager)mContext.getSystemService(Context.USB_SERVICE);
+        if (mUsbManager == null) {
+            return;
+        }
 
         /*
         // Logging
@@ -179,7 +170,7 @@ public class HIDDeviceManager {
                 Log.i(TAG,"  Interface protocol: " + mUsbInterface.getInterfaceProtocol());
                 Log.i(TAG,"  Endpoint count: " + mUsbInterface.getEndpointCount());
 
-                // Get endpoint details 
+                // Get endpoint details
                 for (int epi = 0; epi < mUsbInterface.getEndpointCount(); epi++)
                 {
                     UsbEndpoint mEndpoint = mUsbInterface.getEndpoint(epi);
@@ -257,7 +248,11 @@ public class HIDDeviceManager {
             0x1689, // Razer Onza
             0x1949, // Lab126, Inc.
             0x1bad, // Harmonix
+            0x20d6, // PowerA
             0x24c6, // PowerA
+            0x2c22, // Qanba
+            0x2dc8, // 8BitDo
+            0x9886, // ASTRO Gaming
         };
 
         if (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_VENDOR_SPEC &&
@@ -278,12 +273,16 @@ public class HIDDeviceManager {
         final int XB1_IFACE_SUBCLASS = 71;
         final int XB1_IFACE_PROTOCOL = 208;
         final int[] SUPPORTED_VENDORS = {
+            0x044f, // Thrustmaster
             0x045e, // Microsoft
             0x0738, // Mad Catz
             0x0e6f, // PDP
             0x0f0d, // Hori
+            0x10f5, // Turtle Beach
             0x1532, // Razer Wildcat
+            0x20d6, // PowerA
             0x24c6, // PowerA
+            0x2dc8, // 8BitDo
             0x2e24, // Hyperkin
         };
 
@@ -355,17 +354,16 @@ public class HIDDeviceManager {
         }
     }
 
-    // Urho3D - suppress lint error
-    @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
     private void initializeBluetooth() {
         Log.d(TAG, "Initializing Bluetooth");
 
-        if (mContext.getPackageManager().checkPermission(android.Manifest.permission.BLUETOOTH, mContext.getPackageName()) != PackageManager.PERMISSION_GRANTED) {
+        if (Build.VERSION.SDK_INT <= 30 /* Android 11.0 (R) */ &&
+            mContext.getPackageManager().checkPermission(android.Manifest.permission.BLUETOOTH, mContext.getPackageName()) != PackageManager.PERMISSION_GRANTED) {
             Log.d(TAG, "Couldn't initialize Bluetooth, missing android.permission.BLUETOOTH");
             return;
         }
 
-        if (!mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE) || (Build.VERSION.SDK_INT < 18)) {
+        if (!mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE) || (Build.VERSION.SDK_INT < 18 /* Android 4.3 (JELLY_BEAN_MR2) */)) {
             Log.d(TAG, "Couldn't initialize Bluetooth, this version of Android does not support Bluetooth LE");
             return;
         }
@@ -424,8 +422,6 @@ public class HIDDeviceManager {
     // Chromebooks do not pass along ACTION_ACL_CONNECTED / ACTION_ACL_DISCONNECTED properly.
     // This function provides a sort of dummy version of that, watching for changes in the
     // connected devices and attempting to add controllers as things change.
-    // Urho3D - suppress lint error
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public void chromebookConnectionHandler() {
         if (!mIsChromebook) {
             return;
@@ -500,8 +496,6 @@ public class HIDDeviceManager {
         }
     }
 
-    // Urho3D - suppress lint error
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public boolean isSteamController(BluetoothDevice bluetoothDevice) {
         // Sanity check.  If you pass in a null device, by definition it is never a Steam Controller.
         if (bluetoothDevice == null) {
@@ -534,7 +528,7 @@ public class HIDDeviceManager {
             for (HIDDevice device : mDevicesById.values()) {
                 device.setFrozen(frozen);
             }
-        }        
+        }
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -556,6 +550,18 @@ public class HIDDeviceManager {
     ////////// JNI interface functions
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    public boolean initialize(boolean usb, boolean bluetooth) {
+        Log.v(TAG, "initialize(" + usb + ", " + bluetooth + ")");
+
+        if (usb) {
+            initializeUSB();
+        }
+        if (bluetooth) {
+            initializeBluetooth();
+        }
+        return true;
+    }
+
     public boolean openDevice(int deviceID) {
         Log.v(TAG, "openDevice deviceID=" + deviceID);
         HIDDevice device = getDevice(deviceID);
@@ -569,7 +575,14 @@ public class HIDDeviceManager {
         if (usbDevice != null && !mUsbManager.hasPermission(usbDevice)) {
             HIDDeviceOpenPending(deviceID);
             try {
-                mUsbManager.requestPermission(usbDevice, PendingIntent.getBroadcast(mContext, 0, new Intent(HIDDeviceManager.ACTION_USB_PERMISSION), 0));
+                final int FLAG_MUTABLE = 0x02000000; // PendingIntent.FLAG_MUTABLE, but don't require SDK 31
+                int flags;
+                if (Build.VERSION.SDK_INT >= 31 /* Android 12.0 (S) */) {
+                    flags = FLAG_MUTABLE;
+                } else {
+                    flags = 0;
+                }
+                mUsbManager.requestPermission(usbDevice, PendingIntent.getBroadcast(mContext, 0, new Intent(HIDDeviceManager.ACTION_USB_PERMISSION), flags));
             } catch (Exception e) {
                 Log.v(TAG, "Couldn't request permission for USB device " + usbDevice);
                 HIDDeviceOpenResult(deviceID, false);

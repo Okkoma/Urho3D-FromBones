@@ -1,0 +1,161 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 22,
+    "patch": 1
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "displayName": "base",
+      "description": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "URHO3D_64BIT": {
+          "value": "true",
+           "type": "BOOL"
+        },
+        "URHO3D_ANGELSCRIPT": {
+          "value": "false",
+           "type": "BOOL"
+        },
+        "URHO3D_C++11": {
+          "value": "true",
+           "type": "BOOL"
+        },             
+        "URHO3D_LIB_TYPE": "STATIC",     
+        "URHO3D_IK": {
+          "value": "false",
+           "type": "BOOL"
+        }, 
+        "URHO3D_LOGGING": {
+          "value": "true",
+           "type": "BOOL"
+        }, 
+        "URHO3D_LUA": {
+          "value": "false",
+           "type": "BOOL"
+        },
+        "URHO3D_LUAJIT": {
+          "value": "false",
+           "type": "BOOL"
+        },
+        "URHO3D_LUAJIT_AMALG": {
+          "value": "false",
+           "type": "BOOL"
+        },          
+        "URHO3D_NAVIGATION": {
+          "value": "false",
+           "type": "BOOL"
+        }, 
+        "URHO3D_NETWORK": {
+          "value": "true",
+           "type": "BOOL"
+        }, 
+        "URHO3D_PACKAGING": {
+          "value": "false",
+           "type": "BOOL"
+        }, 
+        "URHO3D_PHYSICS": {
+          "value": "false",
+           "type": "BOOL"
+        }, 
+        "URHO3D_PROFILING": {
+          "value": "true",
+           "type": "BOOL"
+        }, 
+        "URHO3D_THREADING": {
+          "value": "true",
+           "type": "BOOL"
+        },
+        "URHO3D_URHO2D": {
+          "value": "true",
+           "type": "BOOL"
+        },
+        "URHO3D_WEBP": {
+          "value": "false",
+           "type": "BOOL"
+        },
+        "URHO3D_WIN32_CONSOLE": {
+          "value": "false",
+           "type": "BOOL"
+        },
+        "URHO3D_OPENGL": {
+          "value": "true",
+           "type": "BOOL"
+        },
+        "URHO3D_VULKAN": {
+          "value": "false",
+           "type": "BOOL"
+        },
+        "URHO3D_VMA": {
+          "value": "false",
+           "type": "BOOL"
+        },
+        "URHO3D_VOLK": {
+          "value": "false",
+           "type": "BOOL"
+        },                
+        "VIDEO_WAYLAND": {
+          "value": "false",
+           "type": "BOOL"
+        },
+        "URHO3D_FILEWATCHER": {
+          "value": "false",
+           "type": "BOOL"
+        },       
+        "URHO3D_PCH": {
+          "value": "false",
+           "type": "BOOL"
+        },    
+        "URHO3D_PLAYER": {
+          "value": "false",
+           "type": "BOOL"
+        },      
+        "URHO3D_SAMPLES": {
+          "value": "false",
+           "type": "BOOL"
+        }
+      }
+    },
+    {
+      "name": "linux-debug",
+      "displayName": "Linux Debug",
+      "description": "Linux Debug",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/linux/debug/static",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      },     
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "linux-release",
+      "displayName": "Linux Release",
+      "description": "Linux Release",
+      "inherits": "linux-debug",
+      "binaryDir": "${sourceDir}/build/linux/release/static",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ],    
+  "buildPresets": [
+    {
+      "name": "linux-debug",
+      "configurePreset": "linux-debug"
+    },
+    {
+      "name": "linux-release",
+      "configurePreset": "linux-release"
+    }    
+  ]
+}

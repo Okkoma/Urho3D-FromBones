@@ -108,6 +108,11 @@ void SpriterData::Reset()
     }
 }
 
+const char* SpriterData::GetCurveTypeStr(CurveType type)
+{
+    return CurveTypeStr[type];
+}
+
 bool SpriterData::Load(const pugi::xml_node& node)
 {
     Reset();

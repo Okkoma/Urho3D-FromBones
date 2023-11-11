@@ -61,12 +61,14 @@ import java.util.List;
 import java.util.Hashtable;
 import java.util.Locale;
 
+import androidx.appcompat.app.AppCompatActivity;
+
 import io.urho3d.UrhoActivity;
 
 /**
     SDL Activity
 */
-public class SDLActivity extends Activity implements View.OnSystemUiVisibilityChangeListener {
+public class SDLActivity extends AppCompatActivity implements View.OnSystemUiVisibilityChangeListener {
     private static final String TAG = "SDL";
 
     public static boolean mIsResumedCalled, mHasFocus;
@@ -194,6 +196,15 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         mCurrentNativeState = NativeState.INIT;
     }
 
+    public void setSDLContentView()
+    {
+        setContentView(mLayout);
+
+        setWindowStyle(false);
+
+        getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(this);
+    }
+
     // Setup
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -280,11 +291,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         } catch(Exception ignored) {
         }
 
-        setContentView(mLayout);
-
-        setWindowStyle(false);
-
-        getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(this);
+        setSDLContentView();
 
         // Get filename from "Open with" of another application
         Intent intent = getIntent();

@@ -106,6 +106,8 @@ public:
     void SetCustomSize(const IntVector2& size);
     /// Set custom size of the root element.
     void SetCustomSize(int width, int height);
+    /// FromBones : enable/disable the handle of the joysticks by the UI
+    void SetHandleJoystickEnable(bool enable);
 
     /// Return root UI element.
     UIElement* GetRoot() const { return rootElement_; }

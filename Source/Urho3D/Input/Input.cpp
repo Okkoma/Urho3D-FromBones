@@ -337,6 +337,8 @@ void JoystickState::Initialize(unsigned numButtons, unsigned numAxes, unsigned n
 
 void JoystickState::Reset()
 {
+//    URHO3D_LOGINFOF("JoystickState() - Reset !");
+
     for (unsigned i = 0; i < buttons_.Size(); ++i)
     {
         buttons_[i] = false;
@@ -2201,49 +2203,44 @@ void Input::HandleSDLEvent(void* sdlEvent)
 
     case SDL_JOYBUTTONDOWN:
         {
-            using namespace JoystickButtonDown;
-
             unsigned button = evt.jbutton.button;
             SDL_JoystickID joystickID = evt.jbutton.which;
             JoystickState& state = joysticks_[joystickID];
 
             // Skip ordinary joystick event for a controller
-            if (!state.controller_)
+            if (!state.controller_ && button < state.buttons_.Size())
             {
+//                URHO3D_LOGERRORF("SDL_JOYBUTTONDOWN id=%d button=%d", joystickID, button);
+
+                state.buttons_[button] = true;
+                state.buttonPress_[button] = true;
+
+                using namespace JoystickButtonDown;
                 VariantMap& eventData = GetEventDataMap();
                 eventData[P_JOYSTICKID] = joystickID;
                 eventData[P_BUTTON] = button;
-
-                if (button < state.buttons_.Size())
-                {
-                    state.buttons_[button] = true;
-                    state.buttonPress_[button] = true;
-                    SendEvent(E_JOYSTICKBUTTONDOWN, eventData);
-                }
+                SendEvent(E_JOYSTICKBUTTONDOWN, eventData);
             }
         }
         break;
 
     case SDL_JOYBUTTONUP:
         {
-            using namespace JoystickButtonUp;
-
             unsigned button = evt.jbutton.button;
             SDL_JoystickID joystickID = evt.jbutton.which;
             JoystickState& state = joysticks_[joystickID];
 
-            if (!state.controller_)
+            if (!state.controller_ && button < state.buttons_.Size())
             {
+//                URHO3D_LOGERRORF("SDL_JOYBUTTONUP id=%d button=%d", joystickID, button);
+
+                state.buttons_[button] = false;
+
+                using namespace JoystickButtonUp;
                 VariantMap& eventData = GetEventDataMap();
                 eventData[P_JOYSTICKID] = joystickID;
                 eventData[P_BUTTON] = button;
-
-                if (button < state.buttons_.Size())
-                {
-                    if (!state.controller_)
-                        state.buttons_[button] = false;
-                    SendEvent(E_JOYSTICKBUTTONUP, eventData);
-                }
+                SendEvent(E_JOYSTICKBUTTONUP, eventData);
             }
         }
         break;
@@ -2296,20 +2293,21 @@ void Input::HandleSDLEvent(void* sdlEvent)
 
     case SDL_CONTROLLERBUTTONDOWN:
         {
-            using namespace JoystickButtonDown;
-
             unsigned button = evt.cbutton.button;
             SDL_JoystickID joystickID = evt.cbutton.which;
             JoystickState& state = joysticks_[joystickID];
 
-            VariantMap& eventData = GetEventDataMap();
-            eventData[P_JOYSTICKID] = joystickID;
-            eventData[P_BUTTON] = button;
-
             if (button < state.buttons_.Size())
             {
+//                URHO3D_LOGERRORF("SDL_CONTROLLERBUTTONDOWN joystick=%u button=%d", &state, button);
+
                 state.buttons_[button] = true;
                 state.buttonPress_[button] = true;
+
+                using namespace JoystickButtonDown;
+                VariantMap& eventData = GetEventDataMap();
+                eventData[P_JOYSTICKID] = joystickID;
+                eventData[P_BUTTON] = button;
                 SendEvent(E_JOYSTICKBUTTONDOWN, eventData);
             }
         }
@@ -2317,19 +2315,20 @@ void Input::HandleSDLEvent(void* sdlEvent)
 
     case SDL_CONTROLLERBUTTONUP:
         {
-            using namespace JoystickButtonUp;
-
             unsigned button = evt.cbutton.button;
             SDL_JoystickID joystickID = evt.cbutton.which;
             JoystickState& state = joysticks_[joystickID];
 
-            VariantMap& eventData = GetEventDataMap();
-            eventData[P_JOYSTICKID] = joystickID;
-            eventData[P_BUTTON] = button;
-
             if (button < state.buttons_.Size())
             {
+//                URHO3D_LOGERRORF("SDL_CONTROLLERBUTTONUP joystick=%u button=%d", &state, button);
+
                 state.buttons_[button] = false;
+
+                using namespace JoystickButtonUp;
+                VariantMap& eventData = GetEventDataMap();
+                eventData[P_JOYSTICKID] = joystickID;
+                eventData[P_BUTTON] = button;
                 SendEvent(E_JOYSTICKBUTTONUP, eventData);
             }
         }
@@ -2337,19 +2336,19 @@ void Input::HandleSDLEvent(void* sdlEvent)
 
     case SDL_CONTROLLERAXISMOTION:
         {
-            using namespace JoystickAxisMove;
-
             SDL_JoystickID joystickID = evt.caxis.which;
             JoystickState& state = joysticks_[joystickID];
 
-            VariantMap& eventData = GetEventDataMap();
-            eventData[P_JOYSTICKID] = joystickID;
-            eventData[P_AXIS] = evt.caxis.axis;
-            eventData[P_POSITION] = Clamp((float)evt.caxis.value / 32767.0f, -1.0f, 1.0f);
-
             if (evt.caxis.axis < state.axes_.Size())
             {
-                state.axes_[evt.caxis.axis] = eventData[P_POSITION].GetFloat();
+                float position = Clamp((float)evt.caxis.value / 32767.0f, -1.0f, 1.0f);
+                state.axes_[evt.caxis.axis] = position;
+
+                using namespace JoystickAxisMove;
+                VariantMap& eventData = GetEventDataMap();
+                eventData[P_JOYSTICKID] = joystickID;
+                eventData[P_AXIS] = evt.caxis.axis;
+                eventData[P_POSITION] = position;
                 SendEvent(E_JOYSTICKAXISMOVE, eventData);
             }
         }

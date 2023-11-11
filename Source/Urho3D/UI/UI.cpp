@@ -131,12 +131,11 @@ UI::UI(Context* context) :
     SubscribeToEvent(E_TOUCHBEGIN, URHO3D_HANDLER(UI, HandleTouchBegin));
     SubscribeToEvent(E_TOUCHEND, URHO3D_HANDLER(UI, HandleTouchEnd));
     SubscribeToEvent(E_TOUCHMOVE, URHO3D_HANDLER(UI, HandleTouchMove));
-    SubscribeToEvent(E_JOYSTICKBUTTONDOWN, URHO3D_HANDLER(UI, HandleJoystick));
-    SubscribeToEvent(E_JOYSTICKAXISMOVE, URHO3D_HANDLER(UI, HandleJoystick));
-    SubscribeToEvent(E_JOYSTICKHATMOVE, URHO3D_HANDLER(UI, HandleJoystick));
     SubscribeToEvent(E_KEYDOWN, URHO3D_HANDLER(UI, HandleKeyDown));
     SubscribeToEvent(E_TEXTINPUT, URHO3D_HANDLER(UI, HandleTextInput));
     SubscribeToEvent(E_DROPFILE, URHO3D_HANDLER(UI, HandleDropFile));
+
+    SetHandleJoystickEnable(true);
 
     // Try to initialize right now, but skip if screen mode is not yet set
     Graphics* graphics = GetSubsystem<Graphics>();
@@ -651,6 +650,22 @@ void UI::SetCustomSize(int width, int height)
 {
     customSize_ = IntVector2(Max(0, width), Max(0, height));
     ResizeRootElement();
+}
+
+void UI::SetHandleJoystickEnable(bool enable)
+{
+    if (enable && !HasSubscribedToEvent(E_JOYSTICKBUTTONDOWN))
+    {
+        SubscribeToEvent(E_JOYSTICKBUTTONDOWN, URHO3D_HANDLER(UI, HandleJoystick));
+        SubscribeToEvent(E_JOYSTICKAXISMOVE, URHO3D_HANDLER(UI, HandleJoystick));
+        SubscribeToEvent(E_JOYSTICKHATMOVE, URHO3D_HANDLER(UI, HandleJoystick));
+    }
+    else if (!enable && HasSubscribedToEvent(E_JOYSTICKBUTTONDOWN))
+    {
+        UnsubscribeFromEvent(E_JOYSTICKBUTTONDOWN);
+        UnsubscribeFromEvent(E_JOYSTICKAXISMOVE);
+        UnsubscribeFromEvent(E_JOYSTICKHATMOVE);
+    }
 }
 
 IntVector2 UI::GetCursorPosition() const
@@ -1806,7 +1821,6 @@ void UI::HandleKeyDown(StringHash eventType, VariantMap& eventData)
     UpdateElementFocus(key, mouseButtons_, qualifiers_);
 }
 
-
 const float joyAxeMenuSensivity_ = 0.95f;
 void UI::HandleJoystick(StringHash eventType, VariantMap& eventData)
 {
@@ -1818,32 +1832,44 @@ void UI::HandleJoystick(StringHash eventType, VariantMap& eventData)
     if (!input)
         return;
 
-    JoystickState* joystick = 0;
-    if (eventType == E_JOYSTICKBUTTONDOWN) joystick = input->GetJoystickByIndex(eventData[JoystickButtonDown::P_JOYSTICKID].GetInt());
-    if (eventType == E_JOYSTICKAXISMOVE) joystick = input->GetJoystickByIndex(eventData[JoystickAxisMove::P_JOYSTICKID].GetInt());
-    if (eventType == E_JOYSTICKHATMOVE) joystick = input->GetJoystickByIndex(eventData[JoystickHatMove::P_JOYSTICKID].GetInt());
+    int joystickid = 0;
+    if (eventType == E_JOYSTICKBUTTONDOWN) joystickid = eventData[JoystickButtonDown::P_JOYSTICKID].GetInt();
+    if (eventType == E_JOYSTICKAXISMOVE) joystickid = eventData[JoystickAxisMove::P_JOYSTICKID].GetInt();
+    if (eventType == E_JOYSTICKHATMOVE) joystickid = eventData[JoystickHatMove::P_JOYSTICKID].GetInt();
+
+    // C.VILLE : don't use GetJoystickByIndex here but GetJoystick !
+    JoystickState* joystick = input->GetJoystick(joystickid);
 
     if (!joystick)
         return;
 
     int key = 0;
-    if (joystick->GetNumHats() > 0)
+
+    if (joystick->GetButtonDown(0))
+    {
+        key = KEY_RETURN;
+    }
+
+    if (!key && joystick->GetNumHats() > 0)
     {
         if (joystick->GetHatPosition(0) & HAT_UP)
             key = KEY_UP;
-        if (!key && joystick->GetNumAxes() >= 2)
-            key = joystick->GetAxisPosition(1) < -joyAxeMenuSensivity_ ? KEY_UP : 0;
-        if (!key)
-            key = joystick->GetHatPosition(0) & HAT_DOWN ? KEY_DOWN : 0;
-        if (!key && joystick->GetNumAxes() >= 2)
-            key = joystick->GetAxisPosition(1) > joyAxeMenuSensivity_ ? KEY_DOWN : 0;
+        else if (joystick->GetHatPosition(0) & HAT_DOWN)
+            key = KEY_DOWN;
     }
 
-    if (joystick->GetButtonDown(0))
-        key = KEY_RETURN;
+    if (!key && joystick->GetNumAxes() >= 2)
+    {
+        float position = joystick->GetAxisPosition(1);
+        if (position > joyAxeMenuSensivity_)
+            key = KEY_DOWN;
+        else if (position < -joyAxeMenuSensivity_)
+            key = KEY_UP;
+    }
 
     if (key)
     {
+//        URHO3D_LOGINFOF("UI() - HandleJoystick : key=%d", key);
         joystick->Reset();
         UpdateElementFocus(key, 0, 0);
     }

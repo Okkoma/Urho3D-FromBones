@@ -129,6 +129,7 @@ private:
     /// Actually update sound sources with the specific timestep. Called internally.
     void UpdateInternal(float timeStep);
 
+    unsigned format_;
     /// Clipping buffer for mixing.
     SharedArrayPtr<int> clipBuffer_;
     /// Audio thread mutex.

@@ -83,7 +83,6 @@ enum CurveType
     BEZIER
 };
 
-extern const char* CurveTypeStr[];
 
 /// Spriter data.
 struct URHO3D_API SpriterData
@@ -98,8 +97,9 @@ struct URHO3D_API SpriterData
     void UpdateKeyInfos();
 
     static void Register();
-    static float GetFactor(TimeKey* keyA, TimeKey* keyB, float length, float targetTime);
-    static float AdjustTime(TimeKey* keyA, TimeKey* keyB, float length, float targetTime);
+//    static float GetFactor(TimeKey* keyA, TimeKey* keyB, float length, float targetTime);
+//    static float AdjustTime(TimeKey* keyA, TimeKey* keyB, float length, float targetTime);
+    static const char* GetCurveTypeStr(CurveType type);
 
     int scmlVersion_;
     String generator_;
@@ -320,7 +320,7 @@ struct URHO3D_API Animation
 };
 
 /// Ref.
-struct Ref
+struct URHO3D_API Ref
 {
     Ref();
     ~Ref();

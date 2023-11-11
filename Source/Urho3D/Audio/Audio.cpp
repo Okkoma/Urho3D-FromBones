@@ -83,13 +83,7 @@ bool Audio::SetMode(int bufferLengthMSec, int mixRate, bool stereo, bool interpo
     SDL_AudioSpec obtained;
 
     desired.freq = mixRate;
-
-// The concept behind the emscripten audio port is to treat it as 16 bit until the final accumulation form the clip buffer
-#ifdef __EMSCRIPTEN__
-    desired.format = AUDIO_F32LSB;
-#else
     desired.format = AUDIO_S16;
-#endif
     desired.channels = (Uint8)(stereo ? 2 : 1);
     desired.callback = SDLAudioCallback;
     desired.userdata = this;
@@ -108,25 +102,12 @@ bool Audio::SetMode(int bufferLengthMSec, int mixRate, bool stereo, bool interpo
         return false;
     }
 
-#ifdef __EMSCRIPTEN__
-    if (obtained.format != AUDIO_F32LSB && obtained.format != AUDIO_F32MSB && obtained.format != AUDIO_F32SYS)
-    {
-        URHO3D_LOGERROR("Could not initialize audio output, 32-bit float buffer format not supported");
-        SDL_CloseAudioDevice(deviceID_);
-        deviceID_ = 0;
-        return false;
-    }
-#else
-    if (obtained.format != AUDIO_S16SYS && obtained.format != AUDIO_S16LSB && obtained.format != AUDIO_S16MSB)
-    {
-        URHO3D_LOGERROR("Could not initialize audio output, 16-bit buffer format not supported");
-        SDL_CloseAudioDevice(deviceID_);
-        deviceID_ = 0;
-        return false;
-    }
-#endif
-
+    format_ = obtained.format;
     stereo_ = obtained.channels == 2;
+
+    if (SDL_AUDIO_BITSIZE(format_) == 32)
+        sampleSize_ = (unsigned)(stereo_ ? 2 * sizeof(float) : sizeof(float));
+    else
     sampleSize_ = (unsigned)(stereo_ ? sizeof(int) : sizeof(short));
     // Guarantee a fragment size that is low enough so that Vorbis decoding buffers do not wrap
     fragmentSize_ = Min(NextPowerOfTwo((unsigned)(mixRate >> 6)), (unsigned)obtained.samples);
@@ -134,6 +115,9 @@ bool Audio::SetMode(int bufferLengthMSec, int mixRate, bool stereo, bool interpo
     interpolation_ = interpolation;
     clipBuffer_ = new int[stereo ? fragmentSize_ << 1 : fragmentSize_];
 
+    URHO3D_LOGINFOF("Audio Format bitsize=%u isfloat=%s issigned=%s islittleendian=%s",
+                    SDL_AUDIO_BITSIZE(format_), SDL_AUDIO_ISFLOAT(format_) > 0 ? "true":"false", SDL_AUDIO_ISSIGNED(format_) > 0 ? "true":"false",
+                    SDL_AUDIO_ISLITTLEENDIAN(format_) > 0 ? "true":"false");
     URHO3D_LOGINFO("Set audio mode " + String(mixRate_) + " Hz " + (stereo_ ? "stereo" : "mono") + " " +
             (interpolation_ ? "interpolated" : ""));
 
@@ -284,6 +268,9 @@ void Audio::MixOutput(void* dest, unsigned samples)
         return;
     }
 
+    if (SDL_AUDIO_BITSIZE(format_) == 16)
+    // 16bits : assume int signed
+    {
     while (samples)
     {
         // If sample count exceeds the fragment (clip buffer) size, split the work
@@ -310,19 +297,53 @@ void Audio::MixOutput(void* dest, unsigned samples)
 
             source->Mix(clipPtr, workSamples, mixRate_, stereo_, interpolation_);
         }
+            short* destPtr = (short*)dest;
+            while (clipSamples--)
+                *destPtr++ = (short)Clamp(*clipPtr++, -32768, 32767);
+
+            samples -= workSamples;
+            ((unsigned char*&)dest) += sampleSize_ * SAMPLE_SIZE_MUL * workSamples;
+        }
+    }
+    // 32bits : assume float signed
+    else
+    {
+        while (samples)
+        {
+            // If sample count exceeds the fragment (clip buffer) size, split the work
+            unsigned workSamples = Min(samples, fragmentSize_);
+            unsigned clipSamples = workSamples;
+            if (stereo_)
+                clipSamples <<= 1;
+
+            // Clear clip buffer
+            int* clipPtr = clipBuffer_.Get();
+            memset(clipPtr, 0, clipSamples * sizeof(int));
+
+            // Mix samples to clip buffer
+            for (PODVector<SoundSource*>::Iterator i = soundSources_.Begin(); i != soundSources_.End(); ++i)
+            {
+                SoundSource* source = *i;
+
+                // Check for pause if necessary
+                if (!pausedSoundTypes_.Empty())
+                {
+                    if (pausedSoundTypes_.Contains(source->GetSoundType()))
+                        continue;
+                }
+
+                source->Mix(clipPtr, workSamples, mixRate_, stereo_, interpolation_);
+            }
         // Copy output from clip buffer to destination
-#ifdef __EMSCRIPTEN__
         float* destPtr = (float*)dest;
         while (clipSamples--)
             *destPtr++ = (float)Clamp(*clipPtr++, -32768, 32767) / 32768.0f;
-#else
-        short* destPtr = (short*)dest;
-        while (clipSamples--)
-            *destPtr++ = (short)Clamp(*clipPtr++, -32768, 32767);
-#endif
+
         samples -= workSamples;
         ((unsigned char*&)dest) += sampleSize_ * SAMPLE_SIZE_MUL * workSamples;
     }
+    }
+    // TODO : 32bits & 16bits unsigned
 }
 
 void Audio::HandleRenderUpdate(StringHash eventType, VariantMap& eventData)

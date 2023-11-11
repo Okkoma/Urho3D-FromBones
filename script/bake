@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Bake script for FromBones Project by C.VILLE 2020-2023
+# Bake script for OkkoStudio Projects by C.VILLE 2020-2023
 
 # ex: bake config linux android vulkan validation (configuration linux & android vulkan avec les validationLayers)
 # ex: bake android vulkan install (build+install Debug on an android device)
@@ -15,8 +15,42 @@
 # ex: bake android vulkan install release (sous linux, build et install la version release sur android device)
 # ex: bake win config install release (sous linux, config crosscompile pour windows et install)
 
-FROMBONES="FromBones"
-URHO3D="Urho3D"
+projectnames="/home/chris/dev-projects.txt"
+projectpair=""
+
+# Vérifier les correspondances
+while IFS= read -r line; do
+    projectname="$(echo "$line" | cut -d ':' -f 1)"
+    if [ -n "$(pwd | grep "$projectname")" ]; then
+        projectpair="$line"
+        break
+    fi
+done < "$projectnames"
+
+# Quitter si aucun projet n'est trouvé
+if [ -z "$projectpair" ]; then
+    echo "Aucun projet trouvé pour : $(basename "$PWD")"
+    exit 1
+fi
+
+APP="$(echo "$projectpair" | cut -d ':' -f 1)"
+APPDIR="$(pwd)"
+URHO3D="$(echo "$projectpair" | cut -d ':' -f 2)"
+
+# Obtenir le nom de la target
+cmake_lists_file="$APPDIR/app/src/main/cpplauncher/CMakeLists.txt"
+if [ ! -f "$cmake_lists_file" ]; then
+    cmake_lists_file="$APPDIR/app/src/main/cpp/CMakeLists.txt"
+fi
+TARGETNAME=$(sed -n "s/set (TARGET_NAME \(.*\))/\1/p" "$cmake_lists_file")
+if [ -z "$TARGETNAME" ]; then
+    TARGETNAME=$(sed -n "s/set(TARGET_NAME \(.*\))/\1/p" "$cmake_lists_file")
+    if [ -z "$TARGETNAME" ]; then
+        TARGETNAME=$APP
+    fi
+fi
+
+echo "Path=$APPDIR Project=$APP Engine=$URHO3D Target=$TARGETNAME"
 
 U_GRAPHICS_OPENGL="-DURHO3D_OPENGL=1 -DURHO3D_VULKAN=0"
 U_GRAPHICS_VULKAN="-DURHO3D_OPENGL=0 -DURHO3D_VULKAN=1 -DURHO3D_VMA=1 -DURHO3D_VOLK=1"
@@ -220,13 +254,13 @@ fi
 
 if [[ "$PLATFORM" == "linux" ]]; then
 	U_HOME=$DEVPATH/Urho3D/$URHO3D
-	F_HOME=$DEVPATH/Projets/$FROMBONES
+	F_HOME=$APPDIR
 
 elif [[ "$PLATFORM" == "win64" ]]; then
 	MINGW_DRIVE=/mnt/d
 	DRIVE="D:"
 	U_HOME=$MINGW_DRIVE/DEV/Urho3D/$URHO3D
-	F_HOME=$MINGW_DRIVE/DEV/Projets/$FROMBONES
+	F_HOME=$MINGW_DRIVE/DEV/Projets/$APP
 	U_HOME_WIN=$DRIVE/DEV/Urho3D/$URHO3D
 fi
 		
@@ -273,10 +307,14 @@ LaunchLinuxBuild()
 		LIBTYPE="static"	    	
 	fi
 
-	if [[ $VULKAN -eq 1 ]]; then
-		OSVERSION=$OSVERSION-vulkan
-    fi
-    
+    if [[ $VULKAN -eq 1 ]]; then
+        APITAG="Vk"
+        APILIB="vk"
+    else
+        APITAG="Gl"
+        APILIB="gl"
+    fi  
+
 #	if [[ $EDITOR -eq 1 ]]; then
 #		OSVERSION=$OSVERSION-editorinside
 #		EDITOR_OPT="-DURHO3D_ANGELSCRIPT=1"
@@ -286,8 +324,8 @@ LaunchLinuxBuild()
 	    	
 	if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
 		
-		DIR_DEBUG="build/$OSVERSION/$LIBTYPE/debug"
-		DIR_RELEASE="build/$OSVERSION/$LIBTYPE/release"
+		DIR_DEBUG="build/$OSVERSION$APITAG/$LIBTYPE/debug"
+		DIR_RELEASE="build/$OSVERSION$APITAG/$LIBTYPE/release"
 			
 		if [[ $RELEASE -eq 0 ]]; then
 			if [[ $BUILD -eq 1 ]] || [[ $CONFIG -eq 1 ]]; then
@@ -354,7 +392,7 @@ LaunchLinuxBuild()
 				
 					echo ""
 					echo "---------------------------------------------------------------------------------------------"
-					echo "... BUILDING LINUX FROMBONES DEBUG $HOME/$DIR_DEBUG ..."
+					echo "... BUILDING LINUX $APP DEBUG $HOME/$DIR_DEBUG ..."
 					echo "---------------------------------------------------------------------------------------------"
 				
 					cd $HOME
@@ -373,7 +411,7 @@ LaunchLinuxBuild()
 			if [[ $RELEASE -eq 1 ]]; then
 			    echo ""
 			    echo "---------------------------------------------------------------------------------------------"
-			    echo "... BUILDING LINUX FROMBONES RELEASE $HOME/$DIR_RELEASE ..."
+			    echo "... BUILDING LINUX $APP RELEASE $HOME/$DIR_RELEASE ..."
 			    echo "---------------------------------------------------------------------------------------------"
 
 			    cd $HOME
@@ -398,22 +436,15 @@ LaunchLinuxBuild()
 	                fi
 	                if [[ $EDITOR -eq 1 ]]; then
 	                    EDTAG="-edscript"
-	                fi
-	                if [[ $VULKAN -eq 1 ]]; then
-	                    APITAG="Vk"
-	                    APILIB="vk"
-	                else
-	                	APITAG="Gl"
-	                	APILIB="gl"
-	                fi     
+	                fi 
 
-	                cp bin/FromBones$EXE $HOME/exe/$APILIB/FromBones$VERSION$APITAG$EDTAG$LIBTYPETAG$EXE      
+	                cp bin/$TARGETNAME$EXE $HOME/exe/$APILIB/$TARGETNAME$OSVERSION$APITAG$EDTAG$LIBTYPETAG$EXE      
 
 	                if [[ $LIBSHARED -eq 1 ]]; then
 	                	mkdir -p $HOME/exe/$APILIB
 					    cp $U_HOME/$DIR_RELEASE/lib/libUrho3D.so $HOME/exe/$APILIB/libUrho3D.so.0
-					    cp $HOME/$DIR_RELEASE/app/src/main/cpp/libFromBonesLib.so $HOME/exe/$APILIB
-					    cp $HOME/$DIR_RELEASE/app/src/main/cppeditor/libFromBonesEditor.so $HOME/exe/$APILIB
+					    cp $HOME/$DIR_RELEASE/app/src/main/cpp/lib"$TARGETNAME"Lib.so $HOME/exe/$APILIB
+					    cp $HOME/$DIR_RELEASE/app/src/main/cppeditor/lib"$TARGETNAME"Editor.so $HOME/exe/$APILIB
 				    fi				
 			    fi
 			fi				
@@ -423,7 +454,7 @@ LaunchLinuxBuild()
 
 			echo ""
 			echo "---------------------------------------------------------------------------------------------"
-			echo "... COMPILING FROMBONES VULKAN SHADERS to bin/Data/$DIR_SHADERS ..."
+			echo "... COMPILING $APP VULKAN SHADERS to bin/Data/$DIR_SHADERS ..."
 			echo "---------------------------------------------------------------------------------------------"	
 		
 			cd $HOME					
@@ -438,7 +469,7 @@ LaunchLinuxBuild()
 
 			echo ""
 			echo "---------------------------------------------------------------------------------------------"
-			echo "... BUILDING FROMBONES TOOL $BUILDTOOL ..."
+			echo "... BUILDING $APP TOOL $BUILDTOOL ..."
 			echo "---------------------------------------------------------------------------------------------"
 
 			cd $SRCTOOL
@@ -467,7 +498,7 @@ LaunchLinuxBuild()
 			# et c'est bon plus besoin de fournir le password
             echo ""		
             echo "... DEPLOYING TO DORED HOST ..."		
-            rsync -avk $HOME/$DIR_RELEASE/bin dorian@192.168.1.156:~/Dev/FromBones_2023
+            rsync -avk $HOME/$DIR_RELEASE/bin dorian@192.168.1.156:~/Dev/$TARGETNAME
         fi				
 	fi
 }
@@ -573,7 +604,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 				
 			echo ""
 			echo "---------------------------------------------------------------------------------------------"
-			echo "... BUILDING RPI FROMBONES RELEASE $HOME/$DIR_RELEASE ..."
+			echo "... BUILDING RPI $APP RELEASE $HOME/$DIR_RELEASE ..."
 			echo "---------------------------------------------------------------------------------------------"
 
 			cd $HOME
@@ -591,7 +622,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 	
 	if [[ $RPI3CROSS -eq 1 ]] && [[ $VULKAN -eq 0 ]]; then
 
-		OSVERSION=rpi3
+		OSVERSION=Rpi3
 
 		if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]]; then
 			
@@ -629,7 +660,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 				
 				echo ""
 				echo "---------------------------------------------------------------------------------------------"
-				echo "... BUILDING RPI3 CROSS FROMBONES RELEASE $HOME/$DIR_RELEASE ..."
+				echo "... BUILDING RPI3 CROSS $APP RELEASE $HOME/$DIR_RELEASE ..."
 				echo "---------------------------------------------------------------------------------------------"
 
 				cd $HOME
@@ -651,7 +682,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 				    # et c'est bon plus besoin de fournir le password
 				    echo ""		
 				    echo "... DEPLOYING TO RPI3 HOST ..."		
-                    rsync -avk $HOME/$DIR_RELEASE/bin pi@192.168.1.102:~/Dev/Projets/FromBones_2022_RPI3 
+                    rsync -avk $HOME/$DIR_RELEASE/bin pi@192.168.1.102:~/Dev/Projets/$TARGETNAME 
 				fi				
 			fi
 		fi
@@ -659,7 +690,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 
 	if [[ $RPI4CROSS -eq 1 ]] && [[ $VULKAN -eq 0 ]]; then
 
-		OSVERSION=rpi4	
+		OSVERSION=Rpi4	
 		#if [[ $VULKAN -eq 1 ]]; then
 		#	OSVERSION=$OSVERSION-vulkan
 		#fi
@@ -696,7 +727,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 				
 				echo ""
 				echo "---------------------------------------------------------------------------------------------"
-				echo "... BUILDING RPI4 CROSS FROMBONES RELEASE $HOME/$DIR_RELEASE ..."
+				echo "... BUILDING RPI4 CROSS $APP RELEASE $HOME/$DIR_RELEASE ..."
 				echo "---------------------------------------------------------------------------------------------"
 
 				cd $HOME
@@ -719,7 +750,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 				    echo ""		
 				    echo "... DEPLOYING TO DORIAN's RPI4 HOST ..."		
                     # scp -r $HOME/$DIR_RELEASE/bin pi@192.168.1.191:~/Dev/Projets/FromBones_2022_RPI4
-                    rsync -avk $HOME/$DIR_RELEASE/bin pi@192.168.1.191:~/Dev/Projets/FromBones_2022_RPI4 
+                    rsync -avk $HOME/$DIR_RELEASE/bin pi@192.168.1.191:~/Dev/Projets/$TARGETNAME 
 				fi
 			fi
 		fi
@@ -770,7 +801,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 						ANDROIDBUILD="compileGlReleaseSources assembleGlRelease"
 						#ANDROIDBUILD="assembleGlRelease"
 					else
-						ANDROIDBUILD="compileGlDebugSources compileGlReleaseSources assembleGlDebug assembleGlRelease"
+						ANDROIDBUILD="compileGlDebugSources assembleGlDebug compileGlReleaseSources assembleGlRelease"
 						#ANDROIDBUILD="assembleGlDebug assembleGlRelease"
 					fi
 				fi			
@@ -804,7 +835,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 		    if [[ "$CLEANBUILD" == "clean" ]]; then
 			    echo ""
 			    echo "---------------------------------------------------------------------------------------------"
-			    echo "... CLEANING FROMBONES ANDROID BUILD ..."
+			    echo "... CLEANING $APP ANDROID BUILD ..."
 			    echo "---------------------------------------------------------------------------------------------"
 			    rm -Rf ./app/.cxx
 		    fi
@@ -813,7 +844,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 				if [[ $BUILD -eq 1 ]]; then
 					if [[ $VULKAN -eq 1 ]]; then
 						if [[ $RELEASE -eq 1 ]]; then
-							ANDROIDBUILD="compileVkReleaseSources buildVkRelease assembleVkRelease"
+							ANDROIDBUILD="compileVkReleaseSources buildVkRelease assembleVkRelease bundleVkRelease"
 							#ANDROIDBUILD="assembleVkRelease"
 						else						
 							ANDROIDBUILD="compileVkDebugSources buildVkDebug assembleVkDebug"
@@ -821,7 +852,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 						fi
 					else
 						if [[ $RELEASE -eq 1 ]]; then						
-							ANDROIDBUILD="compileGlReleaseSources buildGlRelease assembleGlRelease"
+							ANDROIDBUILD="compileGlReleaseSources buildGlRelease assembleGlRelease bundleGlRelease"
 							#ANDROIDBUILD="assembleGlRelease"
 						else
 							ANDROIDBUILD="compileGlDebugSources buildGlDebug assembleGlDebug"
@@ -846,7 +877,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 				fi
 				echo ""
 				echo "---------------------------------------------------------------------------------------------"
-				echo "... BUILDING ANDROID FROMBONES $HOME ..."		
+				echo "... BUILDING ANDROID $APP $HOME ..."		
 				echo "---------------------------------------------------------------------------------------------"
 				echo "... EXECUTING GRADLE TASKS ..."
 				echo "---------------------------------------------------------------------------------------------"		
@@ -869,9 +900,9 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 
 		CMAKE=/mnt/c/DEV/cmake-3.13.0-rc1-win64-x64/bin/cmake.exe
 
-		OSVERSION=win64
-		if [[ $VULKAN -eq 1 ]]; then
-			OSVERSION=win64-vulkan
+		OSVERSION=Win64
+		if [[ $GRAPHICS_VK -eq 1 ]]; then
+			OSVERSION=Win64-vulkan
 		fi
 		if [[ $EDITOR -eq 1 ]]; then
 			OSVERSION=$OSVERSION-editorinside			
@@ -920,7 +951,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 			cp $DIR_RELEASE/bin/tool/*.exe tools
 		fi
 		
-		if [[ $VULKAN -eq 1 ]] && [[ $SHADERS -eq 1 ]]; then
+		if [[ $GRAPHICS_VK -eq 1 ]] && [[ $SHADERS -eq 1 ]]; then
 	
 			echo ""
 			echo "---------------------------------------------------------------------------------------------"
@@ -940,7 +971,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 				if [[ $BUILD -eq 1 ]] || [[ $CONFIG -eq 1 ]]; then
 					echo ""
 					echo "---------------------------------------------------------------------------------------------"
-					echo "... BUILDING FROMBONES DEBUG $HOME/$DIR_DEBUG ..."
+					echo "... BUILDING $APP DEBUG $HOME/$DIR_DEBUG ..."
 					echo "---------------------------------------------------------------------------------------------"
 
 					if [[ $CONFIG -eq 1 ]]; then
@@ -955,7 +986,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 			
 			echo ""
 			echo "---------------------------------------------------------------------------------------------"
-			echo "... BUILDING FROMBONES RELEASE $HOME/$DIR_RELEASE ..."
+			echo "... BUILDING $APP RELEASE $HOME/$DIR_RELEASE ..."
 			echo "---------------------------------------------------------------------------------------------"
 
 			if [[ $CONFIG -eq 1 ]]; then
@@ -978,7 +1009,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 	            if [[ $EDITOR -eq 1 ]]; then
 	                EDTAG="-edscript"
 	            fi
-	            if [[ $VULKAN -eq 1 ]]; then
+	            if [[ $GRAPHICS_VK -eq 1 ]]; then
 	                APITAG="Vk"
 	                APILIB="vk"
 	            else
@@ -986,7 +1017,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 	            	APILIB="gl"
 	            fi     
 
-	            cp bin/FromBones$EXE $HOME/exe/FromBones$VERSION$APITAG$EDTAG$LIBTYPETAG$EXE      
+			    cp bin/$TARGETNAME$EXE $HOME/exe/$APILIB/$TARGETNAME$OSVERSION$APITAG$EDTAG$LIBTYPETAG$EXE
 
 	            if [[ $LIBSHARED -eq 1 ]]; then
 	            	echo .
@@ -994,11 +1025,11 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 				fi				
 			fi	
 
-			if [[ $VULKAN -eq 1 ]] && [[ $SHADERS -eq 1 ]]; then
+			if [[ $GRAPHICS_VK -eq 1 ]] && [[ $SHADERS -eq 1 ]]; then
 
 				echo ""
 				echo "---------------------------------------------------------------------------------------------"
-				echo "... COMPILING FROMBONES VULKAN SHADERS to bin/Data/$DIR_SHADERS ..."
+				echo "... COMPILING $APP VULKAN SHADERS to bin/Data/$DIR_SHADERS ..."
 				echo "---------------------------------------------------------------------------------------------"	
 			
 				cd $HOME				
@@ -1058,7 +1089,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 							
 				echo ""
 				echo "---------------------------------------------------------------------------------------------"
-				echo "... BUILDING MINGW FROMBONES RELEASE $HOME/$DIR_RELEASE ..."
+				echo "... BUILDING MINGW $APP RELEASE $HOME/$DIR_RELEASE ..."
 				echo "---------------------------------------------------------------------------------------------"
 
 				cd $HOME
@@ -1076,6 +1107,11 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 
 					cd $HOME/$DIR_RELEASE
 
+	                if [[ $LIBSHARED -eq 1 ]]; then
+	                    LIBTYPETAG="-shared"
+	                else
+	                    LIBTYPETAG="-static"
+	                fi
 	                if [[ $EDITOR -eq 1 ]]; then
 	                    EDTAG="-edscript"
 	                fi
@@ -1087,7 +1123,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 	                	APILIB="gl"
 	                fi     
 
-	                cp bin/FromBones$EXE $HOME/exe/FromBones$VERSION$APITAG$EDTAG$LIBTYPETAG$EXE      			
+    			    cp bin/$TARGETNAME$EXE $HOME/exe/$APILIB/$TARGETNAME$OSVERSION$APITAG$EDTAG$LIBTYPETAG$EXE    
 				fi						
 			fi	
 
@@ -1098,7 +1134,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 
 				echo ""
 				echo "---------------------------------------------------------------------------------------------"
-				echo "... BUILDING MINGW FROMBONES TOOL $HOME/$BUILDTOOL ..."
+				echo "... BUILDING MINGW $APP TOOL $HOME/$BUILDTOOL ..."
 				echo "---------------------------------------------------------------------------------------------"
 
 				cd $HOME
@@ -1130,7 +1166,7 @@ if [[ $STUDIO -eq 1 ]]; then
 	export URHO3D_LIB_TYPE=STATIC
 
 	echo "... LAUNCHING ANDROID STUDIO ..."
-	echo "... SETTING ${URHO3D_LIB_TYPE} BUILD ENV ..."
+    echo "... SETTING URHO3D_HOME=$U_HOME BUILDTYPE=${URHO3D_LIB_TYPE} ..."
 
 	cd $ANDROIDSTUDIO
 	./studio.sh
