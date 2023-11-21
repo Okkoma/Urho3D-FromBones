@@ -187,6 +187,17 @@ void Connection::UpdateClientObjCmd()
 //    URHO3D_LOGERRORF("Connection() - UpdateClientObjCmd : clientObjCmd=%u ", clientObjCmd_);
 }
 
+void Connection::SynchronizeObjectCommands()
+{
+    // for the connection to the server
+    if (!isClient_)
+    {
+        // get the last Ack received
+        clientObjCmd_ = clientObjCmdAck_;
+        serverObjCmd_ = serverObjCmdAck_;
+    }
+}
+
 /// FromBones Receive Object Controls : used by ProcessMessage in Server & Client Mode
 void Connection::ProcessReceiveObjectControls(int msgID, MemoryBuffer& msg)
 {

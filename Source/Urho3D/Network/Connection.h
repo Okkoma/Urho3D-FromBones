@@ -120,6 +120,7 @@ public:
 /// FROMBONES SPECIFIC : ObjectControls
 public:
     void ResetObjectControlAndCommands();
+    void SynchronizeObjectCommands();
 
     void AllowClientObjectControls(bool enable) { allowClientObjectControls_ = enable; }
     void AllowServerObjectControls(bool enable) { allowServerObjectControls_ = enable; }
@@ -139,10 +140,10 @@ public:
     unsigned short int GetClientObjCmd() const { return clientObjCmd_; }
     unsigned short int GetClientObjCmdAck() const { return clientObjCmdAck_; }
     unsigned short int GetServerObjCmdAck() const { return serverObjCmdAck_; }
+    static unsigned short int GetServerObjCmd() { return serverObjCmd_; }
 
     void UpdateClientObjCmd();
     static void UpdateServerObjCmd() { serverObjCmd_++; }
-    static unsigned short int GetServerObjCmd() { return serverObjCmd_; }
 
 private:
     /// FromBones : Receive/Send an updated set of objectcontrols
