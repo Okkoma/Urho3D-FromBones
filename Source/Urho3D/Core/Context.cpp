@@ -249,14 +249,15 @@ void Context::UpdateAttributeDefaultValue(StringHash objectType, const char* nam
         info->defaultValue_ = defaultValue;
 }
 
-VariantMap& Context::GetEventDataMap()
+VariantMap& Context::GetEventDataMap(bool clear)
 {
     unsigned nestingLevel = eventSenders_.Size();
     while (eventDataMaps_.Size() < nestingLevel + 1)
         eventDataMaps_.Push(new VariantMap());
 
     VariantMap& ret = *eventDataMaps_[nestingLevel];
-    ret.Clear();
+    if (clear)
+        ret.Clear();
     return ret;
 }
 
