@@ -851,7 +851,7 @@ VariantMap Engine::ParseParameters(const Vector<String>& arguments)
             }
             /// ... End
             else if (argument == "headless")
-                ret["Headless"] = true;
+                ret[EP_HEADLESS] = true;
             else if (argument == "nolimit")
                 ret[EP_FRAME_LIMITER] = false;
             else if (argument == "flushgpu")

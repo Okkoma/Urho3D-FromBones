@@ -588,16 +588,16 @@ public:
     typedef RandomAccessConstIterator<T> ConstIterator;
 
     /// Construct empty.
-    PODVector() { }
+    PODVector() : placement_(false) { }
 
     /// Construct with initial size.
-    explicit PODVector(unsigned size)
+    explicit PODVector(unsigned size) : placement_(false)
     {
         Resize(size);
     }
 
     /// Construct with initial size and default value.
-    PODVector(unsigned size, const T& value)
+    PODVector(unsigned size, const T& value) : placement_(false)
     {
         Resize(size);
         for (unsigned i = 0; i < size; ++i)
@@ -605,14 +605,14 @@ public:
     }
 
     /// Construct with initial data.
-    PODVector(const T* data, unsigned size)
+    PODVector(const T* data, unsigned size) : placement_(false)
     {
         Resize(size);
         CopyElements(Buffer(), data, size);
     }
 
     /// Construct from another vector.
-    PODVector(const PODVector<T>& vector)
+    PODVector(const PODVector<T>& vector) : placement_(false)
     {
         *this = vector;
     }
@@ -626,10 +626,28 @@ public:
         }
     }
 #endif
+
+    /// Placement :
+    /// WARNING : To Use carefully, don't change datas just for casting and const
+    /// U must be POD
+    template< typename V > PODVector(const PODVector<V>& vector, bool placement) : placement_(placement)
+    {
+        if (placement)
+        {
+            size_ = vector.Size() * sizeof(V) / sizeof(ValueType);
+            buffer_ = vector.GetRawBuffer();
+        }
+    }
+    template <class U> PODVector<U> Placement() const
+    {
+        return PODVector<U>(*this, true);
+    }
+
     /// Destruct.
     ~PODVector()
     {
-        delete[] buffer_;
+        if (!placement_)
+            delete[] buffer_;
     }
 
     /// Assign from another vector.
@@ -1071,6 +1089,8 @@ private:
         if (count)
             memcpy(dest, src, count * sizeof(T));
     }
+
+    bool placement_;
 };
 
 template <class T> typename Urho3D::Vector<T>::ConstIterator begin(const Urho3D::Vector<T>& v) { return v.Begin(); }

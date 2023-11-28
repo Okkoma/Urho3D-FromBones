@@ -330,6 +330,8 @@ public:
         Urho3D::Swap(buffer_, rhs.buffer_);
     }
 
+    unsigned char* GetRawBuffer() const { return buffer_; }
+
 protected:
     static unsigned char* AllocateBuffer(unsigned size);
 
