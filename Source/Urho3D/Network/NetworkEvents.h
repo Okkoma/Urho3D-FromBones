@@ -149,12 +149,9 @@ URHO3D_EVENT(E_NATMASTERCONNECTIONSUCCEEDED, NetworkNatMasterConnectionSucceeded
 }
 
 /// Frombones : Connection Receives a Packet of ObjectControls
-URHO3D_EVENT(SERVEROBJECTCONTROLSRECEIVED, ServerObjectControlsReceived)
-{
-}
-
-URHO3D_EVENT(CLIENTOBJECTCONTROLSRECEIVED, ClientObjectControlsReceived)
-{
-}
+URHO3D_EVENT(SERVEROBJECTCONTROLSRECEIVED, ServerObjectControlsReceived) { }
+URHO3D_EVENT(CLIENTOBJECTCONTROLSRECEIVED, ClientObjectControlsReceived) { }
+/// Frombones : Connection Receives a Packet of ObjectCommands
+URHO3D_EVENT(OBJECTCOMMANDSRECEIVED, ObjectCommandsReceived) { }
 
 }

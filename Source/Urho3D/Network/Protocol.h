@@ -67,6 +67,8 @@ static const int MSG_PACKAGEINFO = 0x98;
 /// FromBones Client->server or server->Client : send Object Controls (node states : buttons, animstate, avatarindex ...)
 static const int MSG_CLIENTOBJECTCONTROLS = 0x99;
 static const int MSG_SERVEROBJECTCONTROLS = 0x9A;
+/// FromBones Client->server or server->Client : send Object Commands (execute an order)
+static const int MSG_OBJECTCOMMANDS = 0x9B;
 
 /// Fixed content ID for client controls update.
 static const unsigned CONTROLS_CONTENT_ID = 1;

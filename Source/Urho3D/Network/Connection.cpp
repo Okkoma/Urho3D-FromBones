@@ -114,8 +114,6 @@ void Connection::ResetObjectControlAndCommands()
     objectDesync_ = false;
     objectTimeStamp_ = 0;
     objectTimeStampReceived_[0] = objectTimeStampReceived_[1] = 0;
-    clientObjCmd_ = clientObjCmdAck_ = serverObjCmdAck_ = 0;
-    serverObjCmd_ = 0;
 
     preparedClientMessageBuffer_.Clear();
     preparedSpecificServerMessageBuffer_.Clear();
@@ -123,6 +121,13 @@ void Connection::ResetObjectControlAndCommands()
     receivedServerObjectControlsBuffer_.Clear();
     if (preparedCommonServerMessageBuffer_)
         preparedCommonServerMessageBuffer_->Clear();
+
+    objCmdOutStamp_ = objCmdOutStampAck_ = 0U;
+    objCmdInStamp_ = objCmdInStampAck_ = 0U;
+    objCmdDeltaPackets_ = 0;
+    newAckReceived_ = false;
+    objCmdSendBuffer_.Clear();
+    objCmdReceivedBuffer_.Clear();
 }
 
 //#define MAX_DELTASTAMP1 32
@@ -134,7 +139,6 @@ void Connection::ResetObjectControlAndCommands()
 static int sDelta_;
 static VectorBuffer sMessageBuffer_;
 static VectorBuffer sTempMessageBuffer_;
-unsigned short int Connection::serverObjCmd_ = 0;
 
 inline bool CheckDeltaStamp(unsigned short int a, unsigned short int b, unsigned short int maxstamp)
 {
@@ -144,6 +148,16 @@ inline bool CheckDeltaStamp(unsigned short int a, unsigned short int b, unsigned
 
     sDelta_ = a-(int)b;
     return sDelta_ >= 0 ? (sDelta_ < maxstamp) : (65535U + sDelta_ < maxstamp);
+}
+
+inline bool CheckDeltaStamp(unsigned char a, unsigned char b, unsigned char maxstamp)
+{
+    // delta = a - b;
+    // (delta >= 0) check if it's an acceptable gap
+    // (delta < 0) check if it's an acceptable overflow (a<MAX_DELTASTAMP && b >65535-MAX_DELTASTAMP)
+
+    sDelta_ = a-(int)b;
+    return sDelta_ >= 0 ? (sDelta_ < maxstamp) : (255U + sDelta_ < maxstamp);
 }
 
 int Connection::CheckStamp(unsigned short int stamp)
@@ -181,20 +195,15 @@ int Connection::CheckStamp(unsigned short int stamp)
     return -1;
 }
 
-void Connection::UpdateClientObjCmd()
-{
-    clientObjCmd_++;
-//    URHO3D_LOGERRORF("Connection() - UpdateClientObjCmd : clientObjCmd=%u ", clientObjCmd_);
-}
-
 void Connection::SynchronizeObjectCommands()
 {
     // for the connection to the server
     if (!isClient_)
     {
         // get the last Ack received
-        clientObjCmd_ = clientObjCmdAck_;
-        serverObjCmd_ = serverObjCmdAck_;
+        // TODO: it's not enough for a good synchronization
+        objCmdInStamp_ = objCmdInStampAck_;
+        objCmdOutStamp_ = objCmdOutStampAck_;
     }
 }
 
@@ -217,31 +226,6 @@ void Connection::ProcessReceiveObjectControls(int msgID, MemoryBuffer& msg)
         return;
     }
 
-    unsigned short int stamp2 = msg.ReadUShort();
-
-    // a connection to client : on server, update serverStampAck before sendEvent
-    if (isClient_)
-    {
-        if (CheckDeltaStamp(stamp2, serverObjCmdAck_, MAX_DELTASTAMP1))
-            serverObjCmdAck_ = stamp2;
-
-        if (msgID == MSG_CLIENTOBJECTCONTROLS)
-            clientObjCmd_ = msg.ReadUShort();
-    }
-    // a connection to server : on client, update clientObjCmdAck_
-    else
-    {
-        if (msgID == MSG_CLIENTOBJECTCONTROLS)
-        {
-            if (CheckDeltaStamp(stamp2, clientObjCmdAck_, MAX_DELTASTAMP1))
-                clientObjCmdAck_ = stamp2;
-        }
-        else
-        {
-//            URHO3D_LOGINFOF("Connection() - ProcessReceiveObjectControls : oldserverack=%u newserverack=%u received ...", serverObjCmdAck_, stamp2);
-        }
-    }
-
 //    URHO3D_LOGINFOF("Connection() - ProcessReceiveObjectControls : msg.Size()=%u stamp=%d ...", msg.GetSize()-msg.Tell(), stamp);
 
     VectorBuffer& buffer = msgID == MSG_SERVEROBJECTCONTROLS ? receivedServerObjectControlsBuffer_ : receivedClientObjectControlsBuffer_;
@@ -256,23 +240,6 @@ void Connection::ProcessReceiveObjectControls(int msgID, MemoryBuffer& msg)
     buffer.Seek(0);
 
     SendEvent(msgID == MSG_SERVEROBJECTCONTROLS ? SERVEROBJECTCONTROLSRECEIVED : CLIENTOBJECTCONTROLSRECEIVED);
-
-    // a connection to client : on server, update clientObjCmdAck_ after sendEvent (need to have the previous clientStampAck during the sendEvent)
-    if (isClient_)
-    {
-        if (CheckDeltaStamp(clientObjCmd_, clientObjCmdAck_, MAX_DELTASTAMP1))
-            clientObjCmdAck_ = clientObjCmd_;
-    }
-    // a connection to server : on client, update serverObjCmdAck_ after sendEvent (need to have the previous serverStampAck during the sendEvent)
-    else
-    {
-        if (msgID == MSG_SERVEROBJECTCONTROLS)
-        {
-            if (CheckDeltaStamp(stamp2, serverObjCmdAck_, MAX_DELTASTAMP1))
-                serverObjCmdAck_ = stamp2;
-//            URHO3D_LOGINFOF("Connection() - ProcessReceiveObjectControls : apply newserverack=%u ... OK !", serverObjCmdAck_);
-        }
-    }
 }
 
 // Send the objects controlled By the client : send to the server the new ObjectControls
@@ -293,8 +260,6 @@ void Connection::ProcessSendClientObjectControls()
 
     sMessageBuffer_.Clear();
     sMessageBuffer_.WriteUShort(objectTimeStamp_);
-    sMessageBuffer_.WriteUShort(serverObjCmdAck_);
-    sMessageBuffer_.WriteUShort(clientObjCmd_);
 
     if (CompressStream(sMessageBuffer_, preparedClientMessageBuffer_))
     {
@@ -328,10 +293,9 @@ void Connection::ProcessSendServerObjectControls()
                 sTempMessageBuffer_.Write(preparedSpecificServerMessageBuffer_.GetBuffer().Buffer(), preparedSpecificServerMessageBuffer_.GetSize());
             sTempMessageBuffer_.Seek(0);
 
-            // Prepare the message and Compress the temporay buffer in the message buffer and Send
+            // Prepare the message and Compress the temporary buffer in the message buffer and Send
             sMessageBuffer_.Clear();
             sMessageBuffer_.WriteUShort(objectTimeStamp_);
-            sMessageBuffer_.WriteUShort(serverObjCmd_);
 
             if (CompressStream(sMessageBuffer_, sTempMessageBuffer_))
                 SendMessage(MSG_SERVEROBJECTCONTROLS, false, false, sMessageBuffer_);
@@ -348,7 +312,6 @@ void Connection::ProcessSendServerObjectControls()
         // Prepare the Message
         sMessageBuffer_.Clear();
         sMessageBuffer_.WriteUShort(objectTimeStamp_);
-        sMessageBuffer_.WriteUShort(clientObjCmdAck_);
 
         // Compress the Message
         preparedClientMessageBuffer_.Seek(0);
@@ -360,6 +323,71 @@ void Connection::ProcessSendServerObjectControls()
             SendMessage(MSG_CLIENTOBJECTCONTROLS, false, false, sMessageBuffer_);
         }
     }
+}
+
+void Connection::ProcessReceiveObjectCommands(int msgID, MemoryBuffer& msg)
+{
+    if (msg.GetSize()-msg.Tell() < 2*sizeof(unsigned short))
+        return;
+
+    const unsigned short int stampNew  = msg.ReadUShort();
+    const unsigned short int stampAck  = msg.ReadUShort();
+    const bool check = CheckDeltaStamp(stampNew, objCmdInStampAck_, 64U);
+
+    if (!check)
+        return;
+
+    // for output stream : Calculate the num of packets to resend
+    objCmdInStamp_ = stampNew;
+    newAckReceived_ = stampAck != objCmdOutStampAck_;
+    if (newAckReceived_)
+    {
+//        URHO3D_LOGINFOF("Connection() - ProcessReceiveObjectCommands : new Output Ack Received objCmdOutStampAck_=%u => %u", objCmdOutStampAck_, stampAck);
+        objCmdOutStampAck_ = stampAck;
+        objCmdDeltaPackets_ = objCmdOutStamp_ >= objCmdOutStampAck_ ? objCmdOutStamp_ - objCmdOutStampAck_ : 65535 + objCmdOutStamp_ - objCmdOutStampAck_;
+    }
+
+    // receive
+    objCmdReceivedBuffer_.Clear();
+    if (msg.GetSize()-msg.Tell() > 0)
+    {
+        if (DecompressStream(objCmdReceivedBuffer_, msg))
+            objCmdReceivedBuffer_.Seek(0);
+
+//        URHO3D_LOGINFOF("Connection() - ProcessReceiveObjectCommands : new Input stamp=%u objCmdInStampAck_=%u bsize=(comp=%u => decomp=%u) ",
+//                        stampNew, objCmdInStampAck_, msg.GetSize(), objCmdReceivedBuffer_.GetSize());
+    }
+
+    SendEvent(OBJECTCOMMANDSRECEIVED);
+}
+
+void Connection::ProcessSendObjectCommands()
+{
+//    if (objCmdOutStamp_ == objCmdOutStampAck_ && objCmdInStamp_ == objCmdInStampAck_ && !newAckReceived_ && !objCmdSendBuffer_.GetSize())
+//        return;
+//
+//    URHO3D_LOGINFOF("Connection() - ProcessSendObjectCommands : objCmdOutStamp_=%u objCmdOutStampAck_=%u objCmdInStamp_=%u objCmdInStampAck_=%u buffersize=%u",
+//                        objCmdOutStamp_, objCmdOutStampAck_, objCmdInStamp_, objCmdInStampAck_, objCmdSendBuffer_.GetSize(), sMessageBuffer_.GetSize());
+
+    sMessageBuffer_.Clear();
+    sMessageBuffer_.WriteUShort(objCmdOutStamp_);
+    // Always Send the StampAck to inform the peer of the internal state for the previous received datas.
+    // Allow the peer to resend lost packets.
+    sMessageBuffer_.WriteUShort(objCmdInStampAck_);
+
+    if (objCmdSendBuffer_.GetSize())
+    {
+        objCmdSendBuffer_.Seek(0);
+        if (CompressStream(sMessageBuffer_, objCmdSendBuffer_)) { ; }
+//        URHO3D_LOGINFOF("Connection() - ProcessSendObjectCommands : objCmdOutStamp_=%u(ACK=%u) objCmdInStamp_=%u(ACK=%u) bsize=(decomp=%u => comp=%u)",
+//                        objCmdOutStamp_, objCmdOutStampAck_, objCmdInStamp_, objCmdInStampAck_, objCmdSendBuffer_.GetSize(), sMessageBuffer_.GetSize());
+
+        objCmdSendBuffer_.Clear();
+    }
+
+    newAckReceived_ = false;
+
+    SendMessage(MSG_OBJECTCOMMANDS, false, false, sMessageBuffer_);
 }
 
 
@@ -519,6 +547,7 @@ void Connection::SendServerUpdate()
 {
     // Process the objects controlled By the server
     ProcessSendServerObjectControls();
+    ProcessSendObjectCommands();
 
     if (!scene_ || !sceneLoaded_)
         return;
@@ -555,6 +584,7 @@ void Connection::SendClientUpdate()
     // Process the objects controlled By the client : send to the server the new ObjectControls
     // send only one "snapshot" message for the ObjectControls
     ProcessSendClientObjectControls();
+    ProcessSendObjectCommands();
 
     if (!scene_ || !sceneLoaded_)
         return;
@@ -746,6 +776,9 @@ bool Connection::ProcessMessage(int msgID, MemoryBuffer& msg)
     case MSG_SERVEROBJECTCONTROLS:
     case MSG_CLIENTOBJECTCONTROLS:
         ProcessReceiveObjectControls(msgID, msg);
+        break;
+    case MSG_OBJECTCOMMANDS:
+        ProcessReceiveObjectCommands(msgID, msg);
         break;
 
     case MSG_SCENELOADED:

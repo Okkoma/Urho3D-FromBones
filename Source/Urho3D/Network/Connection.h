@@ -117,11 +117,14 @@ public:
     /// Destruct.
     ~Connection();
 
-/// FROMBONES SPECIFIC : ObjectControls
+
+/// FROMBONES SPECIFIC :
 public:
     void ResetObjectControlAndCommands();
     void SynchronizeObjectCommands();
 
+/// Object Controls
+public:
     void AllowClientObjectControls(bool enable) { allowClientObjectControls_ = enable; }
     void AllowServerObjectControls(bool enable) { allowServerObjectControls_ = enable; }
     bool IsClientObjectControlsAllowed() const { return allowClientObjectControls_; }
@@ -137,14 +140,6 @@ public:
     unsigned short int GetObjectTimeStamp() const { return objectTimeStamp_; }
     unsigned short int GetObjectTimeStampReceived() const { return objectTimeStampReceived_[0]; }
     unsigned short int GetObjectTimeStampPrevReceived() const { return objectTimeStampReceived_[1]; }
-    unsigned short int GetClientObjCmd() const { return clientObjCmd_; }
-    unsigned short int GetClientObjCmdAck() const { return clientObjCmdAck_; }
-    unsigned short int GetServerObjCmdAck() const { return serverObjCmdAck_; }
-    static unsigned short int GetServerObjCmd() { return serverObjCmd_; }
-
-    void UpdateClientObjCmd();
-    static void UpdateServerObjCmd() { serverObjCmd_++; }
-
 private:
     /// FromBones : Receive/Send an updated set of objectcontrols
     void ProcessReceiveObjectControls(int msgID, MemoryBuffer& msg);
@@ -156,9 +151,6 @@ private:
     bool objectDesync_;
     unsigned short int objectTimeStamp_;
     unsigned short int objectTimeStampReceived_[2];
-    /// FromBones : Object Command
-    unsigned short int clientObjCmd_, clientObjCmdAck_, serverObjCmdAck_;
-    static unsigned short int serverObjCmd_;
 
     VectorBuffer preparedClientMessageBuffer_;
     VectorBuffer preparedSpecificServerMessageBuffer_;
@@ -166,7 +158,36 @@ private:
     VectorBuffer receivedClientObjectControlsBuffer_;
     VectorBuffer receivedServerObjectControlsBuffer_;
     bool allowClientObjectControls_, allowServerObjectControls_;
+
+/// Object Commands
+
+/// objCmdInStamp_      = input stamp           : stamp reçu (input) en provenance du peer
+/// objCmdOutStampAck_  = output stamp ack      : stamp reçu du peer qui indique l'etat des receptions coté peer du flux output
+/// objCmdOutStamp_     = output stamp          : stamp envoyé (output) à destination du peer
+/// objCmdInStampAck_   = input stamp ack       : stamp envoyé vers le peer indiquant l'etat des receptions du flux input
+
+public:
+    void UpdateObjCmdOutStamp(int inc) { objCmdOutStamp_ += inc; }
+    void UpdateObjCmdInStampAck(int inc) { objCmdInStampAck_ += inc; }
+    bool HasNewAckReceived() const { return newAckReceived_; }
+    int GetDeltaObjectCommandPackets() const { return objCmdDeltaPackets_; }
+    VectorBuffer& GetObjCmdSendBuffer() { return objCmdSendBuffer_; }
+    VectorBuffer& GetObjCmdReceivedBuffer() { return objCmdReceivedBuffer_; }
+private:
+    void ProcessReceiveObjectCommands(int msgID, MemoryBuffer& msg);
+    void ProcessSendObjectCommands();
+
+    unsigned short int objCmdInStamp_, objCmdInStampAck_;
+    unsigned short int objCmdOutStamp_, objCmdOutStampAck_;
+
+    int objCmdDeltaPackets_;
+    bool newAckReceived_;
+
+    VectorBuffer objCmdSendBuffer_;
+    VectorBuffer objCmdReceivedBuffer_;
+
 /// END FROMBONES SPECIFIC
+
 
 public:
     /// Send a message.
