@@ -83,7 +83,6 @@ Connection::Connection(Context* context, bool isClient, const SLNet::AddressOrGU
     allowClientObjectControls_(true),
     allowServerObjectControls_(true),
     preparedCommonServerMessageBuffer_(0)
-
 {
     sceneState_.connection_ = this;
     port_ = address.systemAddress.GetPort();

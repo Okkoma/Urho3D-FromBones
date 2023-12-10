@@ -2259,6 +2259,7 @@ void AnimatedSprite2D::UpdateTriggers()
                     collisionCircle = physicNode->CreateComponent<CollisionCircle2D>(LOCAL);
                     collisionCircle->SetChangeModeEnable(false);
                     collisionCircle->SetTrigger(collidertype == 'T');
+                    collisionCircle->SetExtraContactBits(3); // Top Contact Only & Stable
                 }
             }
             else
@@ -2286,7 +2287,7 @@ void AnimatedSprite2D::UpdateTriggers()
 
 //                collisionBox->SetBox(center, size, pivot, angle);
                 // Test 01/11/2020 : prevent to recreate fixtures (that destroy contact in box2D without any warning for the End of the Contact : that is problematic for Fall Cases).
-                // the following method doesn't destroy fixture, just modify the shape but it's not good because FromBones doesn't temporize and it's a pingpong between FALL-TOUCHGROUND Animations... so keep SetBox Method.                
+                // the following method doesn't destroy fixture, just modify the shape but it's not good because FromBones doesn't temporize and it's a pingpong between FALL-TOUCHGROUND Animations... so keep SetBox Method.
                 collisionBox->UpdateBox(center, size, pivot, angle);
             }
             else
