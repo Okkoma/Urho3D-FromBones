@@ -277,29 +277,28 @@ void Drawable2D::UpdateSourceBatchesToRender(int id)
 
 const Vector<SourceBatch2D*>& Drawable2D::GetSourceBatchesToRender(Camera* camera)
 {
-    // batchsetid = 0 => INNERVIEW/FRONTVIEW
-    // batchsetid = 1 => BACKACTORVIEW
+    // if camera in FRONTVIEW and drawable in INNERVIEW => use set2 (INNERVIEW defined in layer_.y_)
+    // if camera in INNERVIEW and drawable is not in INNERVIEW => use set2 (BACKACTORVIEW defined in layer_.y_)
+    // else use batchsetid = 0
 
     // Beware : HardCoded ! come from FromBones DefsViews.h and ViewManager SwithViewZ Masks
     static const unsigned BACKVIEW_MASK   = (Urho3D::DRAWABLE_ANY+1) << 1;
     static const unsigned INNERVIEW_MASK  = (Urho3D::DRAWABLE_ANY+1) << 2;
-    static const unsigned FRONTVIEW_MASK = (Urho3D::DRAWABLE_ANY+1) << 5;
-    // if the camera is setted for INNERVIEW and the drawable is in FRONTVIEW but not in THRESHOLDVIEW => use BACKVIEWACTOR
-//    int batchsetid = (camera->GetViewMask() & BACKVIEW_MASK) && (viewMask_ & FRONTVIEW_MASK) && !(viewMask_ & INNERVIEW_MASK) ? 1 : 0;
-    // if the camera has no common mask with the drawable => use BACKVIEWACTOR
+    static const unsigned FRONTVIEW_MASK  = (Urho3D::DRAWABLE_ANY+1) << 5;
+
     int batchsetid = 0;
 
     if (camera->GetViewMask() != DRAWABLE_ANY)
     {
-        // if Camera is not in INNERVIEW (BACKVIEW_MASK is deactive) and drawable is in InnerView => use BACKVIEWACTOR
-        if (!(camera->GetViewMask() & BACKVIEW_MASK) && (viewMask_ & INNERVIEW_MASK))
+        // if Camera is not in INNERVIEW (BACKVIEW_MASK is deactive) and drawable is in InnerView => use second batchset
+        if (!(camera->GetViewMask() & BACKVIEW_MASK) && (viewMask_ & INNERVIEW_MASK) && !(viewMask_ & FRONTVIEW_MASK))
             batchsetid = 1;
-//        // if Camera is in INNERVIEW (BACKVIEW_MASK is active) and drawable is in FRONTVIEW but not in THRESHOLDVIEW  => use BACKVIEWACTOR
+        // if Camera is in INNERVIEW (BACKVIEW_MASK is active) and drawable is in FRONTVIEW but not in THRESHOLDVIEW  => use second batchset
         else if ((camera->GetViewMask() & BACKVIEW_MASK) && (viewMask_ & FRONTVIEW_MASK) && !(viewMask_ & INNERVIEW_MASK))
             batchsetid = 1;
     }
 
-    // skip render if in BACKACTORVIEW and the layer is not defined. (case for particuleemitter)
+    // skip render if in set2 and the layer is not defined. (case for particuleemitter)
     if (layer_.y_ == -1 && batchsetid == 1)
     {
         sourceBatchesToRender_[0].Clear();

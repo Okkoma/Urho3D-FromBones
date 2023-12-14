@@ -491,7 +491,7 @@ const Vector2& AnimatedSprite2D::GetLocalPosition() const
 }
 
 
-/// PHYSICAL NODES
+/// NODE ADDER
 
 void AnimatedSprite2D::AddPhysicalNode(Node* node)
 {
@@ -507,7 +507,6 @@ void AnimatedSprite2D::AddPhysicalNode(Node* node)
 
     triggerNodes_.Push(WeakPtr<Node>(node));
 }
-
 
 /// CHARACTER MAPPING SETTERS
 
@@ -1486,14 +1485,17 @@ void AnimatedSprite2D::ClearRenderedAnimations()
         HashMap<String, Spriter::NodeUpdater >& nodeupdaters = GetSpriterInstance()->GetNodeUpdaters();
         for (HashMap<String, Spriter::NodeUpdater >::Iterator it = nodeupdaters.Begin(); it != nodeupdaters.End(); ++it)
         {
-            Spriter::NodeUpdater& nodeupdater = it->second_;
-            AnimatedSprite2D* animation = (AnimatedSprite2D*)nodeupdater.ucomponent_;
+            if (it->first_.StartsWith("MT"))
+                continue;
 
+            Spriter::NodeUpdater& nodeupdater = it->second_;
+            AnimatedSprite2D* animation = static_cast<AnimatedSprite2D*>(nodeupdater.ucomponent_);
             if (animation)
             {
                 URHO3D_LOGINFOF("AnimatedSprite2D() - ClearRenderedAnimations : node=%s(%u) ... Clear Animation=%u for slot=%s", node_->GetName().CString(), node_->GetID(), animation, it->first_.CString());
                 animation->ClearRenderedAnimations();
             }
+
             nodeupdater.ucomponent_ = 0;
         }
     }
@@ -2161,23 +2163,46 @@ void AnimatedSprite2D::UpdateTriggers()
     }
 
     // Update Tagged Nodes
-    const HashMap<String, Spriter::NodeUpdater >& nodeUpdaters = spriterInstance_->GetNodeUpdaters();
+    HashMap<String, Spriter::NodeUpdater >& nodeUpdaters = spriterInstance_->GetNodeUpdaters();
     if (nodeUpdaters.Size())
     {
         float centerx, centery, angle;
 
-        for (HashMap<String, Spriter::NodeUpdater >::ConstIterator it=nodeUpdaters.Begin(); it!=nodeUpdaters.End() ; ++it)
+        for (HashMap<String, Spriter::NodeUpdater >::Iterator it=nodeUpdaters.Begin(); it!=nodeUpdaters.End() ; ++it)
         {
-            const Spriter::NodeUpdater& updater = it->second_;
+            Node* node;
+            AnimatedSprite2D* animation = 0;
 
-            if (!updater.ucomponent_)
+            Spriter::NodeUpdater& updater = it->second_;
+            // Mount Node
+            if (it->first_.StartsWith("MT"))
             {
-//                URHO3D_LOGERRORF("AnimatedSprite2D() - UpdateTriggers : node=%s(%u) no animatedsprite for slot=%s ...", node_->GetName().CString(), node_->GetID(), it->first_.CString());
-                continue;
+                if (!updater.ucomponent_)
+                {
+                    node = node_->GetChild(it->first_);
+                    if (!node)
+                    {
+                        node = node_->CreateChild(it->first_, LOCAL);
+                        node->SetTemporary(true);
+                        node->isPoolNode_ = node_->isPoolNode_;
+                        node->SetChangeModeEnable(false);
+                    }
+                    updater.ucomponent_ = node;
+                }
+                else
+                    node = static_cast<Node*>(updater.ucomponent_);
             }
-
-            AnimatedSprite2D* animation = (AnimatedSprite2D*)updater.ucomponent_;
-            Node* node = animation->GetNode();
+            // Animation
+            else
+            {
+                if (!updater.ucomponent_)
+                {
+    //                URHO3D_LOGERRORF("AnimatedSprite2D() - UpdateTriggers : node=%s(%u) no animatedsprite for slot=%s ...", node_->GetName().CString(), node_->GetID(), it->first_.CString());
+                    continue;
+                }
+                 animation = static_cast<AnimatedSprite2D*>(updater.ucomponent_);
+                 node = animation->GetNode();
+            }
 
             const Spriter::SpatialInfo& info = updater.timekey_->info_;
             centerx = info.x_;
@@ -2199,7 +2224,8 @@ void AnimatedSprite2D::UpdateTriggers()
 
             node->SetRotation2D(angle);
 
-            animation->SetFlip(flipX_, flipY_);
+            if (animation)
+                animation->SetFlip(flipX_, flipY_);
 
 //            URHO3D_LOGINFOF("AnimatedSprite2D() - UpdateTriggers : %s(%u) NodeUpdate On=%s(%u) Update position x=%f y=%f angle=%f flipX=%u ...",
 //                            node_->GetName().CString(), node_->GetID(), node->GetName().CString(), node->GetID(), centerx, centery, angle, flipX_);
