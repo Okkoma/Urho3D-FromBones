@@ -324,6 +324,13 @@ public:
     int Height() const { return bottom_ - top_; }
 
     /// Test whether a point is inside.
+    Intersection IsInside(int x, int y) const
+    {
+        if (x < left_ || y < top_ || x > right_ || y > bottom_)
+            return OUTSIDE;
+        else
+            return INSIDE;
+    }
     Intersection IsInside(const IntVector2& point) const
     {
         if (point.x_ < left_ || point.y_ < top_ || point.x_ > right_ || point.y_ > bottom_)

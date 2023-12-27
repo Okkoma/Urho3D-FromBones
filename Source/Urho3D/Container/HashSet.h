@@ -24,6 +24,7 @@
 
 #include "../Container/HashBase.h"
 #include "../Container/Sort.h"
+#include "../Container/Vector.h"
 
 #include <cassert>
 #if URHO3D_CXX11
@@ -230,6 +231,11 @@ public:
     HashSet& operator +=(const T& rhs)
     {
         Insert(rhs);
+        return *this;
+    }
+    HashSet& operator -=(const T& rhs)
+    {
+        Erase(rhs);
         return *this;
     }
 
@@ -486,6 +492,13 @@ public:
 
         unsigned hashKey = Hash(key);
         return FindNode(key, hashKey) != 0;
+    }
+
+    void GetValues(Vector<T>& buffer) const
+    {
+        buffer.Reserve(Size());
+        for (ConstIterator i = Begin(); i != End(); ++i)
+            buffer.Push(*i);
     }
 
     /// Return iterator to the beginning.
