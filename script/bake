@@ -15,10 +15,66 @@
 # ex: bake android vulkan install release (sous linux, build et install la version release sur android device)
 # ex: bake win config install release (sous linux, config crosscompile pour windows et install)
 
-projectnames="/home/chris/dev-projects.txt"
-projectpair=""
+# trouve la plateforme
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+	PLATFORM=linux
+	if [[ $WINDOWS -eq 1 ]]; then
+		WINCROSS=1
+	fi
+	WINDOWS=0
+	LINUX=1
+	# check for WSL 
+	WSL=`uname -r | grep Microsoft`
+	if [[ "$WSL" != "" ]]; then
+		PLATFORM=win64
+		WINDOWS=1
+		LINUX=0
+	elif [[ -e "/etc/apt/sources.list.d/raspi.list" ]]; then
+		# detects native rpi
+		# see https://raspberrytips.com/which-raspberry-pi-os-is-running/
+		LINUX=0
+		RPINATIVE=1
+		RPI3CROSS=0
+		RPI4CROSS=0
+		DEVPATH=/home/pi/Dev
+	else
+		if [[ $ALL -eq 1 ]]; then
+			ANDROID=1		
+			RPI3CROSS=1
+			RPI4CROSS=1
+			WINCROSS=1
+		else
+			if [[ $ANDROID -eq 1 ]] || [[ $RPI3CROSS -eq 1 ]] || [[ $RPI4CROSS -eq 1 ]]; then
+				LINUX=0
+			fi	
+		fi
+		if [[ $BUILDONNVME -eq 1 ]]; then
+			DEVPATH=~/Dev
+		else
+			DEVPATH=/media/DATA/Dev
+		fi
+		DEVCROSSPATH=/media/DATA/Dev
+		ANDROIDSTUDIO=/media/DATA/Dev/android-studio-2020/bin
+	fi
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+	PLATFORM=macosx
+elif [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "msys" ]]; then
+	PLATFORM=win64
+	WINDOWS=0
+	LINUX=1	
+fi
 
-# Vérifier les correspondances
+# Obtient la liste des projets
+projectpair=""
+if [[ "$PLATFORM" == "linux" ]]; then
+    projectnames="/home/chris/dev-projects.txt"
+elif [[ "$PLATFORM" == "win64" ]]; then
+	MINGW_DRIVE=/mnt/d
+	DRIVE="D:"
+	projectnames=$MINGW_DRIVE/DEV/Projets/dev-projects.txt
+fi
+
+# Vérifier les correspondances dans la liste des projets pour le repertoire courant
 while IFS= read -r line; do
     projectname="$(echo "$line" | cut -d ':' -f 1)"
     if [ -n "$(pwd | grep "$projectname")" ]; then
@@ -202,63 +258,11 @@ done
 # restore positional parameters
 set -- "${POSITIONAL[@]}"
 
-
-# checks the platform
-if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-	PLATFORM=linux
-	if [[ $WINDOWS -eq 1 ]]; then
-		WINCROSS=1
-	fi
-	WINDOWS=0
-	LINUX=1
-	# check for WSL 
-	WSL=`uname -r | grep Microsoft`
-	if [[ "$WSL" != "" ]]; then
-		PLATFORM=win64
-		WINDOWS=1
-		LINUX=0
-	elif [[ -e "/etc/apt/sources.list.d/raspi.list" ]]; then
-		# detects native rpi
-		# see https://raspberrytips.com/which-raspberry-pi-os-is-running/
-		LINUX=0
-		RPINATIVE=1
-		RPI3CROSS=0
-		RPI4CROSS=0
-		DEVPATH=/home/pi/Dev
-	else
-		if [[ $ALL -eq 1 ]]; then
-			ANDROID=1		
-			RPI3CROSS=1
-			RPI4CROSS=1
-			WINCROSS=1
-		else
-			if [[ $ANDROID -eq 1 ]] || [[ $RPI3CROSS -eq 1 ]] || [[ $RPI4CROSS -eq 1 ]]; then
-				LINUX=0
-			fi	
-		fi
-		if [[ $BUILDONNVME -eq 1 ]]; then
-			DEVPATH=~/Dev
-		else
-			DEVPATH=/media/DATA/Dev
-		fi
-		DEVCROSSPATH=/media/DATA/Dev
-		ANDROIDSTUDIO=/media/DATA/Dev/android-studio-2020/bin
-	fi
-elif [[ "$OSTYPE" == "darwin"* ]]; then
-	PLATFORM=macosx
-elif [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "msys" ]]; then
-	PLATFORM=win64
-	WINDOWS=0
-	LINUX=1	
-fi
-
 if [[ "$PLATFORM" == "linux" ]]; then
 	U_HOME=$DEVPATH/Urho3D/$URHO3D
 	F_HOME=$APPDIR
 
 elif [[ "$PLATFORM" == "win64" ]]; then
-	MINGW_DRIVE=/mnt/d
-	DRIVE="D:"
 	U_HOME=$MINGW_DRIVE/DEV/Urho3D/$URHO3D
 	F_HOME=$MINGW_DRIVE/DEV/Projets/$APP
 	U_HOME_WIN=$DRIVE/DEV/Urho3D/$URHO3D
