@@ -173,7 +173,7 @@ public:
     int GetDeltaObjectCommandPackets() const { return objCmdDeltaPackets_; }
     VectorBuffer& GetObjCmdSendBuffer() { return objCmdSendBuffer_; }
     VectorBuffer& GetObjCmdReceivedBuffer() { return objCmdReceivedBuffer_; }
-
+    unsigned short GetObjCmdInStampAck() const { return objCmdInStampAck_; }
 private:
     void ProcessReceiveObjectCommands(int msgID, MemoryBuffer& msg);
     void ProcessSendObjectCommands();
