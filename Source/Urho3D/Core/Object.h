@@ -208,6 +208,7 @@ public:
 
     /// Create an object. Implemented in templated subclasses.
     virtual SharedPtr<Object> CreateObject() = 0;
+    virtual Object* CreateRawObject() = 0;
 
     /// Return execution context.
     Context* GetContext() const { return context_; }
@@ -241,6 +242,8 @@ public:
 
     /// Create an object of the specific type.
     virtual SharedPtr<Object> CreateObject() { return SharedPtr<Object>(new T(context_)); }
+    virtual Object* CreateRawObject() { return new T(context_); }
+
 };
 
 /// Internal helper class for invoking event handler functions.

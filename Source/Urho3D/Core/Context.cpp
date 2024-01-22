@@ -161,6 +161,12 @@ SharedPtr<Object> Context::CreateObject(StringHash objectType)
         return SharedPtr<Object>();
 }
 
+Object* Context::CreateRawObject(StringHash objectType)
+{
+    HashMap<StringHash, SharedPtr<ObjectFactory> >::ConstIterator i = factories_.Find(objectType);
+    return i != factories_.End() ? i->second_->CreateRawObject() : 0;
+}
+
 void Context::RegisterFactory(ObjectFactory* factory)
 {
     if (!factory)
