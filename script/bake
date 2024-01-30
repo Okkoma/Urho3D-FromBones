@@ -266,6 +266,7 @@ elif [[ "$PLATFORM" == "win64" ]]; then
 	U_HOME=$MINGW_DRIVE/DEV/Urho3D/$URHO3D
 	F_HOME=$MINGW_DRIVE/DEV/Projets/$APP
 	U_HOME_WIN=$DRIVE/DEV/Urho3D/$URHO3D
+	CMAKE=/mnt/c/DEV/cmake-3.28-win64/bin/cmake.exe
 fi
 		
 HOME=`pwd`
@@ -901,8 +902,6 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 			LIBTYPE_FLAG="-DURHO3D_LIB_TYPE=STATIC"
 			LIBTYPE="static"	    	
 		fi
-
-		CMAKE=/mnt/c/DEV/cmake-3.13.0-rc1-win64-x64/bin/cmake.exe
 
 		OSVERSION=Win64
 		if [[ $GRAPHICS_VK -eq 1 ]]; then

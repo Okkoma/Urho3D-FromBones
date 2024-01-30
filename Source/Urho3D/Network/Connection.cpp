@@ -331,7 +331,11 @@ void Connection::ProcessReceiveObjectCommands(int msgID, MemoryBuffer& msg)
 
     const unsigned short int stampNew  = msg.ReadUShort();
     const unsigned short int stampAck  = msg.ReadUShort();
-    const bool check = CheckDeltaStamp(stampNew, objCmdInStampAck_, 64U);
+
+    bool check = CheckDeltaStamp(stampNew, objCmdInStampAck_, 64U);
+
+//    URHO3D_LOGINFOF("Connection() - ProcessReceiveObjectCommands : stampNew=%u objCmdInStampAck_=%u stampAck=%u objCmdOutStampAck_=%u ... check=%s",
+//                    stampNew, objCmdInStampAck_, stampAck, objCmdOutStampAck_, check?"true":"false");
 
     if (!check)
         return;
@@ -350,11 +354,12 @@ void Connection::ProcessReceiveObjectCommands(int msgID, MemoryBuffer& msg)
     objCmdReceivedBuffer_.Clear();
     if (msg.GetSize()-msg.Tell() > 0)
     {
-        if (DecompressStream(objCmdReceivedBuffer_, msg))
+        check = DecompressStream(objCmdReceivedBuffer_, msg);
+        if (check)
             objCmdReceivedBuffer_.Seek(0);
 
-//        URHO3D_LOGINFOF("Connection() - ProcessReceiveObjectCommands : new Input stamp=%u objCmdInStampAck_=%u bsize=(comp=%u => decomp=%u) ",
-//                        stampNew, objCmdInStampAck_, msg.GetSize(), objCmdReceivedBuffer_.GetSize());
+//        URHO3D_LOGINFOF("Connection() - ProcessReceiveObjectCommands : new Input stamp=%u objCmdInStampAck_=%u bsize=(comp=%u => decomp=%u) ok=%s ",
+//                        stampNew, objCmdInStampAck_, msg.GetSize(), objCmdReceivedBuffer_.GetSize(), check?"true":"false");
     }
 
     SendEvent(OBJECTCOMMANDSRECEIVED);
@@ -366,7 +371,7 @@ void Connection::ProcessSendObjectCommands()
 //        return;
 //
 //    URHO3D_LOGINFOF("Connection() - ProcessSendObjectCommands : objCmdOutStamp_=%u objCmdOutStampAck_=%u objCmdInStamp_=%u objCmdInStampAck_=%u buffersize=%u",
-//                        objCmdOutStamp_, objCmdOutStampAck_, objCmdInStamp_, objCmdInStampAck_, objCmdSendBuffer_.GetSize(), sMessageBuffer_.GetSize());
+//                        objCmdOutStamp_, objCmdOutStampAck_, objCmdInStamp_, objCmdInStampAck_, objCmdSendBuffer_.GetSize(), objCmdSendBuffer_.GetSize());
 
     sMessageBuffer_.Clear();
     sMessageBuffer_.WriteUShort(objCmdOutStamp_);
@@ -1390,6 +1395,8 @@ void Connection::ProcessRemoteEvent(int msgID, MemoryBuffer& msg)
             URHO3D_LOGWARNING("Discarding not allowed remote event " + eventType.ToString());
             return;
         }
+
+//        URHO3D_LOGINFOF("Connection() - ProcessRemoteEvent : SendEvent eventType=%u ", eventType.Value());
 
         VariantMap eventData = msg.ReadVariantMap();
         eventData[P_CONNECTION] = this;
