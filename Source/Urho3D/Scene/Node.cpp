@@ -1391,6 +1391,11 @@ void Node::SetParent(Node* parent)
     }
 }
 
+bool Node::HasVar(StringHash key) const
+{
+    return vars_.Contains(key);
+}
+
 void Node::SetVar(StringHash key, const Variant& value)
 {
     vars_[key] = value;

@@ -2151,9 +2151,9 @@ void AnimatedSprite2D::UpdateTriggers()
 					node_->SendEvent(triggerEvent);
                 }
 
-//                if (enableDebugLog_)
-//                URHO3D_LOGWARNINGF("AnimatedSprite2D() - UpdateTriggers : Set Initial Event=%s(%u) got=%u data=%u ...",
-//                                       timeline->name_.CString(), triggerEvent.Value(), paramEvent[SPRITER_Event::TYPE].GetStringHash().Value(), paramEvent[SPRITER_Event::DATAS].GetVoidPtr());
+                if (enableDebugLog_)
+                URHO3D_LOGWARNINGF("AnimatedSprite2D() - UpdateTriggers : %s(%u) Set Initial Event=%s(%u) type=%u datas=%s !",
+                                    node_->GetName().CString(), node_->GetID(), timeline->name_.CString(), triggerEvent.Value(), triggerInfo_.type_.Value(), triggerInfo_.datas_.CString());
             }
         }
     }

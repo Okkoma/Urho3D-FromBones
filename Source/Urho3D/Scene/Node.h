@@ -283,6 +283,7 @@ public:
     void SetParent(Node* parent);
     /// Set a user variable.
     void SetVar(StringHash key, const Variant& value);
+    bool HasVar(StringHash key) const;
     void RemoveVar(StringHash key);
 
     /// Add listener component that is notified of node being dirtied. Can either be in the same node or another.
