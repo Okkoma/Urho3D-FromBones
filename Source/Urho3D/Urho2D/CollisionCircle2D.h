@@ -47,6 +47,8 @@ public:
     /// Set center.
     void SetCenter(float x, float y);
 
+    void UpdateCircle(const Vector2& center, float radius);
+
     /// Return radius.
     float GetRadius() const { return radius_; }
     float GetWorldRadius() const { return circleShape_.m_radius; }

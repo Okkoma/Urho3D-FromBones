@@ -84,6 +84,25 @@ void CollisionCircle2D::SetCenter(float x, float y)
     SetCenter(Vector2(x, y));
 }
 
+// for preventing the recreation of fixtures (which destroyes contact in box2D without any warning of the End of the Contact : that is problematic for Fall Cases).
+// the following method doesn't destroy fixture, just modifies the shape ..
+void CollisionCircle2D::UpdateCircle(const Vector2& center, float radius)
+{
+    center_ = center;
+    radius_ = radius;
+
+    circleShape_.m_radius = radius_ * cachedWorldScale_.x_;
+    circleShape_.m_p = ToB2Vec2(center_ * cachedWorldScale_.x_);
+
+    if (!fixture_)
+        return;
+
+    b2CircleShape* shape = (b2CircleShape*)fixture_->GetShape();
+
+    shape->m_radius = circleShape_.m_radius;
+    shape->m_p = circleShape_.m_p;
+}
+
 void CollisionCircle2D::ApplyNodeWorldScale()
 {
     RecreateFixture();

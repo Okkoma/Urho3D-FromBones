@@ -325,21 +325,13 @@ void CollisionShape2D::OnNodeSet(Node* node)
     {
         node->AddListener(this);
 
-        int recurs = 0;
-
-        while (recurs < 3 && node)
+        if (!rigidBody_)
         {
-            if (node)
+            int recurs = 0;
+            while (!rigidBody_ && recurs < 3 && node)
             {
                 rigidBody_ = node->GetComponent<RigidBody2D>();
-                if (rigidBody_)
-                {
-                    CreateFixture();
-                    rigidBody_->AddCollisionShape2D(this);
-
-                    return;
-                }
-                else
+                if (!rigidBody_)
                 {
                     node = node->GetParent();
                     recurs++;
@@ -347,7 +339,13 @@ void CollisionShape2D::OnNodeSet(Node* node)
             }
         }
 
-        URHO3D_LOGERROR("No right body component in node, can not create collision shape");
+        if (rigidBody_)
+        {
+            CreateFixture();
+            rigidBody_->AddCollisionShape2D(this);
+        }
+        else
+            URHO3D_LOGERROR("No right body component in node, can not create collision shape");
     }
 }
 

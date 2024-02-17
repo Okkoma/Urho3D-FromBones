@@ -2255,7 +2255,7 @@ void AnimatedSprite2D::UpdateTriggers()
             char collidertype = timeline->name_.Front();
             bool isAbox = collidertype == 'B';
 
-            physicNode = node_->GetChild(timeline->name_, LOCAL);
+            physicNode = node_->GetChild(timeline->name_);
 
             /*
                 Timeline name begin by
@@ -2340,14 +2340,12 @@ void AnimatedSprite2D::UpdateTriggers()
 					center = sLocalTransform_ * center;
 				}
 
-                collisionCircle->SetCenter(center);
-                collisionCircle->SetRadius(Max(key->width_, key->height_) * Max(info.scaleX_, info.scaleY_) * 0.5f * PIXEL_SIZE);
+//                collisionCircle->SetCenter(center);
+//                collisionCircle->SetRadius(Max(key->width_, key->height_) * Max(info.scaleX_, info.scaleY_) * 0.5f * PIXEL_SIZE);
+                collisionCircle->UpdateCircle(center, Max(key->width_, key->height_) * Max(info.scaleX_, info.scaleY_) * 0.5f * PIXEL_SIZE);
             }
 
             updatedPhysicNodes_.Push(physicNode);
-
-//            URHO3D_LOGINFOF("AnimatedSprite2D() - UpdateTriggers : PhysicTrigger node=%s(%u) physicNode=%s collideType=%c center=%s localposition=%s localrotation=%F ...",
-//							node_->GetName().CString(), node_->GetID(), timeline->name_.CString(), collidertype, center.ToString().CString(), localPosition_.ToString().CString(), localRotation_);
         }
     }
 
