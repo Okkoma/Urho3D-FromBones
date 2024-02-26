@@ -1429,6 +1429,9 @@ void AnimatedSprite2D::SetRenderSprite(Sprite2D* sprite)
 
 void AnimatedSprite2D::UpdateRenderTarget()
 {
+    if (!renderSprite_ || !renderTarget_)
+        return;
+
     // Update the nodes positionniong in rttscene
     if (sRttRootNodeDirty_)
     {
@@ -2383,7 +2386,7 @@ bool AnimatedSprite2D::UpdateDrawRectangle()
     }
 #endif
     // if RENDERED TARGET
-    if (GetRenderTarget())
+    if (GetRenderTarget() && renderSprite_)
     {
         UpdateRenderTarget();
 

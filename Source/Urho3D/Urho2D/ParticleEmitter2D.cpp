@@ -370,7 +370,7 @@ void ParticleEmitter2D::UpdateSourceBatches()
         vertex3.position_.x_ = p.position_.x_ + add;
 		vertex3.position_.y_ = p.position_.y_ - sub;
 
-        color = p.color_;
+        color = p.color_ * color_;
         color.a_ *= color_.a_;
         vertex0.color_ = vertex1.color_ = vertex2.color_ = vertex3.color_ = color.ToUInt();
 
@@ -517,8 +517,8 @@ bool ParticleEmitter2D::EmitParticle(const Vector2& worldPosition, float worldAn
     particle.size_ = startSize;
     particle.sizeDelta_ = (finishSize - startSize) * invLifespan;
 
-    particle.color_ = effect_->GetStartColor() * color_.Luma() + effect_->GetStartColorVariance() * Random(-1.0f, 1.0f) ;
-    Color endColor = effect_->GetFinishColor() * color_.Luma() + effect_->GetFinishColorVariance() * Random(-1.0f, 1.0f);
+    particle.color_ = effect_->GetStartColor() /* * color_.Luma() */ + effect_->GetStartColorVariance() * Random(-1.0f, 1.0f) ;
+    Color endColor = effect_->GetFinishColor() /* * color_.Luma() */ + effect_->GetFinishColorVariance() * Random(-1.0f, 1.0f);
     particle.colorDelta_ = (endColor - particle.color_) * invLifespan;
 
     particle.rotation_ = worldAngle + effect_->GetRotationStart() + effect_->GetRotationStartVariance() * Random(-1.0f, 1.0f);

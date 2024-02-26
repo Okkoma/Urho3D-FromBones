@@ -330,6 +330,7 @@ void JoystickState::Initialize(unsigned numButtons, unsigned numAxes, unsigned n
     buttons_.Resize(numButtons);
     buttonPress_.Resize(numButtons);
     axes_.Resize(numAxes);
+    axesPress_.Resize(numAxes);
     hats_.Resize(numHats);
 
     Reset();
@@ -345,7 +346,10 @@ void JoystickState::Reset()
         buttonPress_[i] = false;
     }
     for (unsigned i = 0; i < axes_.Size(); ++i)
+    {
         axes_[i] = 0.0f;
+        axesPress_[i] = false;
+    }
     for (unsigned i = 0; i < hats_.Size(); ++i)
         hats_[i] = HAT_CENTER;
 }
@@ -1591,6 +1595,8 @@ void Input::ResetInputAccumulation()
     {
         for (unsigned j = 0; j < i->second_.buttonPress_.Size(); ++j)
             i->second_.buttonPress_[j] = false;
+        for (unsigned j = 0; j < i->second_.axesPress_.Size(); ++j)
+            i->second_.axesPress_[j] = false;
     }
 
     // Reset touch delta movement
@@ -2254,17 +2260,21 @@ void Input::HandleSDLEvent(void* sdlEvent)
 
             if (!state.controller_)
             {
+                float position = Clamp((float)evt.jaxis.value / 32767.0f, -1.0f, 1.0f);
                 VariantMap& eventData = GetEventDataMap();
                 eventData[P_JOYSTICKID] = joystickID;
                 eventData[P_AXIS] = evt.jaxis.axis;
-                eventData[P_POSITION] = Clamp((float)evt.jaxis.value / 32767.0f, -1.0f, 1.0f);
+                eventData[P_POSITION] = position;
 
                 if (evt.jaxis.axis < state.axes_.Size())
                 {
                     // If the joystick is a controller, only use the controller axis mappings
                     // (we'll also get the controller event)
                     if (!state.controller_)
-                        state.axes_[evt.jaxis.axis] = eventData[P_POSITION].GetFloat();
+                    {
+                        state.axesPress_[evt.jaxis.axis] = position > 0.99f || position < -0.99f;
+                        state.axes_[evt.jaxis.axis]      = position;
+                    }
                     SendEvent(E_JOYSTICKAXISMOVE, eventData);
                 }
             }
@@ -2342,7 +2352,9 @@ void Input::HandleSDLEvent(void* sdlEvent)
             if (evt.caxis.axis < state.axes_.Size())
             {
                 float position = Clamp((float)evt.caxis.value / 32767.0f, -1.0f, 1.0f);
-                state.axes_[evt.caxis.axis] = position;
+
+                state.axesPress_[evt.caxis.axis] = position > 0.99f || position < -0.99f;
+                state.axes_[evt.caxis.axis]      = position;
 
                 using namespace JoystickAxisMove;
                 VariantMap& eventData = GetEventDataMap();

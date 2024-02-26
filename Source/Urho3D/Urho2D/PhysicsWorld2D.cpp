@@ -959,6 +959,7 @@ public:
             return true;
 
         results_.Push((RigidBody2D*)(fixture->GetBody()->GetUserData()));
+
         return true;
     }
 
@@ -969,16 +970,59 @@ private:
     unsigned collisionMask_;
 };
 
-void PhysicsWorld2D::GetRigidBodies(PODVector<RigidBody2D*>& results, const Rect& aabb, unsigned collisionMask)
+// Aabb query callback class without duplicates
+class AabbQueryPruneCallback : public b2QueryCallback
 {
-    AabbQueryCallback callback(results, collisionMask);
+public:
+    // Construct.
+    AabbQueryPruneCallback(PODVector<RigidBody2D*>& results, unsigned collisionMask) :
+        results_(results),
+        collisionMask_(collisionMask)
+    {
+    }
 
+    // Called for each fixture found in the query AABB.
+    virtual bool ReportFixture(b2Fixture* fixture)
+    {
+        // Ignore sensor
+        if (fixture->IsSensor())
+            return true;
+
+//        if ((fixture->GetFilterData().maskBits & collisionMask_) == 0)
+        if ((fixture->GetFilterData().categoryBits & collisionMask_) == 0)
+            return true;
+
+        RigidBody2D* body = (RigidBody2D*)(fixture->GetBody()->GetUserData());
+        if (!results_.Size() || results_.Find(body) == results_.End())
+            results_.Push(body);
+
+        return true;
+    }
+
+private:
+    // Results.
+    PODVector<RigidBody2D*>& results_;
+    // Collision mask.
+    unsigned collisionMask_;
+};
+
+void PhysicsWorld2D::GetRigidBodies(PODVector<RigidBody2D*>& results, const Rect& aabb, unsigned collisionMask, bool prune)
+{
     b2AABB b2Aabb;
     Vector2 delta(M_EPSILON, M_EPSILON);
     b2Aabb.lowerBound = ToB2Vec2(aabb.min_ - delta);
     b2Aabb.upperBound = ToB2Vec2(aabb.max_ + delta);
 
-    world_->QueryAABB(&callback, b2Aabb);
+    if (prune)
+    {
+        AabbQueryPruneCallback callback(results, collisionMask);
+        world_->QueryAABB(&callback, b2Aabb);
+    }
+    else
+    {
+        AabbQueryCallback callback(results, collisionMask);
+        world_->QueryAABB(&callback, b2Aabb);
+    }
 }
 
 bool PhysicsWorld2D::GetAllowSleeping() const

@@ -70,6 +70,8 @@
 namespace Urho3D
 {
 
+HashMap<int, int> uiJoyButtonMapping_;
+
 StringHash VAR_ORIGIN("Origin");
 const StringHash VAR_ORIGINAL_PARENT("OriginalParent");
 const StringHash VAR_ORIGINAL_CHILD_INDEX("OriginalChildIndex");
@@ -136,6 +138,10 @@ UI::UI(Context* context) :
     SubscribeToEvent(E_DROPFILE, URHO3D_HANDLER(UI, HandleDropFile));
 
     SetHandleJoystickEnable(true);
+
+    uiJoyButtonMapping_[KEY_TAB] = 10;
+    uiJoyButtonMapping_[KEY_UP] = 11;
+    uiJoyButtonMapping_[KEY_DOWN] = 12;
 
     // Try to initialize right now, but skip if screen mode is not yet set
     Graphics* graphics = GetSubsystem<Graphics>();
@@ -1845,7 +1851,7 @@ void UI::HandleJoystick(StringHash eventType, VariantMap& eventData)
 
     int key = 0;
 
-    if (joystick->GetButtonDown(0))
+    if (joystick->GetButtonPress(0))
     {
         key = KEY_RETURN;
     }
@@ -1860,11 +1866,25 @@ void UI::HandleJoystick(StringHash eventType, VariantMap& eventData)
 
     if (!key && joystick->GetNumAxes() >= 2)
     {
-        float position = joystick->GetAxisPosition(1);
-        if (position > joyAxeMenuSensivity_)
-            key = KEY_DOWN;
-        else if (position < -joyAxeMenuSensivity_)
-            key = KEY_UP;
+        if (joystick->GetAxisPress(1))
+        {
+            float position = joystick->GetAxisPosition(1);
+            if (position > joyAxeMenuSensivity_)
+                key = KEY_DOWN;
+            else if (position < -joyAxeMenuSensivity_)
+                key = KEY_UP;
+        }
+    }
+
+    // C.VILLE : Handle KEY_TAB, KEY_UP, KEY_DOWN
+    if (!key)
+    {
+        for (HashMap<int, int>::ConstIterator it = uiJoyButtonMapping_.Begin(); it != uiJoyButtonMapping_.End(); ++it)
+            if (joystick->GetButtonPress(it->second_))
+            {
+                key = it->first_;
+                break;
+            }
     }
 
     if (key)

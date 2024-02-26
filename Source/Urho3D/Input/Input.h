@@ -104,6 +104,7 @@ struct URHO3D_API JoystickState
 
     /// Return axis position.
     float GetAxisPosition(unsigned index) const { return index < axes_.Size() ? axes_[index] : 0.0f; }
+    bool GetAxisPress(unsigned index) const { return index < axesPress_.Size() ? axesPress_[index] : false; }
 
     /// Return hat position.
     int GetHatPosition(unsigned index) const { return index < hats_.Size() ? hats_[index] : HAT_CENTER; }
@@ -124,6 +125,8 @@ struct URHO3D_API JoystickState
     PODVector<bool> buttonPress_;
     /// Axis position from -1 to 1.
     PODVector<float> axes_;
+    /// C.VILLE 2024 : Avis pressed on this frame
+    PODVector<bool> axesPress_;
     /// POV hat bits.
     PODVector<int> hats_;
 };
