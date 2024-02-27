@@ -15,6 +15,9 @@ U_HOME=Urho3D/$URHO
 A_HOME=Projets/$APP
 R_HOME=Projets/$RES
 
+SCRIPT=./script
+ZIPPER=zipper
+
 # checks the platform
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
 	PLATFORM=linux
@@ -37,7 +40,6 @@ echo ..
 if [[ "$PLATFORM" == "linux" ]]; then
 	NVME=~/Dev
 	DEVPATH=/media/DATA/Dev
-	ZIPPER=zipper
 	
 #	DISKSTATION=afp://admin@DiskStation.local/Disque/
 #	gio mount $DISKSTATION
@@ -48,7 +50,6 @@ if [[ "$PLATFORM" == "linux" ]]; then
 
 elif [[ "$PLATFORM" == "win64" ]]; then
 	DEVPATH=/mnt/d/DEV
-	ZIPPER=$DEVPATH/$U_HOME/script/zipper
 	
 	DISKSTATION=/mnt/DiskStation
 	sudo mkdir $DISKSTATION
@@ -123,7 +124,8 @@ if [[ $ALL -eq 1 ]] || [[ $URHO3D -eq 1 ]] || [[ $APPLICATION -eq 1 ]] || [[ $RE
 		echo ".. Archiving Engine $FOLDER to $NAME and copy on DiskStation"
 		echo ..
 		cd "$DEVPATH/$U_HOME"
-		$ZIPPER . "$COMMENT"
+		
+		$SCRIPT/$ZIPPER . "$COMMENT"
 		
     	cp "$NAME" "$DISKSTATION/"
     	
@@ -151,7 +153,8 @@ if [[ $ALL -eq 1 ]] || [[ $URHO3D -eq 1 ]] || [[ $APPLICATION -eq 1 ]] || [[ $RE
 		echo ".. Archiving Project $FOLDER to $NAME and copy on DiskStation"
 		echo ..	
 		cd "$DEVPATH/$A_HOME"
-		$ZIPPER . "$COMMENT"
+
+		$SCRIPT/$ZIPPER . "$COMMENT"
         
     	cp "$NAME" "$DISKSTATION/"
     	
@@ -170,7 +173,7 @@ if [[ $ALL -eq 1 ]] || [[ $URHO3D -eq 1 ]] || [[ $APPLICATION -eq 1 ]] || [[ $RE
 		echo ..	
 		cd "$DEVPATH/$R_HOME"
 		
-		$ZIPPER . "$COMMENT"
+		$SCRIPT/$ZIPPER . "$COMMENT"
 		
     	cp "$NAME" "$DISKSTATION/"
 	fi

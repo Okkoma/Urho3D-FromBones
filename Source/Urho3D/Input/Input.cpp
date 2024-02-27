@@ -1808,9 +1808,11 @@ void Input::SetKey(int key, int scancode, bool newState)
 
     if (newState)
     {
-        scancodeDown_.Insert(scancode);
-        scancodePress_.Insert(scancode);
-
+        if (!scancodeDown_.Contains(scancode))
+        {
+            scancodeDown_.Insert(scancode);
+            scancodePress_.Insert(scancode);
+        }
         if (!keyDown_.Contains(key))
         {
             keyDown_.Insert(key);

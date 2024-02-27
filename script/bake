@@ -267,6 +267,8 @@ elif [[ "$PLATFORM" == "win64" ]]; then
 	F_HOME=$MINGW_DRIVE/DEV/Projets/$APP
 	U_HOME_WIN=$DRIVE/DEV/Urho3D/$URHO3D
 	CMAKE=/mnt/c/DEV/cmake-3.28-win64/bin/cmake.exe
+	VKSDK="$DRIVE/DEV/VulkanSdk/1.3.204.1"
+	VKLIB="-DVulkan_LIBRARY=$VKSDK/Lib -DVulkan_INCLUDE_DIR=$VKSDK/include"
 fi
 		
 HOME=`pwd`
@@ -906,6 +908,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 		OSVERSION=Win64
 		if [[ $GRAPHICS_VK -eq 1 ]]; then
 			OSVERSION=Win64-vulkan
+			U_GRAPHICS="$VKLIB $U_GRAPHICS"
 		fi
 		if [[ $EDITOR -eq 1 ]]; then
 			OSVERSION=$OSVERSION-editorinside			
