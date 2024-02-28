@@ -839,4 +839,23 @@ void RigidBody2D::DrawDebugGeometry(DebugRenderer* debug, bool depthTest)
     }
 }
 
+void RigidBody2D::SetBodyPosition(const Vector2& position, float angle)
+{
+    bodyDef_.position.x = position.x_;
+    bodyDef_.position.y = position.y_;
+    bodyDef_.angle = angle * M_DEGTORAD;
+    if (body_)
+        body_->SetTransform(bodyDef_.position, bodyDef_.angle);
+}
+
+b2Body* RigidBody2D::GetBody() const
+{
+    return body_;
+
+}
+void RigidBody2D::DumpBody() const
+{
+    if (body_) body_->Dump();
+}
+
 }

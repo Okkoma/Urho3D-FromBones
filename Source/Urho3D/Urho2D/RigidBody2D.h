@@ -165,17 +165,11 @@ public:
     float GetAngularVelocity() const;
 
     /// Return Box2D body.
-    b2Body* GetBody() const { return body_; }
+    b2Body* GetBody() const;
+    void DumpBody() const;
 
     /// Body Position
-    void SetBodyPosition(const Vector2& position, float angle)
-    {
-    	bodyDef_.position.x = position.x_;
-    	bodyDef_.position.y = position.y_;
-    	bodyDef_.angle = angle * M_DEGTORAD;
-    	if (body_)
-			body_->SetTransform(bodyDef_.position, bodyDef_.angle);
-    }
+    void SetBodyPosition(const Vector2& position, float angle);
 
     virtual void DrawDebugGeometry(DebugRenderer* debug, bool depthTest);
 

@@ -11,7 +11,8 @@
  * Copyright (C) 2003, by Kristen Wegner (kristen@tima.net)
  */
 
- // Modified by 1vanK for Urho3D
+ // Modified by OkkoStudio 
+ //     PUGI_EXPORTS declaration added
 
 #ifndef HEADER_PUGICONFIG_HPP
 #define HEADER_PUGICONFIG_HPP
@@ -35,8 +36,17 @@
 // #define PUGIXML_API __declspec(dllexport) // to export all public symbols from DLL
 //#define PUGIXML_CLASS __declspec(dllimport) // to import all classes from DLL
 //#define PUGIXML_FUNCTION __fastcall // to set calling conventions to all public functions to fastcall
-#define PUGIXML_API __attribute__((visibility("default")))
-#define PUGIXML_CLASS __attribute__((visibility("default")))
+//#define PUGIXML_API __attribute__((visibility("default")))
+//#define PUGIXML_CLASS __attribute__((visibility("default")))
+
+#ifdef PUGIXML_EXPORTS
+#   if defined(__WIN32__) || defined(__WINRT__)
+#       define PUGIXML_API __declspec(dllexport)
+#   elif defined(__GNUC__) && __GNUC__ >= 4
+#       define PUGIXML_API __attribute__ ((visibility("default")))
+#   endif
+#endif
+
 // In absence of PUGIXML_CLASS/PUGIXML_FUNCTION definitions PUGIXML_API is used instead
 
 // Tune these constants to adjust memory-related behavior

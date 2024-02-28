@@ -463,6 +463,13 @@ if (NOT URHO3D_LIB_TYPE STREQUAL SHARED)
 		message ("-- adding definition URHO3D_STATIC_DEFINE")
 		set (URHO3D_STATIC_DEFINE 1)
     endif ()
+else ()
+    # C.VILLE : dll export
+    if (WIN32)
+        add_definitions (-DLZ4_DLL_EXPORT=1)
+    endif ()
+    add_definitions (-DSDL_EXPORTS)
+    add_definitions (-DPUGIXML_EXPORTS)    
 endif ()
 
 # Force C++11 standard (required by the generic bindings generation) if using AngelScript on Web and 64-bit ARM platforms
