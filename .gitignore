@@ -5,8 +5,8 @@
 **/.cxx
 **/.cache
 **/.gradle
-/bin-tool/Output
-/exe/*.log
+**/.vscode
+/tools
 /lib/*/*.so
 /Local
 /*-tmp

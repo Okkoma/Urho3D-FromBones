@@ -57,7 +57,7 @@ void SignedDistanceFieldText::Start()
     CreateScene();
 
     // Create the UI content
-    CreateInstructions();
+//    CreateInstructions();
 
     // Setup the viewport for displaying the scene
     SetupViewport();
@@ -94,12 +94,12 @@ void SignedDistanceFieldText::CreateScene()
     // Create a directional light to the world so that we can see something. The light scene node's orientation controls the
     // light direction; we will use the SetDirection() function which calculates the orientation from a forward direction vector.
     // The light will use default settings (white light, no shadows)
-/*
+
     Node* lightNode = scene_->CreateChild("DirectionalLight");
     lightNode->SetDirection(Vector3(0.6f, -1.0f, 0.8f)); // The direction vector does not need to be normalized
     auto* light = lightNode->CreateComponent<Light>();
     light->SetLightType(LIGHT_DIRECTIONAL);
-*/
+
     // Create more StaticModel objects to the scene, randomly positioned, rotated and scaled. For rotation, we construct a
     // quaternion from Euler angles where the Y angle (rotation about the Y axis) is randomized. The mushroom model contains
     // LOD levels, so the StaticModel component will automatically select the LOD level according to the view distance (you'll
@@ -127,13 +127,13 @@ void SignedDistanceFieldText::CreateScene()
         if (i % 3 == 1)
         {
             mushroomTitleText->SetColor(Color::GREEN);
-            mushroomTitleText->SetTextEffect(TE_SHADOW);
+//            mushroomTitleText->SetTextEffect(TE_SHADOW);
             mushroomTitleText->SetEffectColor(Color(0.5f, 0.5f, 0.5f));
         }
         else if (i % 3 == 2)
         {
             mushroomTitleText->SetColor(Color::YELLOW);
-            mushroomTitleText->SetTextEffect(TE_STROKE);
+//            mushroomTitleText->SetTextEffect(TE_STROKE);
             mushroomTitleText->SetEffectColor(Color(0.5f, 0.5f, 0.5f));
         }
 

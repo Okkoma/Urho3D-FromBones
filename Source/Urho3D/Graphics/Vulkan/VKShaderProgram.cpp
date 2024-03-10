@@ -41,28 +41,29 @@ ShaderProgram::ShaderProgram(Graphics* graphics, ShaderVariation* vertexShader, 
     const unsigned* vsBufferSizes = vertexShader->GetConstantBufferSizes();
     for (unsigned i = 0; i < MAX_SHADER_PARAMETER_GROUPS; ++i)
     {
-        bool dynamic = i == SP_OBJECT;
-        unsigned size = dynamic ? graphics->GetImpl()->GetUBOPaddedSize(vsBufferSizes[i]) * MAX_OBJECTS : vsBufferSizes[i];
+        unsigned maxObjects = ConstantBufferMaxObjects[VS][i];
+        unsigned size = maxObjects ? graphics->GetImpl()->GetUBOPaddedSize(vsBufferSizes[i]) * maxObjects : vsBufferSizes[i];
 
         if (vsBufferSizes[i])
         {
             URHO3D_LOGDEBUGF("ShaderProgram : VS get or create constantbuffer group=%u size=%u", i, size);
             vsConstantBuffers_[i] = graphics->GetOrCreateConstantBuffer(VS, (i << 27) | (vertexShader->GetVariationHash().Value() & 0x7ffffff), size);
-            vsConstantBuffers_[i]->SetDynamic(dynamic);
+            vsConstantBuffers_[i]->SetNumObjects(maxObjects);
         }
     }
 
     const unsigned* psBufferSizes = pixelShader->GetConstantBufferSizes();
     for (unsigned i = 0; i < MAX_SHADER_PARAMETER_GROUPS; ++i)
     {
-        bool dynamic = i == SP_LIGHT;
-        unsigned size = dynamic ? graphics->GetImpl()->GetUBOPaddedSize(psBufferSizes[i]) * MAX_OBJECTS : psBufferSizes[i];
+        unsigned maxObjects = ConstantBufferMaxObjects[PS][i];
+        unsigned size = maxObjects ? graphics->GetImpl()->GetUBOPaddedSize(psBufferSizes[i]) * maxObjects : psBufferSizes[i];
 
         if (psBufferSizes[i])
         {
             URHO3D_LOGDEBUGF("ShaderProgram : PS get or create constantbuffer group=%u size=%u", i, size);
+
             psConstantBuffers_[i] = graphics->GetOrCreateConstantBuffer(PS, (i << 27) | (pixelShader->GetVariationHash().Value() & 0x7ffffff), size);
-            psConstantBuffers_[i]->SetDynamic(dynamic);
+            psConstantBuffers_[i]->SetNumObjects(maxObjects);
         }
     }
 

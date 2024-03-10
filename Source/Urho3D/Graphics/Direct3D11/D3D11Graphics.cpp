@@ -1460,7 +1460,7 @@ void Graphics::SetDepthStencil(Texture2D* texture)
     impl_->rasterizerStateDirty_ = true;
 }
 
-void Graphics::SetViewport(const IntRect& rect)
+void Graphics::SetViewport(const IntRect& rect, unsigned index)
 {
     IntVector2 size = GetRenderTargetDimensions();
 
@@ -2104,7 +2104,7 @@ void Graphics::AdjustWindow(int& newWidth, int& newHeight, bool& newFullscreen, 
             SDL_MaximizeWindow(window_);
             SDL_GetWindowSize(window_, &newWidth, &newHeight);
         }
-        else 
+        else
         {
             SDL_Rect display_rect;
             SDL_GetDisplayBounds(monitor, &display_rect);

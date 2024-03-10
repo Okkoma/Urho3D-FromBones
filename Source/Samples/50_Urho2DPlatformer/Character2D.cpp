@@ -20,17 +20,18 @@
 // THE SOFTWARE.
 //
 
-#include <Urho3D/Urho2D/AnimatedSprite2D.h>
-#include <Urho3D/Urho2D/AnimationSet2D.h>
+
 #include <Urho3D/Core/Context.h>
 #include <Urho3D/Input/Input.h>
 #include <Urho3D/IO/MemoryBuffer.h>
-#include <Urho3D/Urho2D/PhysicsWorld2D.h>
-#include <Urho3D/Urho2D/RigidBody2D.h>
 #include <Urho3D/Scene/Scene.h>
 #include <Urho3D/Scene/SceneEvents.h>
 #include <Urho3D/UI/Text.h>
 #include <Urho3D/UI/UI.h>
+#include <Urho3D/Urho2D/AnimatedSprite2D.h>
+#include <Urho3D/Urho2D/AnimationSet2D.h>
+#include <Urho3D/Urho2D/PhysicsWorld2D.h>
+#include <Urho3D/Urho2D/RigidBody2D.h>
 
 #include <Urho3D/DebugNew.h>
 
@@ -101,28 +102,28 @@ void Character2D::Update(float timeStep)
     // Set direction
     Vector2 moveDir = Vector2::ZERO; // Reset
 
-    if (input->GetKeyDown(KEY_A) || input->GetKeyDown(KEY_LEFT))
+    if (input->GetScancodeDown(SCANCODE_A) || input->GetKeyDown(KEY_LEFT))
     {
         moveDir = moveDir + Vector2::LEFT;
         animatedSprite->SetFlipX(false); // Flip sprite (reset to default play on the X axis)
     }
-    if (input->GetKeyDown(KEY_D) || input->GetKeyDown(KEY_RIGHT))
+    if (input->GetScancodeDown(SCANCODE_D) || input->GetKeyDown(KEY_RIGHT))
     {
         moveDir = moveDir + Vector2::RIGHT;
         animatedSprite->SetFlipX(true); // Flip sprite (flip animation on the X axis)
     }
 
     // Jump
-    if ((onGround || aboveClimbable_) && (input->GetKeyPress(KEY_W) || input->GetKeyPress(KEY_UP)))
+    if ((onGround || aboveClimbable_) && (input->GetScancodePress(SCANCODE_W) || input->GetKeyPress(KEY_UP)))
         jump = true;
 
     // Climb
     if (isClimbing_)
     {
-        if (!aboveClimbable_ && (input->GetKeyDown(KEY_UP) || input->GetKeyDown(KEY_W)))
+        if (!aboveClimbable_ && (input->GetKeyDown(KEY_UP) || input->GetScancodeDown(SCANCODE_W)))
             moveDir = moveDir + Vector2(0.0f, 1.0f);
 
-        if (input->GetKeyDown(KEY_DOWN) || input->GetKeyDown(KEY_S))
+        if (input->GetKeyDown(KEY_DOWN) || input->GetScancodeDown(SCANCODE_S))
             moveDir = moveDir + Vector2(0.0f, -1.0f);
     }
 
@@ -138,7 +139,7 @@ void Character2D::Update(float timeStep)
     }
 
     // Animate
-    if (input->GetKeyDown(KEY_SPACE))
+    if (input->GetScancodeDown(SCANCODE_SPACE))
     {
         if (animatedSprite->GetAnimation() != "attack")
         {

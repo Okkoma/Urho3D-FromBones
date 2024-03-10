@@ -218,8 +218,6 @@ private:
     HashMap<String, SharedPtr<XMLFile> > tsxXMLFiles_;
     /// Tile map information.
     TileMapInfo2D info_;
-    /// Tile set textures.
-    Vector<SharedPtr<Texture2D> > tileSetTextures_;
     /// Gid to tile sprite mapping.
     HashMap<unsigned, SharedPtr<Sprite2D> > gidToSpriteMapping_;
     /// Gid to tile property set mapping.

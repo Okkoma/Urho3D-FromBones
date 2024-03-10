@@ -1111,6 +1111,164 @@ template <class T> typename Urho3D::PODVector<T>::Iterator end(Urho3D::PODVector
 
 }
 
+#include <typeinfo>
+#include <cstring>
+
+namespace Urho3D
+{
+
+/// C.VILLE for FromBones Project
+
+/// Heterogen Storage Class (store different object types).
+/// Warning : this class has no continuous allocation, just like a list
+///           don't use it for huge collection of object
+/// TODO    : reserved allocation memory
+
+/// Used in VkGraphicsImpl
+
+//const unsigned COLLECTION_DEFAULTBYTESIZE = 10000U;
+
+class Collection
+{
+private:
+    struct Base
+    {
+        virtual ~Base() { }
+    };
+
+    template<typename T> struct Derived : Base
+    {
+        Derived(T* ptr) : ptr_(ptr) { }
+        T* ptr_;
+    };
+
+public:
+    Collection()
+    {
+        // Reserve default size for the memory
+//        capacity_ = COLLECTION_DEFAULTBYTESIZE;
+//        buffer_ = ::new[COLLECTION_DEFAULTBYTESIZE] unsigned char;
+    }
+
+    Collection(unsigned bytesize)
+    {
+        // Reserve default size for the memory
+//        capacity_ = bytesize;
+//        buffer_ = ::new[bytesize] unsigned char;
+    }
+
+    ~Collection()
+    {
+        Clear();
+    }
+
+    void Clear()
+    {
+        for (Vector<Base* >::Iterator it = storage_.Begin(); it != storage_.End(); ++it)
+            delete *it;
+
+        storage_.Clear();
+    }
+
+    template<typename T> T& New()
+    {
+        T* ptr = new T;
+        storage_.Push(new Derived<T>(ptr));
+        return *ptr;
+    }
+
+    template<typename T> T& Push(const T& value)
+    {
+        T& object = New<T>();
+        // copy
+        object = value;
+        return object;
+    }
+
+    // find the first object of Type T in the collection
+    template<typename T> T* Find() const
+    {
+        for (Vector<Base* >::ConstIterator it = storage_.Begin(); it != storage_.End(); ++it)
+        {
+            if (typeid(**it) == typeid(Derived<T>))
+            {
+                return static_cast<Derived<T>* >(*it)->ptr_;
+            }
+        }
+        return 0;
+    }
+
+    template<typename T> void FindAll(PODVector<T*>& results) const
+    {
+        for (Vector<Base* >::ConstIterator it = storage_.Begin(); it != storage_.End(); ++it)
+        {
+            if (typeid(**it) == typeid(Derived<T>))
+                results.Push(static_cast<Derived<T>* >(*it)->ptr_);
+        }
+    }
+
+    template<typename T> bool IsTypeAtIndex(unsigned index) const
+    {
+        if (index >= Size())
+            return false;
+
+        return typeid(*storage_[index]) == typeid(Derived<T>);
+    }
+
+    const char* GetTypeAt(unsigned index) const
+    {
+        static char buffer[512];
+        const std::type_info& typeinfo = typeid(*storage_[index]);
+        const unsigned length = (unsigned)strlen(typeinfo.name()) - 2 - CollectionTypeNameStartIndex;
+        memcpy(buffer, &typeinfo.name()[CollectionTypeNameStartIndex], length);
+        return buffer;
+//        return typeid(*(static_cast<Derived<Base>* >(storage_[index])->ptr_)).name();
+    }
+
+    void* At(unsigned i)
+    {
+        return static_cast<Derived<void>* >(storage_[i])->ptr_;
+    }
+
+    void* Front()
+    {
+        return At(0);
+    }
+
+    void* Back()
+    {
+        return At(Size() - 1);
+    }
+
+    template<typename T> T& At(unsigned i)
+    {
+        return static_cast<Derived<T>* >(storage_[i])->ptr_;
+    }
+
+    template<typename T> T& Front()
+    {
+        return At<T>(0);
+    }
+
+    template<typename T> T& Back()
+    {
+        return At<T>(Size() - 1);
+    }
+
+    unsigned Size() const
+    {
+        return storage_.Size();
+    }
+
+private:
+    Vector<Base* > storage_;
+//    unsigned size_;
+//    unsigned capacity_;
+//    unsigned char* buffer_;
+    static const unsigned CollectionTypeNameStartIndex = 31U; //"N6Urho3D10Collection7DerivedI42"
+};
+
+}
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif

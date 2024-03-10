@@ -143,12 +143,12 @@ void RenderToTexture::CreateScene()
         zone->SetFogEnd(300.0f);
 
         // Create a directional light without shadows
-        Node* lightNode = scene_->CreateChild("DirectionalLight");
-        lightNode->SetDirection(Vector3(0.5f, -1.0f, 0.5f));
-        auto* light = lightNode->CreateComponent<Light>();
-        light->SetLightType(LIGHT_DIRECTIONAL);
-        light->SetColor(Color(0.2f, 0.2f, 0.2f));
-        light->SetSpecularIntensity(1.0f);
+//        Node* lightNode = scene_->CreateChild("DirectionalLight");
+//        lightNode->SetDirection(Vector3(0.5f, -1.0f, 0.5f));
+//        auto* light = lightNode->CreateComponent<Light>();
+//        light->SetLightType(LIGHT_DIRECTIONAL);
+//        light->SetColor(Color(0.2f, 0.2f, 0.2f));
+//        light->SetSpecularIntensity(1.0f);
 
         // Create a "floor" consisting of several tiles
         for (int y = -5; y <= 5; ++y)

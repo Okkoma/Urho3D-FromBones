@@ -105,10 +105,10 @@ void MultipleViewports::CreateScene()
     lightNode->SetDirection(Vector3(0.6f, -1.0f, 0.8f));
     auto* light = lightNode->CreateComponent<Light>();
     light->SetLightType(LIGHT_DIRECTIONAL);
-    light->SetCastShadows(true);
-    light->SetShadowBias(BiasParameters(0.00025f, 0.5f));
+//    light->SetCastShadows(true);
+//    light->SetShadowBias(BiasParameters(0.00025f, 0.5f));
     // Set cascade splits at 10, 50 and 200 world units, fade shadows out at 80% of maximum shadow distance
-    light->SetShadowCascade(CascadeParameters(10.0f, 50.0f, 200.0f, 0.0f, 0.8f));
+//    light->SetShadowCascade(CascadeParameters(10.0f, 50.0f, 200.0f, 0.0f, 0.8f));
 
     // Create some mushrooms
     const unsigned NUM_MUSHROOMS = 240;
@@ -125,7 +125,7 @@ void MultipleViewports::CreateScene()
     }
 
     // Create randomly sized boxes. If boxes are big enough, make them occluders
-    const unsigned NUM_BOXES = 20;
+    const unsigned NUM_BOXES = 10;
     for (unsigned i = 0; i < NUM_BOXES; ++i)
     {
         Node* boxNode = scene_->CreateChild("Box");
@@ -197,15 +197,15 @@ void MultipleViewports::SetupViewports()
     // bloom and FXAA post process effects to the front viewport. Render path commands can be tagged
     // for example with the effect name to allow easy toggling on and off. We start with the effects
     // disabled.
-    auto* cache = GetSubsystem<ResourceCache>();
-    SharedPtr<RenderPath> effectRenderPath = viewport->GetRenderPath()->Clone();
-    effectRenderPath->Append(cache->GetResource<XMLFile>("PostProcess/Bloom.xml"));
-    effectRenderPath->Append(cache->GetResource<XMLFile>("PostProcess/FXAA2.xml"));
-    // Make the bloom mixing parameter more pronounced
-    effectRenderPath->SetShaderParameter("BloomMix", Vector2(0.9f, 0.6f));
-    effectRenderPath->SetEnabled("Bloom", false);
-    effectRenderPath->SetEnabled("FXAA2", false);
-    viewport->SetRenderPath(effectRenderPath);
+//    auto* cache = GetSubsystem<ResourceCache>();
+//    SharedPtr<RenderPath> effectRenderPath = viewport->GetRenderPath()->Clone();
+//    effectRenderPath->Append(cache->GetResource<XMLFile>("PostProcess/Bloom.xml"));
+//    effectRenderPath->Append(cache->GetResource<XMLFile>("PostProcess/FXAA2.xml"));
+//    // Make the bloom mixing parameter more pronounced
+//    effectRenderPath->SetShaderParameter("BloomMix", Vector2(0.9f, 0.6f));
+//    effectRenderPath->SetEnabled("Bloom", false);
+//    effectRenderPath->SetEnabled("FXAA2", false);
+//    viewport->SetRenderPath(effectRenderPath);
 
     // Set up the rear camera viewport on top of the front view ("rear view mirror")
     // The viewport index must be greater in that case, otherwise the view would be left behind
@@ -247,24 +247,24 @@ void MultipleViewports::MoveCamera(float timeStep)
     cameraNode_->SetRotation(Quaternion(pitch_, yaw_, 0.0f));
 
     // Read WASD keys and move the camera scene node to the corresponding direction if they are pressed
-    if (input->GetKeyDown(KEY_W))
+    if (input->GetScancodeDown(SCANCODE_W))
         cameraNode_->Translate(Vector3::FORWARD * MOVE_SPEED * timeStep);
-    if (input->GetKeyDown(KEY_S))
+    if (input->GetScancodeDown(SCANCODE_S))
         cameraNode_->Translate(Vector3::BACK * MOVE_SPEED * timeStep);
-    if (input->GetKeyDown(KEY_A))
+    if (input->GetScancodeDown(SCANCODE_A))
         cameraNode_->Translate(Vector3::LEFT * MOVE_SPEED * timeStep);
-    if (input->GetKeyDown(KEY_D))
+    if (input->GetScancodeDown(SCANCODE_D))
         cameraNode_->Translate(Vector3::RIGHT * MOVE_SPEED * timeStep);
 
     // Toggle post processing effects on the front viewport. Note that the rear viewport is unaffected
-    RenderPath* effectRenderPath = GetSubsystem<Renderer>()->GetViewport(0)->GetRenderPath();
-    if (input->GetKeyPress(KEY_B))
-        effectRenderPath->ToggleEnabled("Bloom");
-    if (input->GetKeyPress(KEY_F))
-        effectRenderPath->ToggleEnabled("FXAA2");
+//    RenderPath* effectRenderPath = GetSubsystem<Renderer>()->GetViewport(0)->GetRenderPath();
+//    if (input->GetKeyPress(KEY_B))
+//        effectRenderPath->ToggleEnabled("Bloom");
+//    if (input->GetKeyPress(KEY_F))
+//        effectRenderPath->ToggleEnabled("FXAA2");
 
     // Toggle debug geometry with space
-    if (input->GetKeyPress(KEY_SPACE))
+    if (input->GetScancodeDown(SCANCODE_SPACE))
         drawDebug_ = !drawDebug_;
 }
 

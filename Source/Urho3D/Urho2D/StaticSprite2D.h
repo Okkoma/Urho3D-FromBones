@@ -54,11 +54,13 @@ public:
     /// Set blend mode.
     void SetBlendMode(BlendMode blendMode);
     /// Set flip.
-    void SetFlip(bool flipX, bool flipY);
+    void SetFlip(bool flipX, bool flipY, bool swapXY = false);
     /// Set flip X.
     void SetFlipX(bool flipX);
     /// Set flip Y.
     void SetFlipY(bool flipY);
+    /// Set swap X and Y.
+    void SetSwapXY(bool swapXY);
     /// Set color.
     void SetColor(const Color& color);
     void SetColors(const Color& color, const Color& color2);
@@ -150,6 +152,8 @@ protected:
     bool flipX_;
     /// Flip Y.
     bool flipY_;
+    /// Swap X and Y.
+    bool swapXY_;
     /// Color.
     Color color_;
     Color color2_;

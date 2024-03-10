@@ -99,7 +99,10 @@ void TileMap2D::DrawDebugGeometry(DebugRenderer* debug, bool depthTest)
     }
 
     for (unsigned i = 0; i < layers_.Size(); ++i)
+    {
+        if (layers_[i]->IsVisible())
         layers_[i]->DrawDebugGeometry(debug, depthTest);
+    }
 }
 
 void TileMap2D::DrawDebugGeometry()

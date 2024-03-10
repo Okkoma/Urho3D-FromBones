@@ -21,37 +21,37 @@
 //
 
 #include <Urho3D/Audio/Audio.h>
+#include <Urho3D/Core/CoreEvents.h>
+#include <Urho3D/Core/StringUtils.h>
+#include <Urho3D/Engine/Engine.h>
+#include <Urho3D/Graphics/Camera.h>
+#include <Urho3D/Graphics/DebugRenderer.h>
+#include <Urho3D/Graphics/Graphics.h>
+#include <Urho3D/Graphics/GraphicsEvents.h>
+#include <Urho3D/Graphics/Octree.h>
+#include <Urho3D/Graphics/Renderer.h>
+#include <Urho3D/Graphics/Zone.h>
+#include <Urho3D/Input/Input.h>
+#include <Urho3D/Resource/ResourceCache.h>
+#include <Urho3D/Scene/Scene.h>
+#include <Urho3D/Scene/SceneEvents.h>
+#include <Urho3D/UI/Button.h>
+#include <Urho3D/UI/Font.h>
+#include <Urho3D/UI/Text.h>
+#include <Urho3D/UI/UI.h>
+#include <Urho3D/UI/UIEvents.h>
 #include <Urho3D/Urho2D/AnimatedSprite2D.h>
 #include <Urho3D/Urho2D/AnimationSet2D.h>
-#include <Urho3D/UI/Button.h>
-#include <Urho3D/Graphics/Camera.h>
 #include <Urho3D/Urho2D/CollisionBox2D.h>
 #include <Urho3D/Urho2D/CollisionChain2D.h>
 #include <Urho3D/Urho2D/CollisionCircle2D.h>
 #include <Urho3D/Urho2D/CollisionPolygon2D.h>
-#include <Urho3D/Core/CoreEvents.h>
-#include <Urho3D/Graphics/DebugRenderer.h>
-#include <Urho3D/Engine/Engine.h>
-#include <Urho3D/UI/Font.h>
-#include <Urho3D/Graphics/Graphics.h>
-#include <Urho3D/Graphics/GraphicsEvents.h>
-#include <Urho3D/Input/Input.h>
-#include <Urho3D/Graphics/Octree.h>
 #include <Urho3D/Urho2D/PhysicsEvents2D.h>
 #include <Urho3D/Urho2D/PhysicsWorld2D.h>
-#include <Urho3D/Graphics/Renderer.h>
-#include <Urho3D/Resource/ResourceCache.h>
 #include <Urho3D/Urho2D/RigidBody2D.h>
-#include <Urho3D/Scene/Scene.h>
-#include <Urho3D/Scene/SceneEvents.h>
-#include <Urho3D/Core/StringUtils.h>
-#include <Urho3D/UI/Text.h>
 #include <Urho3D/Urho2D/TileMap2D.h>
 #include <Urho3D/Urho2D/TileMapLayer2D.h>
 #include <Urho3D/Urho2D/TmxFile2D.h>
-#include <Urho3D/UI/UI.h>
-#include <Urho3D/UI/UIEvents.h>
-#include <Urho3D/Graphics/Zone.h>
 
 #include <Urho3D/DebugNew.h>
 
@@ -131,7 +131,7 @@ void Urho2DPlatformer::CreateScene()
 
     // Create tile map from tmx file
     auto* cache = GetSubsystem<ResourceCache>();
-    auto* tileMapNode = scene_->CreateChild("TileMap");
+    SharedPtr<Node> tileMapNode(scene_->CreateChild("TileMap"));
     auto* tileMap = tileMapNode->CreateComponent<TileMap2D>();
     tileMap->SetTmxFile(cache->GetResource<TmxFile2D>("Urho2D/Tilesets/Ortho.tmx"));
     const TileMapInfo2D& info = tileMap->GetInfo();
@@ -195,17 +195,19 @@ void Urho2DPlatformer::SubscribeToEvents()
 
 void Urho2DPlatformer::HandleCollisionBegin(StringHash eventType, VariantMap& eventData)
 {
-    // Get colliding node
-    auto* physicsWorld = scene_->GetComponent<PhysicsWorld2D>();
-    const ContactInfo& cinfo = physicsWorld->GetBeginContactInfo(eventData[PhysicsBeginContact2D::P_CONTACTINFO].GetUInt());
-    auto* hitNode = cinfo.bodyA_->GetNode();
-    if (hitNode->GetName() == "Imp")
-        hitNode = cinfo.bodyB_->GetNode();
-    String nodeName = hitNode->GetName();
     Node* character2DNode = scene_->GetChild("Imp", true);
+    // Get colliding node
+    const auto& cinfo = scene_->GetComponent<PhysicsWorld2D>()->GetBeginContactInfo(eventData[PhysicsBeginContact2D::P_CONTACTINFO].GetUInt());
+    Node* hitNode = 0;
+    if (cinfo.bodyA_ && cinfo.bodyA_->GetNode() != character2DNode)
+        hitNode = cinfo.bodyA_->GetNode();
+    else if (cinfo.bodyB_ && cinfo.bodyB_->GetNode() != character2DNode)
+        hitNode = cinfo.bodyB_->GetNode();
+    if (!hitNode)
+        return;
 
     // Handle ropes and ladders climbing
-    if (nodeName == "Climb")
+    if (hitNode->GetName() == "Climb")
     {
         if (character2D_->isClimbing_) // If transition between rope and top of rope (as we are using split triggers)
             character2D_->climb2_ = true;
@@ -221,11 +223,11 @@ void Urho2DPlatformer::HandleCollisionBegin(StringHash eventType, VariantMap& ev
         }
     }
 
-    if (nodeName == "CanJump")
+    if (hitNode->GetName()  == "CanJump")
         character2D_->aboveClimbable_ = true;
 
     // Handle coins picking
-    if (nodeName == "Coin")
+    if (hitNode->GetName()  == "Coin")
     {
         hitNode->Remove();
         character2D_->remainingCoins_ -= 1;
@@ -241,18 +243,18 @@ void Urho2DPlatformer::HandleCollisionBegin(StringHash eventType, VariantMap& ev
     }
 
     // Handle interactions with enemies
-    if (nodeName == "Enemy" || nodeName == "Orc")
+    if (hitNode->GetName() == "Enemy" || hitNode->GetName() == "Orc")
     {
         auto* animatedSprite = character2DNode->GetComponent<AnimatedSprite2D>();
         float deltaX = character2DNode->GetPosition().x_ - hitNode->GetPosition().x_;
 
         // Orc killed if character is fighting in its direction when the contact occurs (flowers are not destroyable)
-        if (nodeName == "Orc" && animatedSprite->GetAnimation() == "attack" && (deltaX < 0 == animatedSprite->GetFlipX()))
+        if (hitNode->GetName() == "Orc" && animatedSprite->GetAnimation() == "attack" && (deltaX < 0 == animatedSprite->GetFlipX()))
         {
             static_cast<Mover*>(hitNode->GetComponent<Mover>())->emitTime_ = 1;
             if (!hitNode->GetChild("Emitter", true))
             {
-                hitNode->GetComponent("RigidBody2D")->Remove(); // Remove Orc's body
+                hitNode->GetComponent<RigidBody2D>()->Remove(); // Remove Orc's body
                 sample2D_->SpawnEffect(hitNode);
                 sample2D_->PlaySoundEffect("BigExplosion.wav");
             }
@@ -263,7 +265,7 @@ void Urho2DPlatformer::HandleCollisionBegin(StringHash eventType, VariantMap& ev
             if (!character2DNode->GetChild("Emitter", true))
             {
                 character2D_->wounded_ = true;
-                if (nodeName == "Orc")
+                if (hitNode->GetName() == "Orc")
                 {
                     auto* orc = static_cast<Mover*>(hitNode->GetComponent<Mover>());
                     orc->fightTimer_ = 1;
@@ -275,7 +277,7 @@ void Urho2DPlatformer::HandleCollisionBegin(StringHash eventType, VariantMap& ev
     }
 
     // Handle exiting the level when all coins have been gathered
-    if (nodeName == "Exit" && character2D_->remainingCoins_ == 0)
+    if (hitNode->GetName() == "Exit" && character2D_->remainingCoins_ == 0)
     {
         // Update UI
         auto* ui = GetSubsystem<UI>();
@@ -288,7 +290,7 @@ void Urho2DPlatformer::HandleCollisionBegin(StringHash eventType, VariantMap& ev
     }
 
     // Handle falling into lava
-    if (nodeName == "Lava")
+    if (hitNode->GetName() == "Lava")
     {
         auto* body = character2DNode->GetComponent<RigidBody2D>();
         body->ApplyForceToCenter(Vector2(0.0f, 1000.0f), true);
@@ -301,23 +303,25 @@ void Urho2DPlatformer::HandleCollisionBegin(StringHash eventType, VariantMap& ev
     }
 
     // Handle climbing a slope
-    if (nodeName == "Slope")
+    if (hitNode->GetName() == "Slope")
         character2D_->onSlope_ = true;
 }
 
 void Urho2DPlatformer::HandleCollisionEnd(StringHash eventType, VariantMap& eventData)
 {
+    auto* character2DNode = scene_->GetChild("Imp", true);
     // Get colliding node
-    auto* physicsWorld = scene_->GetComponent<PhysicsWorld2D>();
-    const ContactInfo& cinfo = physicsWorld->GetEndContactInfo(eventData[PhysicsEndContact2D::P_CONTACTINFO].GetUInt());
-    auto* hitNode = cinfo.bodyA_->GetNode();
-    if (hitNode->GetName() == "Imp")
+    const auto& cinfo = scene_->GetComponent<PhysicsWorld2D>()->GetEndContactInfo(eventData[PhysicsEndContact2D::P_CONTACTINFO].GetUInt());
+    Node* hitNode = 0;
+    if (cinfo.bodyA_ && cinfo.bodyA_->GetNode() != character2DNode)
+        hitNode = cinfo.bodyA_->GetNode();
+    else if (cinfo.bodyB_ && cinfo.bodyB_->GetNode() != character2DNode)
         hitNode = cinfo.bodyB_->GetNode();
-    String nodeName = hitNode->GetName();
-    Node* character2DNode = scene_->GetChild("Imp", true);
+    if (!hitNode)
+        return;
 
     // Handle leaving a rope or ladder
-    if (nodeName == "Climb")
+    if (hitNode->GetName() == "Climb")
     {
         if (character2D_->climb2_)
             character2D_->climb2_ = false;
@@ -329,11 +333,11 @@ void Urho2DPlatformer::HandleCollisionEnd(StringHash eventType, VariantMap& even
         }
     }
 
-    if (nodeName == "CanJump")
+    if (hitNode->GetName() == "CanJump")
         character2D_->aboveClimbable_ = false;
 
     // Handle leaving a slope
-    if (nodeName == "Slope")
+    if (hitNode->GetName() == "Slope")
     {
         character2D_->onSlope_ = false;
         // Clear forces (should be performed by setting linear velocity to zero, but currently doesn't work)
@@ -355,7 +359,7 @@ void Urho2DPlatformer::HandleUpdate(StringHash eventType, VariantMap& eventData)
     auto* input = GetSubsystem<Input>();
 
     // Toggle debug geometry with 'Z' key
-    if (input->GetKeyPress(KEY_Z))
+    if (input->GetScancodePress(SCANCODE_Z))
         drawDebug_ = !drawDebug_;
 
     // Check for loading / saving the scene
@@ -444,11 +448,4 @@ void Urho2DPlatformer::HandlePlayButton(StringHash eventType, VariantMap& eventD
     // Hide mouse cursor
     auto* input = GetSubsystem<Input>();
     input->SetMouseVisible(false);
-
-    auto* tileMap = scene_->GetChild("TileMap")->GetComponent<TileMap2D>();
-
-    for (unsigned i=0; i < tileMap->GetNumLayers(); i++)
-        tileMap->GetLayer(i)->SetVisible(false);
-    for (unsigned i=0; i < tileMap->GetNumLayers(); i++)
-        tileMap->GetLayer(i)->SetVisible(true);
 }

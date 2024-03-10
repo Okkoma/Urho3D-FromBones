@@ -367,7 +367,7 @@ void TileMapLayer2D::SetTileLayer(const TmxTileLayer2D* tileLayer)
 
             StaticSprite2D* staticSprite = tileNode->CreateComponent<StaticSprite2D>();
             staticSprite->SetSprite(tile->GetSprite());
-            staticSprite->SetFlip(tile->GetFlipX(), tile->GetFlipY());//, tile->GetSwapXY());
+            staticSprite->SetFlip(tile->GetFlipX(), tile->GetFlipY(), tile->GetSwapXY());
             staticSprite->SetLayer(drawOrder_);
             staticSprite->SetOrderInLayer(y * width + x);
 
@@ -396,7 +396,7 @@ void TileMapLayer2D::SetObjectGroup(const TmxObjectGroup2D* objectGroup)
         {
             StaticSprite2D* staticSprite = objectNode->CreateComponent<StaticSprite2D>();
             staticSprite->SetSprite(object->GetTileSprite());
-            staticSprite->SetFlip(object->GetTileFlipX(), object->GetTileFlipY());// object->GetTileSwapXY());
+            staticSprite->SetFlip(object->GetTileFlipX(), object->GetTileFlipY(), object->GetTileSwapXY());
             staticSprite->SetLayer(drawOrder_);
             staticSprite->SetOrderInLayer((int)((10.0f - object->GetPosition().y_) * 100));
 

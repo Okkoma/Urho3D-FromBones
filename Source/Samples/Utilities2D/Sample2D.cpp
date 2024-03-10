@@ -20,39 +20,44 @@
 // THE SOFTWARE.
 //
 
-#include <Urho3D/Urho2D/AnimatedSprite2D.h>
-#include <Urho3D/Urho2D/AnimationSet2D.h>
-#include <Urho3D/UI/BorderImage.h>
-#include <Urho3D/UI/Button.h>
+#include <Urho3D/Audio/Sound.h>
+#include <Urho3D/Audio/SoundSource.h>
+#include <Urho3D/Core/Context.h>
+#include <Urho3D/Core/CoreEvents.h>
+#include <Urho3D/Core/StringUtils.h>
+#include <Urho3D/Engine/Engine.h>
 #include <Urho3D/Graphics/Camera.h>
+#include <Urho3D/Graphics/Texture2D.h>
+#include <Urho3D/Input/Input.h>
+#include <Urho3D/IO/File.h>
+#include <Urho3D/IO/FileSystem.h>
 #include <Urho3D/Urho2D/CollisionBox2D.h>
 #include <Urho3D/Urho2D/CollisionChain2D.h>
 #include <Urho3D/Urho2D/CollisionCircle2D.h>
 #include <Urho3D/Urho2D/CollisionPolygon2D.h>
-#include <Urho3D/Core/Context.h>
-#include <Urho3D/Core/CoreEvents.h>
-#include <Urho3D/Engine/Engine.h>
-#include <Urho3D/IO/File.h>
-#include <Urho3D/IO/FileSystem.h>
+#include <Urho3D/Urho2D/RigidBody2D.h>
+#include <Urho3D/Resource/ResourceCache.h>
+#include <Urho3D/Scene/Scene.h>
+#include <Urho3D/Scene/ValueAnimation.h>
+#include <Urho3D/UI/BorderImage.h>
+#include <Urho3D/UI/Button.h>
 #include <Urho3D/UI/Font.h>
-#include <Urho3D/Input/Input.h>
+#include <Urho3D/UI/Text.h>
+#include <Urho3D/UI/UI.h>
+#include <Urho3D/UI/UIEvents.h>
+#include <Urho3D/UI/Window.h>
+#include <Urho3D/Urho2D/AnimatedSprite2D.h>
+#include <Urho3D/Urho2D/AnimationSet2D.h>
+#include <Urho3D/Urho2D/CollisionBox2D.h>
+#include <Urho3D/Urho2D/CollisionChain2D.h>
+#include <Urho3D/Urho2D/CollisionCircle2D.h>
+#include <Urho3D/Urho2D/CollisionPolygon2D.h>
 #include <Urho3D/Urho2D/ParticleEffect2D.h>
 #include <Urho3D/Urho2D/ParticleEmitter2D.h>
-#include <Urho3D/Resource/ResourceCache.h>
 #include <Urho3D/Urho2D/RigidBody2D.h>
-#include <Urho3D/Scene/Scene.h>
-#include <Urho3D/Audio/Sound.h>
-#include <Urho3D/Audio/SoundSource.h>
-#include <Urho3D/Core/StringUtils.h>
-#include <Urho3D/UI/Text.h>
-#include <Urho3D/Graphics/Texture2D.h>
 #include <Urho3D/Urho2D/TileMap2D.h>
 #include <Urho3D/Urho2D/TileMapLayer2D.h>
 #include <Urho3D/Urho2D/TmxFile2D.h>
-#include <Urho3D/UI/UI.h>
-#include <Urho3D/UI/UIEvents.h>
-#include <Urho3D/Scene/ValueAnimation.h>
-#include <Urho3D/UI/Window.h>
 
 #include "Utilities2D/Mover.h"
 #include "Sample2D.h"
@@ -395,7 +400,8 @@ void Sample2D::CreateUIContent(const String& demoTitle, int remainingLifes, int 
 
     // Create the UI for displaying the remaining coins
     auto* coinsUI = ui->GetRoot()->CreateChild<BorderImage>("Coins");
-    coinsUI->SetTexture(cache->GetResource<Texture2D>("Urho2D/GoldIcon.png"));
+    coinsUI->SetTexture(cache->GetResource<Texture2D>("Urho2D/GoldIcon/1.png"));
+    coinsUI->SetBlendMode(BLEND_ALPHA);
     coinsUI->SetSize(50, 50);
     coinsUI->SetImageRect(IntRect(0, 64, 60, 128));
     coinsUI->SetAlignment(HA_LEFT, VA_TOP);
@@ -409,6 +415,7 @@ void Sample2D::CreateUIContent(const String& demoTitle, int remainingLifes, int 
     // Create the UI for displaying the remaining lifes
     auto* lifeUI = ui->GetRoot()->CreateChild<BorderImage>("Life");
     lifeUI->SetTexture(cache->GetResource<Texture2D>("Urho2D/imp/imp_all.png"));
+    lifeUI->SetBlendMode(BLEND_ALPHA);
     lifeUI->SetSize(70, 80);
     lifeUI->SetAlignment(HA_RIGHT, VA_TOP);
     lifeUI->SetPosition(-5, 5);
@@ -438,6 +445,7 @@ void Sample2D::CreateUIContent(const String& demoTitle, int remainingLifes, int 
     // Create the image
     auto* spriteUI = fullUI->CreateChild<BorderImage>("Sprite");
     spriteUI->SetTexture(cache->GetResource<Texture2D>("Urho2D/imp/imp_all.png"));
+    spriteUI->SetBlendMode(BLEND_ALPHA);
     spriteUI->SetSize(238, 271);
     spriteUI->SetAlignment(HA_CENTER, VA_CENTER);
     spriteUI->SetPosition(0, - ui->GetRoot()->GetHeight() / 4);

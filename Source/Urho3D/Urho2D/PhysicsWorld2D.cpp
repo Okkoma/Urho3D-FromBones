@@ -1082,9 +1082,9 @@ void PhysicsWorld2D::SendBeginContactEvents()
 
         eventData[P_CONTACTINFO] = i;
 
-		if (contactInfo.bodyA_->GetNode())
+		if (contactInfo.bodyA_ && contactInfo.bodyA_->GetNode())
 			contactInfo.bodyA_->GetNode()->SendEvent(E_PHYSICSBEGINCONTACT2D, eventData);
-		if (contactInfo.bodyB_->GetNode())
+		if (contactInfo.bodyB_ && contactInfo.bodyB_->GetNode())
 			contactInfo.bodyB_->GetNode()->SendEvent(E_PHYSICSBEGINCONTACT2D, eventData);
     }
 }
@@ -1103,9 +1103,9 @@ void PhysicsWorld2D::SendEndContactEvents()
 
         eventData[P_CONTACTINFO] = i;
 
-		if (contactInfo.bodyA_->GetNode())
+		if (contactInfo.bodyA_ && contactInfo.bodyA_->GetNode())
 			contactInfo.bodyA_->GetNode()->SendEvent(E_PHYSICSENDCONTACT2D, eventData);
-		if (contactInfo.bodyB_->GetNode())
+		if (contactInfo.bodyB_ && contactInfo.bodyB_->GetNode())
 			contactInfo.bodyB_->GetNode()->SendEvent(E_PHYSICSENDCONTACT2D, eventData);
     }
 }

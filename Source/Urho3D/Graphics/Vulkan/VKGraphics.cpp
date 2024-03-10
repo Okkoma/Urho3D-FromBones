@@ -1029,7 +1029,7 @@ void Graphics::SetIndexBuffer(IndexBuffer* buffer)
 
 void Graphics::SetShaders(ShaderVariation* vs, ShaderVariation* ps)
 {
-    if (vs == vertexShader_ && ps == pixelShader_)
+    if (vs == vertexShader_ && ps == pixelShader_ && !impl_->viewportChanged_)
         return;
 
 //    URHO3D_LOGDEBUGF("SetShader() ... Begin ...");
@@ -1088,26 +1088,20 @@ void Graphics::SetShaders(ShaderVariation* vs, ShaderVariation* ps)
             impl_->shaderProgram_ = newProgram;
         }
 
-        bool vsBuffersChanged = false;
-        bool psBuffersChanged = false;
-
         for (unsigned i = 0; i < MAX_SHADER_PARAMETER_GROUPS; ++i)
         {
-            if (impl_->shaderProgram_->vsConstantBuffers_[i] != impl_->constantBuffers_[VS][i])
+            if (impl_->constantBuffers_[VS][i] != impl_->shaderProgram_->vsConstantBuffers_[i])
             {
                 impl_->constantBuffers_[VS][i] = impl_->shaderProgram_->vsConstantBuffers_[i].Get();
                 shaderParameterSources_[i] = (const void*)M_MAX_UNSIGNED;
-                vsBuffersChanged = true;
             }
 
-            if (impl_->shaderProgram_->psConstantBuffers_[i] != impl_->constantBuffers_[PS][i])
+            if (impl_->constantBuffers_[PS][i] != impl_->shaderProgram_->psConstantBuffers_[i])
             {
                 impl_->constantBuffers_[PS][i] = impl_->shaderProgram_->psConstantBuffers_[i].Get();
                 shaderParameterSources_[i] = (const void*)M_MAX_UNSIGNED;
-                psBuffersChanged = true;
             }
         }
-
         impl_->pipelineDirty_ = true;
     }
     else
@@ -1152,7 +1146,7 @@ void Graphics::SetShaderParameter(StringHash param, const float* data, unsigned 
     if (param == VSP_VERTEXLIGHTS)
         URHO3D_LOGDEBUGF("Graphics - SetShaderParameter() : VSP_VERTEXLIGHTS constantbuffer=%u ", buffer);
     else if (param == PSP_LIGHTCOLOR)
-        URHO3D_LOGDEBUGF("Graphics - SetShaderParameter() : PSP_LIGHTCOLOR constantbuffer=%u isDynamic=%d ...", buffer, buffer->IsDynamic());
+        URHO3D_LOGDEBUGF("Graphics - SetShaderParameter() : PSP_LIGHTCOLOR constantbuffer=%u ...", buffer);
 #endif
 
     buffer->SetParameter(parameter.offset_, (unsigned)(count * sizeof(float)), data);
@@ -1275,7 +1269,7 @@ void Graphics::SetShaderParameter(StringHash param, const Vector3& vector)
 
 #ifdef ACTIVE_FRAMELOGDEBUG
     if (param == PSP_LIGHTDIR)
-        URHO3D_LOGDEBUGF("Graphics - SetShaderParameter() : PSP_LIGHTDIR constantbuffer=%u isDynamic=%d ...", buffer, buffer->IsDynamic());
+        URHO3D_LOGDEBUGF("Graphics - SetShaderParameter() : PSP_LIGHTDIR constantbuffer=%u ...", buffer);
 #endif
 
     buffer->SetParameter(parameter.offset_, sizeof(Vector3), &vector);
@@ -1317,8 +1311,8 @@ void Graphics::SetShaderParameter(StringHash param, const Vector4& vector)
 
 #ifdef ACTIVE_FRAMELOGDEBUG
     if (param == PSP_LIGHTPOS)
-        URHO3D_LOGDEBUGF("Graphics - SetShaderParameter() : PSP_LIGHTPOS constantbuffer=%u isDynamic=%d pos=%s...",
-                         buffer, buffer->IsDynamic(), vector.ToString().CString());
+        URHO3D_LOGDEBUGF("Graphics - SetShaderParameter() : PSP_LIGHTPOS constantbuffer=%u pos=%s...",
+                         buffer, vector.ToString().CString());
 #endif
 
     buffer->SetParameter(parameter.offset_, sizeof(Vector4), &vector);
@@ -1355,8 +1349,8 @@ void Graphics::SetShaderParameter(StringHash param, const Matrix3x4& matrix)
 
 #ifdef ACTIVE_FRAMELOGDEBUG
     if (param == VSP_MODEL)
-        URHO3D_LOGDEBUGF("Graphics - SetShaderParameter() : VSP_MODEL program=%u constantbuffer=%u matrix=%s",
-                        impl_->shaderProgram_,  buffer, fullMatrix.ToString().CString());
+        URHO3D_LOGDEBUGF("Graphics - SetShaderParameter() : VSP_MODEL constantbuffer=%u program=%u matrix=%s",
+                         buffer, impl_->shaderProgram_, fullMatrix.ToString().CString());
 #endif
 
     buffer->SetParameter(parameter.offset_, sizeof(Matrix4), &fullMatrix);
@@ -1636,7 +1630,7 @@ void Graphics::SetDepthStencil(Texture2D* texture)
 //    SetDepthStencil(depthStencil);
 }
 
-void Graphics::SetViewport(const IntRect& rect)
+void Graphics::SetViewport(const IntRect& rect, unsigned index)
 {
 //    PrepareDraw();
 
@@ -1656,6 +1650,7 @@ void Graphics::SetViewport(const IntRect& rect)
     // Use Direct3D convention with the vertical coordinates ie. 0 is top
 
     viewport_ = rectCopy;
+    impl_->SetViewport(viewport_, index);
 
 //    URHO3D_LOGDEBUGF("Graphics - SetViewport() %s", viewport_.ToString().CString());
 
@@ -2712,7 +2707,262 @@ void Graphics::PrepareDraw()
         impl_->SetPipeline(renderPassKey, vertexShader_, pixelShader_, impl_->pipelineStates_, vertexBuffers_);
     }
 
-    // Update Descriptors.
+    // Set Descriptors.
+#if 1 == 1
+    if (impl_->pipelineInfo_ && impl_->pipelineInfo_->descriptorsGroups_.Size())
+    {
+        const unsigned MaxBindingsBySet = 16;
+        const unsigned numDescriptorSets = impl_->pipelineInfo_->descriptorsGroups_.Size();
+        const int compatibleSetIndex = impl_->GetMaxCompatibleDescriptorSets(frame.lastPipelineInfoBound_, impl_->pipelineInfo_);
+
+        struct DescriptorSetGroupBindInfo
+        {
+            uint32_t firstset_;
+            Vector<VkDescriptorSet> handles_;
+            Vector<uint32_t> dynoffsets_;
+        };
+
+        static Vector<DescriptorSetGroupBindInfo> descriptorSetGroupsBindInfos;
+        descriptorSetGroupsBindInfos.Clear();
+
+        static Vector<VkWriteDescriptorSet> descriptorWrites;
+        descriptorWrites.Resize(numDescriptorSets * MaxBindingsBySet);
+
+        static Vector<VkDescriptorBufferInfo> bufferInfos;
+        bufferInfos.Resize(descriptorWrites.Size());
+
+        static Vector<VkDescriptorImageInfo> imageInfos;
+        imageInfos.Resize(descriptorWrites.Size());
+
+        unsigned descriptorWritesCount = 0;
+
+        int lastSetToBind = -1;
+        Vector<uint32_t> dynamicOffsets;
+        for (int i = 0; i < numDescriptorSets; i++)
+        {
+            bool descriptorSetBindDirty = compatibleSetIndex < i;
+
+            DescriptorsGroup& descGroup = impl_->pipelineInfo_->descriptorsGroups_[i];
+
+            // Get the allocated Descriptor Sets for the current frame
+            DescriptorsGroupAllocation& alloc = descGroup.setsByFrame_[impl_->currentFrame_];
+
+            // Get the index of the last descriptorSet used in the pool
+            // for the first update, always use a new descriptorSet
+            bool newDecriptorSet = alloc.index_ >= impl_->pipelineInfo_->maxAllocatedDescriptorSets_;
+
+            unsigned set = descGroup.id_;
+            unsigned numSamplerUpdate = 0;
+            const unsigned startWritesCount = descriptorWritesCount;
+            const Vector<ShaderBind>& bindings = descGroup.bindings_;
+            for (unsigned j = 0; j < bindings.Size(); j++)
+            {
+                const ShaderBind& binding = bindings[j];
+
+                int shaderStage = binding.stageFlag_ == VK_SHADER_STAGE_VERTEX_BIT ? VS : PS;
+
+                // Uniform Buffer
+                if (binding.type_ == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER || binding.type_ == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
+                {
+                    ConstantBuffer* buffer = impl_->constantBuffers_[shaderStage][binding.unitStart_];
+                    if (!buffer)
+                    {
+                    #ifdef ACTIVE_FRAMELOGDEBUG
+                        URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u no buffer !", shaderStage == VS ? "VS":"PS", set, binding.id_);
+                    #endif
+                        continue;
+                    }
+
+                    unsigned sizePerObject = shaderStage == VS ? vertexShader_->GetConstantBufferSizes()[binding.unitStart_] : pixelShader_->GetConstantBufferSizes()[binding.unitStart_];
+
+                    if (binding.type_ == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
+                    {
+                        descriptorSetBindDirty = true;
+                        dynamicOffsets.Push(buffer->GetObjectIndex() * impl_->GetUBOPaddedSize(sizePerObject));
+                    #ifdef ACTIVE_FRAMELOGDEBUG
+                        URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u obj=%u dynamic update buffer=%u dyncount=%u dynoffset=%u !",
+                                        shaderStage == VS ? "VS":"PS", set, binding.id_, buffer->GetObjectIndex(), buffer, dynamicOffsets.Size(), dynamicOffsets.Back());
+                    #endif
+                    }
+
+                    if ((buffer->IsDirty() && binding.type_ == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) || newDecriptorSet)
+                    {
+                        VkDescriptorBufferInfo& bufferInfo = bufferInfos[descriptorWritesCount];
+                        bufferInfo.buffer = (VkBuffer)buffer->GetGPUObject();
+                        bufferInfo.offset = 0;
+                        bufferInfo.range  = sizePerObject;
+
+                        VkWriteDescriptorSet& descriptorWrite = descriptorWrites[descriptorWritesCount];
+                        descriptorWrite.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                        descriptorWrite.dstBinding       = binding.id_;
+                        descriptorWrite.dstArrayElement  = 0;
+                        descriptorWrite.descriptorType   = (VkDescriptorType)binding.type_;
+                        descriptorWrite.descriptorCount  = 1;
+                        descriptorWrite.pBufferInfo      = &bufferInfo;
+                        descriptorWrite.pNext            = nullptr;
+                    #ifdef ACTIVE_FRAMELOGDEBUG
+                        URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u write=%u SPGroup=%u size=%u descInd=%u update buffer=%u !",
+                                          shaderStage == VS ? "VS":"PS", set, binding.id_, descriptorWritesCount+1, binding.unitStart_, sizePerObject, alloc.index_, buffer);
+                    #endif
+                        descriptorWritesCount++;
+                    }
+
+                    // Update To GPU
+                    if (buffer->IsDirty())
+                        buffer->Apply();
+                }
+                // Sampler
+                else if (binding.type_ == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                {
+                    if (frame.textureDirty_)
+					{
+						newDecriptorSet = true;
+					#ifdef ACTIVE_FRAMELOGDEBUG
+                        URHO3D_LOGDEBUGF("PrepareDraw ... consume a new descriptor for %s Set=%u.%u dexInd=%u !", shaderStage == VS ? "VS":"PS", set, binding.id_, alloc.index_);
+                    #endif
+					}
+					if (!frame.textureDirty_ && !newDecriptorSet)
+                        continue;
+
+                    unsigned numTexturesToUpdate = 0;
+                    Texture* lasttexture = 0;
+
+                    for (unsigned unit = binding.unitStart_; unit < MAX_TEXTURE_UNITS; unit++)
+                    {
+                        Texture* texture = textures_[unit];
+
+                        if (!texture)
+                        {
+                        #ifdef ACTIVE_FRAMELOGDEBUG
+                            URHO3D_LOGERRORF("PrepareDraw ... update stage=%s Set=%u.%u check texture unit=%u %u/%u no Texture in the unit ... SKIP !",
+                                             shaderStage == VS ? "VS":"PS", set, binding.id_+numTexturesToUpdate, unit, numTexturesToUpdate, binding.unitRange_);
+                        #endif
+                            continue;
+                        }
+
+                        if (!texture->GetShaderResourceView() || !texture->GetSampler())
+                        {
+                        #ifdef ACTIVE_FRAMELOGDEBUG
+                            URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u check texture unit=%u %u/%u name=%s imageview=%u sampler=%u ... SKIP !",
+                                             shaderStage == VS ? "VS":"PS", set, binding.id_+numTexturesToUpdate, unit, numTexturesToUpdate, binding.unitRange_,
+                                             texture->GetName().CString(), texture->GetShaderResourceView(), texture->GetSampler());
+                        #endif
+                            continue;
+                        }
+
+                        VkDescriptorImageInfo& imageInfo = imageInfos[numSamplerUpdate+numTexturesToUpdate];
+//                        imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+                        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                        imageInfo.imageView   = (VkImageView)(texture->GetShaderResourceView());
+                        imageInfo.sampler     = (VkSampler)(texture->GetSampler());
+
+                    #ifdef ACTIVE_FRAMELOGDEBUG
+                        URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u update unit=%u texture=%s imageview=%u sampler=%u !",
+                                         shaderStage == VS ? "VS":"PS", set, binding.id_+numTexturesToUpdate, unit,
+                                         texture->GetName().CString(), texture->GetShaderResourceView(), texture->GetSampler());
+                    #endif
+                        numTexturesToUpdate++;
+
+                        lasttexture = texture;
+
+                        if (numTexturesToUpdate >= binding.unitRange_)
+                            break;
+                    }
+
+                    if (numTexturesToUpdate)
+                    {
+                        // complete empty sampler
+                        for (unsigned unit = numTexturesToUpdate; unit < binding.unitRange_; unit++)
+                        {
+                            // use the last updated texture
+                            VkDescriptorImageInfo& imageInfo = imageInfos[numSamplerUpdate+unit];
+//                            imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+                            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                            imageInfo.imageView   = (VkImageView)(lasttexture->GetShaderResourceView());
+                            imageInfo.sampler     = (VkSampler)(lasttexture->GetSampler());
+                        }
+                        numTexturesToUpdate = binding.unitRange_;
+
+                        VkWriteDescriptorSet& descriptorWrite = descriptorWrites[descriptorWritesCount];
+                        descriptorWrite.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                        descriptorWrite.dstBinding      = binding.id_;
+                        descriptorWrite.dstArrayElement = 0;
+                        descriptorWrite.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                        descriptorWrite.descriptorCount = numTexturesToUpdate;
+                        descriptorWrite.pImageInfo      = &imageInfos[numSamplerUpdate];
+                        descriptorWrite.pNext           = nullptr;
+
+                    #ifdef ACTIVE_FRAMELOGDEBUG
+                        URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u write=%u descInd=%u update %u samplers !",
+                                         shaderStage == VS ? "VS":"PS", set, binding.id_, descriptorWritesCount+1, alloc.index_, numTexturesToUpdate);
+                    #endif
+                        descriptorWritesCount++;
+
+                        numSamplerUpdate += numTexturesToUpdate;
+                    }
+                }
+            }
+
+            // Consume a new descriptor set
+            if (newDecriptorSet)
+                alloc.index_ = alloc.index_ + 1 < impl_->pipelineInfo_->maxAllocatedDescriptorSets_ ? alloc.index_ + 1 : 0;
+
+            // Get the DescriptorSet from pool allocation
+            VkDescriptorSet descriptorSet = alloc.sets_[alloc.index_];
+
+            // Update the DescriptorWrites with the good DescriptorSet Handle
+            for (unsigned j = startWritesCount; j < descriptorWritesCount; j++)
+                descriptorWrites[j].dstSet = descriptorSet;
+
+            if (descriptorSetBindDirty || newDecriptorSet)
+            {
+                if (lastSetToBind == -1 || lastSetToBind != i-1)
+                {
+                    descriptorSetGroupsBindInfos.Resize(descriptorSetGroupsBindInfos.Size()+1);
+                    descriptorSetGroupsBindInfos.Back().firstset_ = i;
+                #ifdef ACTIVE_FRAMELOGDEBUG
+                    URHO3D_LOGDEBUGF("PrepareDraw ... push bind group[%d] firstset=%d", i, descriptorSetGroupsBindInfos.Size()-1);
+                #endif
+                }
+
+                lastSetToBind = i;
+
+                descriptorSetGroupsBindInfos.Back().handles_.Push(descriptorSet);
+                if (dynamicOffsets.Size())
+                {
+                    descriptorSetGroupsBindInfos.Back().dynoffsets_ += dynamicOffsets;
+                    dynamicOffsets.Clear();
+                }
+
+            #ifdef ACTIVE_FRAMELOGDEBUG
+                URHO3D_LOGDEBUGF("PrepareDraw ... push set=%d to bind group[%d]", i, descriptorSetGroupsBindInfos.Size()-1);
+            #endif
+            }
+        }
+
+        // Update the descriptorSets.
+        if (descriptorWritesCount > 0)
+        {
+        #ifdef ACTIVE_FRAMELOGDEBUG
+            URHO3D_LOGDEBUGF("PrepareDraw ... update descriptor Sets num writes = %u !", descriptorWritesCount);
+        #endif
+            vkUpdateDescriptorSets(impl_->device_, descriptorWritesCount, descriptorWrites.Buffer(), 0, nullptr);
+        }
+
+        // Bind Consecutive descriptorSets.
+        for (unsigned j = 0; j < descriptorSetGroupsBindInfos.Size(); j++)
+        {
+            DescriptorSetGroupBindInfo& info = descriptorSetGroupsBindInfos[j];
+        #ifdef ACTIVE_FRAMELOGDEBUG
+            URHO3D_LOGDEBUGF("PrepareDraw ... bind descriptor Sets Group started sets=%u->%u (numsets=%u/%u)!", info.firstset_, info.firstset_+info.handles_.Size()-1, info.handles_.Size(), numDescriptorSets);
+        #endif
+            vkCmdBindDescriptorSets(frame.commandBuffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, impl_->pipelineInfo_->pipelineLayout_,
+                                    info.firstset_, info.handles_.Size(), info.handles_.Buffer(), info.dynoffsets_.Size(), info.dynoffsets_.Size() ? info.dynoffsets_.Buffer() : nullptr);
+        }
+
+        frame.textureDirty_ = false;
+    }
+#else
     if (impl_->pipelineInfo_ && impl_->pipelineInfo_->descriptorsGroups_.Size())
     {
         const unsigned MaxBindingsBySet = 16;
@@ -2742,14 +2992,11 @@ void Graphics::PrepareDraw()
             DescriptorsGroupAllocation& alloc = descGroup.setsByFrame_[impl_->currentFrame_];
 
             // Get the index of the last descriptorSet used in the pool
+            // for the first update, a new descriptorSet will be used
             unsigned& descriptorIndex = alloc.index_;
             unsigned lastDescriptorIndex = descriptorIndex;
-//            if (descriptorIndex >= impl_->pipelineInfo_->maxAllocatedDescriptorSets_)
-//                descriptorIndex = 0;
-
             // feed the descriptorSets container to update
             VkDescriptorSet& descriptorSet = descriptorSets[i];
-//            descriptorSet = alloc.sets_[descriptorIndex];
             descriptorSet = alloc.sets_[descriptorIndex < impl_->pipelineInfo_->maxAllocatedDescriptorSets_ ? descriptorIndex : 0];
 
             unsigned set = descGroup.id_;
@@ -2765,6 +3012,7 @@ void Graphics::PrepareDraw()
 
                 // TODO : check common binding for Vertex and Fragment ?
                 int shaderStage = binding.stageFlag_ == VK_SHADER_STAGE_VERTEX_BIT ? VS : PS;
+                ShaderVariation* shader = shaderStage == VS ? vertexShader_ : pixelShader_;
 
                 // Uniform Buffer
                 if (binding.type_ == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER || binding.type_ == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
@@ -2792,18 +3040,14 @@ void Graphics::PrepareDraw()
                     if (dirtybuffer)
                         buffer->Apply();
 
-                    unsigned sizePerObject = shaderStage == VS ? vertexShader_->GetConstantBufferSizes()[binding.unitStart_] : pixelShader_->GetConstantBufferSizes()[binding.unitStart_];
+                    unsigned sizePerObject = shader->GetConstantBufferSizes()[binding.unitStart_];
 
-                    bool updateDescriptor = true;
+                    bool updateDescriptor = dirtybuffer || lastDescriptorIndex == descriptorIndex;
 
                     if (binding.type_ == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
                     {
-                        // reuse the same dynamic descriptor
-                        if (descriptorIndex < impl_->pipelineInfo_->maxAllocatedDescriptorSets_)
-                            updateDescriptor = false;
-
                         // Get the object index
-                        uint32_t objindex = Clamp(buffer->GetObjectIndex(), 0U, MAX_OBJECTS-1);
+                        uint32_t objindex = Clamp(buffer->GetObjectIndex(), 0U, buffer->GetNumObjects()-1);
 
                         dynamicOffsets[dynamicOffsetCount] = objindex * impl_->GetUBOPaddedSize(sizePerObject);
                         dynamicOffsetCount++;
@@ -2811,6 +3055,9 @@ void Graphics::PrepareDraw()
                         URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u obj=%u dynamic update buffer=%u dyncount=%u dynoffset=%u !",
                                          shaderStage == VS ? "VS":"PS", set, bind, objindex, buffer, dynamicOffsetCount, dynamicOffsets[dynamicOffsetCount-1]);
                     #endif
+                        // reuse the same dynamic descriptor, if it's not a new descriptor set
+                        if (lastDescriptorIndex != descriptorIndex && descriptorIndex < impl_->pipelineInfo_->maxAllocatedDescriptorSets_)
+                            updateDescriptor = false;
                     }
 
                     if (updateDescriptor)
@@ -2863,10 +3110,10 @@ void Graphics::PrepareDraw()
 
                         if (!texture)
                         {
-                        #ifdef ACTIVE_FRAMELOGDEBUG
-                            URHO3D_LOGERRORF("PrepareDraw ... update stage=%s Set=%u.%u check texture unit=%u %u/%u no Texture in the unit ... SKIP !",
-                                             shaderStage == VS ? "VS":"PS", set, bind+numTexturesToUpdate, unit, numTexturesToUpdate, binding.unitRange_);
-                        #endif
+//                        #ifdef ACTIVE_FRAMELOGDEBUG
+//                            URHO3D_LOGERRORF("PrepareDraw ... update stage=%s Set=%u.%u check texture unit=%u %u/%u no Texture in the unit ... SKIP !",
+//                                             shaderStage == VS ? "VS":"PS", set, bind+numTexturesToUpdate, unit, numTexturesToUpdate, binding.unitRange_);
+//                        #endif
                             continue;
                         }
 
@@ -2967,6 +3214,7 @@ void Graphics::PrepareDraw()
 
         frame.textureDirty_ = false;
     }
+#endif
 
     // Bind the pipeline.
     if (impl_->pipelineInfo_ && frame.lastPipelineBound_ != impl_->pipelineInfo_->pipeline_)
@@ -2980,6 +3228,7 @@ void Graphics::PrepareDraw()
         #endif
             vkCmdBindPipeline(frame.commandBuffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, impl_->pipelineInfo_->pipeline_);
             frame.lastPipelineBound_ = impl_->pipelineInfo_->pipeline_;
+            frame.lastPipelineInfoBound_ = impl_->pipelineInfo_;
             impl_->vertexBuffersDirty_ = true;
             impl_->indexBufferDirty_ = true;
         }
@@ -2995,8 +3244,9 @@ void Graphics::PrepareDraw()
         if (indexBuffer_)
         {
             vkCmdBindIndexBuffer(frame.commandBuffer_, (VkBuffer)indexBuffer_->GetGPUObject(), 0, indexBuffer_->GetIndexSize() == sizeof(unsigned) ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16);
-
-//            URHO3D_LOGDEBUGF("PrepareDraw ... frame=%u bind index buffer !", impl_->GetFrameIndex());
+        #ifdef ACTIVE_FRAMELOGDEBUG
+            URHO3D_LOGDEBUGF("PrepareDraw ... frame=%u bind index buffer=%u !", impl_->GetFrameIndex(), indexBuffer_->GetGPUObject());
+        #endif
         }
 
         impl_->indexBufferDirty_ = false;
@@ -3009,9 +3259,14 @@ void Graphics::PrepareDraw()
 
         if (impl_->vertexBuffers_.Size())
         {
-//            URHO3D_LOGDEBUGF("PrepareDraw ... frame=%u bind vertex buffers numVertexBuffers=%u", impl_->GetFrameIndex(), impl_->vertexBuffers_.Size());
+        #ifdef ACTIVE_FRAMELOGDEBUG
+            URHO3D_LOGDEBUGF("PrepareDraw ... frame=%u bind vertex buffers numVertexBuffers=%u ...", impl_->GetFrameIndex(), impl_->vertexBuffers_.Size());
+        #endif
             for (unsigned i=0; i < impl_->vertexBuffers_.Size(); i++)
             {
+            #ifdef ACTIVE_FRAMELOGDEBUG
+                URHO3D_LOGDEBUGF("PrepareDraw ...         bind vertex buffer=%u", vertexBuffers_[i]->GetGPUObject());
+            #endif
                 impl_->vertexBuffers_[i] = (VkBuffer)vertexBuffers_[i]->GetGPUObject();
                 impl_->vertexOffsets_[i] = 0;
             }

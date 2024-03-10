@@ -238,7 +238,7 @@ private:
     /// Points(for polygon and polyline).
     Vector<Vector2> points_;
     /// Gid (for tile).
-    int gid_;
+    unsigned gid_;
     /// Sprite (for tile).
     SharedPtr<Sprite2D> sprite_;
     /// Property set.

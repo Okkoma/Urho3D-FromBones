@@ -48,6 +48,7 @@ StaticSprite2D::StaticSprite2D(Context* context) :
     blendMode_(BLEND_ALPHA),
     flipX_(false),
     flipY_(false),
+    swapXY_(false),
     color_(Color::WHITE),
     color2_(Color::BLACK),
     useHotSpot_(false),
@@ -100,8 +101,6 @@ void StaticSprite2D::SetSprite(Sprite2D* sprite)
     sourceBatchesDirty_ = true;
     drawRectDirty_ = true;
 
-//    URHO3D_LOGINFOF("StaticSprite2D() - SetSprite : node=%s(%u) ... !", node_->GetName().CString(), node_->GetID());
-
     MarkNetworkUpdate();
 }
 
@@ -111,19 +110,11 @@ void StaticSprite2D::SetDrawRect(const Rect& rect)
     {
         drawRect_.Clear();
         drawRectDirty_ = true;
-
-//        URHO3D_LOGINFOF("StaticSprite2D() - SetDrawRect : node=%s(%u) ... !", node_->GetName().CString(), node_->GetID());
-
-//        if (node_->GetID() == 16785126)
-//            URHO3D_LOGINFOF("Drawable2D() - SetDrawRect : node=%s(%u) ... reset Rect !", node_->GetName().CString(), node_->GetID(), drawRect_.ToString().CString());
     }
     else
     {
         drawRect_ = rect;
     }
-
-//    if (node_->GetID() == 16785126)
-//        URHO3D_LOGINFOF("Drawable2D() - SetDrawRect : node=%s(%u) ... dR=%s !", node_->GetName().CString(), node_->GetID(), drawRect_.ToString().CString());
 
     if (useDrawRect_)
     {
@@ -152,30 +143,34 @@ void StaticSprite2D::SetBlendMode(BlendMode blendMode)
     MarkNetworkUpdate();
 }
 
-void StaticSprite2D::SetFlip(bool flipX, bool flipY)
+void StaticSprite2D::SetFlip(bool flipX, bool flipY, bool swapXY)
 {
-    if (flipX == flipX_ && flipY == flipY_)
+    if (flipX == flipX_ && flipY == flipY_ && swapXY == swapXY_)
         return;
 
     flipX_ = flipX;
     flipY_ = flipY;
 
+    swapXY_ = swapXY;
     sourceBatchesDirty_ = true;
     drawRectDirty_ = true;
-
-//    URHO3D_LOGINFOF("StaticSprite2D() - SetFlip : node=%s(%u) ... !", node_->GetName().CString(), node_->GetID());
 
     MarkNetworkUpdate();
 }
 
 void StaticSprite2D::SetFlipX(bool flipX)
 {
-    SetFlip(flipX, flipY_);
+    SetFlip(flipX, flipY_, swapXY_);
 }
 
 void StaticSprite2D::SetFlipY(bool flipY)
 {
-    SetFlip(flipX_, flipY);
+    SetFlip(flipX_, flipY, swapXY_);
+}
+
+void StaticSprite2D::SetSwapXY(bool swapXY)
+{
+    SetFlip(flipX_, flipY_, swapXY);
 }
 
 void StaticSprite2D::SetColor(const Color& color)
@@ -220,8 +215,6 @@ void StaticSprite2D::SetUseHotSpot(bool useHotSpot)
     sourceBatchesDirty_ = true;
     drawRectDirty_ = true;
 
-//    URHO3D_LOGINFOF("StaticSprite2D() - SetUseHotSpot : node=%s(%u) ... !", node_->GetName().CString(), node_->GetID());
-
     MarkNetworkUpdate();
 }
 
@@ -257,8 +250,6 @@ void StaticSprite2D::SetHotSpot(const Vector2& hotspot)
     {
         sourceBatchesDirty_ = true;
         drawRectDirty_ = true;
-
-//        URHO3D_LOGINFOF("StaticSprite2D() - SetHotSpot : node=%s(%u) ... !", node_->GetName().CString(), node_->GetID());
 
         MarkNetworkUpdate();
     }
@@ -387,21 +378,11 @@ void StaticSprite2D::OnWorldBoundingBoxUpdate()
 
 bool StaticSprite2D::UpdateDrawRectangle()
 {
-//    if (enableDebugLog_)
-//        URHO3D_LOGINFOF("StaticSprite2D() - UpdateDrawRectangle : node=%s(%u) ...", node_->GetName().CString(), node_->GetID());
-
     if (!drawRectDirty_ || useDrawRect_)
-    {
-//        if (node_->GetID() == 16785126)
-//            URHO3D_LOGINFOF("StaticSprite2D() - UpdateDrawRectangle : node=%s(%u) ... !drawRectDirty_", node_->GetName().CString(), node_->GetID());
         return true;
-    }
 
 	if (!sprite_ && !customMaterial_)
-    {
-//        URHO3D_LOGINFOF("StaticSprite2D() - UpdateDrawRectangle : node=%s(%u) ... !sprite_", node_->GetName().CString(), node_->GetID());
         return false;
-    }
 
     if (!useDrawRect_)
     {
@@ -411,12 +392,12 @@ bool StaticSprite2D::UpdateDrawRectangle()
         {
             if (useHotSpot_)
             {
-                if (!sprite_->GetDrawRectangle(drawRect_, hotSpot_, flipX_, flipY_))
+                if (!sprite_->GetDrawRectangle(drawRect_, hotSpot_))
                     return false;
             }
             else
             {
-                if (!sprite_->GetDrawRectangle(drawRect_, flipX_, flipY_))
+                if (!sprite_->GetDrawRectangle(drawRect_))
                     return false;
             }
         }
@@ -452,9 +433,6 @@ bool StaticSprite2D::UpdateDrawRectangle()
 static Matrix2x3 sWorldTransfo_;
 void StaticSprite2D::UpdateSourceBatches()
 {
-//    if (node_->GetID() == 16785126)
-//        URHO3D_LOGINFOF("Drawable2D() - UpdateSourceBatches : node=%s(%u) ...", node_->GetName().CString(), node_->GetID());
-
     if (!sourceBatchesDirty_)
         return;
 
@@ -526,9 +504,9 @@ void StaticSprite2D::UpdateSourceBatches()
 */
 
     vertex0.uv_ = textureRect_.min_;
-    vertex1.uv_ = Vector2(textureRect_.min_.x_, textureRect_.max_.y_);
+    (swapXY_ ? vertex3.uv_ : vertex1.uv_) = Vector2(textureRect_.min_.x_, textureRect_.max_.y_);
     vertex2.uv_ = textureRect_.max_;
-    vertex3.uv_ = Vector2(textureRect_.max_.x_, textureRect_.min_.y_);
+    (swapXY_ ? vertex1.uv_ : vertex3.uv_) = Vector2(textureRect_.max_.x_, textureRect_.min_.y_);
 
     vertex0.color_ = vertex1.color_ = vertex2.color_ = vertex3.color_ = color_.ToUInt();
 	vertex0.texmode_ = vertex1.texmode_ = vertex2.texmode_ = vertex3.texmode_ = texmode;

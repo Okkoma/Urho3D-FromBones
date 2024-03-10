@@ -250,11 +250,7 @@ void Texture::SetParameters(const XMLElement& element)
         }
 
         if (name == "mipmap")
-		{
 			SetNumLevels(paramElem.GetBool("enable") ? 0 : 1);
-//			SetMipsToSkip(QUALITY_LOW, 0);
-//			SetMipsToSkip(QUALITY_HIGH, 0);
-		}
 
         if (name == "quality")
         {

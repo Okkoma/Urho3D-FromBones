@@ -142,16 +142,16 @@ bool ConstantBuffer::SetSize(unsigned size)
 
 void ConstantBuffer::SetParameter(unsigned offset, unsigned size, const void* data)
 {
-    if (dynamic_)
+    if (objectnum_)
     {
         if (offsetToUpdate_ == size_)
         {
             objectindex_++;
-            if (objectindex_ >= MAX_OBJECTS)
+            if (objectindex_ >= objectnum_)
                 objectindex_ = 0;
         }
 
-        offset += objectindex_ * GraphicsImpl::GetUBOPaddedSize(size_ / MAX_OBJECTS);
+        offset += objectindex_ * GraphicsImpl::GetUBOPaddedSize(size_ / objectnum_);
     }
 
     if (offset + size > size_)
@@ -159,7 +159,7 @@ void ConstantBuffer::SetParameter(unsigned offset, unsigned size, const void* da
 
     memcpy(&shadowData_[offset], data, size);
 
-    if (dynamic_)
+    if (objectnum_)
     {
         if (offsetToUpdate_ == size_)
         {
@@ -205,12 +205,12 @@ void ConstantBuffer::Apply()
     }
 
     // Copy to buffer
-    if (dynamic_)
+    if (objectnum_)
     {
         memcpy((unsigned char*)hwData+offsetToUpdate_, &shadowData_[offsetToUpdate_], rangeToUpdate_);
-    #ifdef ACTIVE_FRAMELOGDEBUG
-        URHO3D_LOGDEBUGF("Apply constant buffer offset=%u range=%u to gpu", offsetToUpdate_, rangeToUpdate_);
-    #endif
+//    #ifdef ACTIVE_FRAMELOGDEBUG
+//        URHO3D_LOGDEBUGF("Apply constant buffer offset=%u range=%u to gpu", offsetToUpdate_, rangeToUpdate_);
+//    #endif
         offsetToUpdate_ = size_;
         rangeToUpdate_ = 0;
     }

@@ -50,12 +50,6 @@ const uint64_t TIME_OUT = 1000;
 //const uint64_t TIME_OUT = UINT64_MAX;
 
 const unsigned MaxFrames = 3;
-const unsigned NumDeviceExtensions = 1;
-
-const char* deviceExtensions[] =
-{
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME, 0
-};
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
 {
@@ -187,6 +181,92 @@ static const float LineWidthValues_[] =
     5.f
 };
 
+template <typename T> T* PhysicalDeviceInfo::GetExtensionFeatures() const
+{
+    return extensionFeatures_.Find<T>();
+}
+
+template <typename T> T& PhysicalDeviceInfo::GetOrCreateExtensionFeatures(VkStructureType featuretype)
+{
+    // Get the extension features if exists in the map
+    T* object = GetExtensionFeatures<T>();
+
+    // If not exists add new extension features in collection
+    if (object == nullptr)
+    {
+        // Get the last features
+        void* prevFeatures = extensionFeatures_.Size() ? extensionFeatures_.Back() : nullptr;
+
+        // Create the extension features structure
+        T& features     = extensionFeatures_.New<T>();
+        features.sType  = featuretype;
+        // Link the new features with the previous one in the collection
+        features.pNext  = prevFeatures;
+
+        // Get the updated features
+        VkPhysicalDeviceFeatures2 physicalfeatures{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+        physicalfeatures.pNext = &features;
+        vkGetPhysicalDeviceFeatures2(device_, &physicalfeatures);
+
+        object = &features;
+    }
+
+    return *object;
+}
+
+template <typename T> T* PhysicalDeviceInfo::GetExtensionProperties() const
+{
+    return extensionProperties_.Find<T>();
+}
+
+template <typename T> T& PhysicalDeviceInfo::GetOrCreateExtensionProperties(VkStructureType propertytype)
+{
+    // Get the extension properties if exists
+    T* object = GetExtensionProperties<T>();
+
+    // If not exists add new extension properties in collection
+    if (object == nullptr)
+    {
+        // Get the last properties
+		void* prevProperties = extensionProperties_.Size() ? extensionProperties_.Back() : nullptr;
+
+		// Create the extension properties structure
+        T& properties        = extensionProperties_.New<T>();
+        properties.sType     = propertytype;
+        // Link the new properties with the previous one in the collection
+        properties.pNext     = prevProperties;
+
+		// Get the updated properties
+		VkPhysicalDeviceProperties2 physicalproperties{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+		physicalproperties.pNext = &properties;
+		vkGetPhysicalDeviceProperties2(device_, &physicalproperties);
+
+        object = &properties;
+    }
+
+    return *object;
+}
+
+void PhysicalDeviceInfo::CleanUp()
+{
+    extensionFeatures_.Clear();
+    extensionProperties_.Clear();
+}
+
+#ifndef URHO3D_VMA
+bool PhysicalDeviceInfo::GetMemoryTypeIndex(uint32_t filter, VkMemoryPropertyFlags properties, uint32_t& memorytype) const
+{
+    for (uint32_t i = 0; i < memoryProperties_.memoryTypeCount; i++)
+    {
+        if ((filter & (1 << i)) && (memoryProperties_.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+            memorytype = i;
+            return true;
+        }
+    }
+    return false;
+}
+#endif
 
 void SetPipelineState(PipelineInfo* info, PipelineState state, unsigned value)
 {
@@ -715,6 +795,12 @@ bool PipelineBuilder::CreateDescriptors(PipelineInfo* info)
 
     unsigned maxToAllocate = info->maxAllocatedDescriptorSets_;
 
+    // Check fort Bindingflag (requires VK version 1.2)
+    bool bindingFlagsEnable = VK_VERSION_MAJOR(impl_->vulkanApiVersion_) > 0 && VK_VERSION_MINOR(impl_->vulkanApiVersion_) > 1;
+    // Check for DescriptorIndeing
+    bool descriptorIndexingEnable = bindingFlagsEnable && impl_->physicalInfo_.GetExtensionFeatures<VkPhysicalDeviceDescriptorIndexingFeatures>() != 0;
+    bool uniformBufferAfterBind = descriptorIndexingEnable && impl_->physicalInfo_.GetExtensionFeatures<VkPhysicalDeviceDescriptorIndexingFeatures>()->descriptorBindingUniformBufferUpdateAfterBind;
+
     for (Vector<DescriptorsGroup>::Iterator it = info->descriptorsGroups_.Begin(); it != info->descriptorsGroups_.End(); ++it)
     {
         DescriptorsGroup& d = *it;
@@ -747,7 +833,53 @@ bool PipelineBuilder::CreateDescriptors(PipelineInfo* info)
         VkDescriptorSetLayoutCreateInfo layoutInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
         layoutInfo.bindingCount = layoutBindings.Size();
         layoutInfo.pBindings    = layoutBindings.Buffer();
-        if (vkCreateDescriptorSetLayout(impl_->device_, &layoutInfo, pAllocator_, &d.layout_) != VK_SUCCESS)
+        layoutInfo.flags        = 0;
+        layoutInfo.pNext        = nullptr;
+
+        // Set Binding Flags
+        if (bindingFlagsEnable)
+        {
+            Vector<VkDescriptorBindingFlags> layoutBindingFlags;
+            layoutBindingFlags.Resize(bindings.Size());
+
+            if (descriptorIndexingEnable)
+            {
+                if (uniformBufferAfterBind)
+                {
+                    // Enable AfterBind bit only if all Binds in the set are of the allowing types
+                    bool afterBindEnable = true;
+                    for (unsigned i = 0; i < bindings.Size(); i++)
+                    {
+                        if (bindings[i].type_ == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
+                        {
+                            afterBindEnable = false;
+                            break;
+                        }
+                    }
+                    if (afterBindEnable)
+                    {
+                        for (unsigned i = 0; i < bindings.Size(); i++)
+                            layoutBindingFlags[i] = VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT;
+
+                        layoutInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
+                    }
+                }
+            }
+
+            VkDescriptorSetLayoutBindingFlagsCreateInfo bindingflagsInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO};
+            bindingflagsInfo.pNext         = nullptr;
+            bindingflagsInfo.bindingCount  = layoutBindingFlags.Size();
+            bindingflagsInfo.pBindingFlags = layoutBindingFlags.Buffer();
+
+            layoutInfo.pNext = &bindingflagsInfo;
+
+            if (vkCreateDescriptorSetLayout(impl_->device_, &layoutInfo, pAllocator_, &d.layout_) != VK_SUCCESS)
+            {
+                URHO3D_LOGERRORF("Can't create descriptorSet layout with binding flags !");
+                return false;
+            }
+        }
+        else if (vkCreateDescriptorSetLayout(impl_->device_, &layoutInfo, pAllocator_, &d.layout_) != VK_SUCCESS)
         {
             URHO3D_LOGERRORF("Can't create descriptorSet layout !");
             return false;
@@ -765,6 +897,7 @@ bool PipelineBuilder::CreateDescriptors(PipelineInfo* info)
                 poolInfo.maxSets       = maxToAllocate;
                 poolInfo.poolSizeCount = poolSizes.Size();
                 poolInfo.pPoolSizes    = poolSizes.Buffer();
+                poolInfo.flags         = descriptorIndexingEnable ? VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT : 0;
                 if (vkCreateDescriptorPool(impl_->device_, &poolInfo, pAllocator_, &alloc.pool_) != VK_SUCCESS)
                 {
                     URHO3D_LOGERRORF("Can't create ubo descriptor pool %d !", d.id_);
@@ -794,6 +927,7 @@ bool PipelineBuilder::CreateDescriptors(PipelineInfo* info)
 
                 // Initialize the descriptor index
                 alloc.index_ = maxToAllocate;
+//                alloc.index_ = 0U;
 
 //                URHO3D_LOGDEBUGF("Allocate descriptor sets for pipeline %s UBO at frame=%u binding=%u ...", info->vs_->GetName().CString(), frame, bindingpoint);
             }
@@ -802,7 +936,6 @@ bool PipelineBuilder::CreateDescriptors(PipelineInfo* info)
 
     return true;
 }
-
 void PipelineBuilder::CreatePipeline(PipelineInfo* info)
 {
     // Set Vertex Attributes
@@ -978,7 +1111,8 @@ GraphicsImpl::GraphicsImpl() :
     frame_(nullptr),
     renderPathInfo_(nullptr),
     viewportTexture_(nullptr),
-    renderPassIndex_(-1)
+    renderPassIndex_(-1),
+    viewportIndex_(0)
 {
     defaultPipelineStates_ = 0;
 
@@ -1001,8 +1135,33 @@ GraphicsImpl::GraphicsImpl() :
     AddRenderPassInfo("FRAME_DEPTH");
 
     SetRenderPath(0);
+
+	AddInstanceExtension(VK_KHR_SURFACE_EXTENSION_NAME);
+	AddInstanceExtension(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+
+	AddDeviceExtension(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+	AddDeviceExtension(VK_KHR_MAINTENANCE3_EXTENSION_NAME);
+	AddDeviceExtension(VK_KHR_MAINTENANCE1_EXTENSION_NAME);
+
+	AddDeviceExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+
+//	SetDefaultDevice("llvmpipe");
 }
 
+void GraphicsImpl::AddInstanceExtension(const char* extension)
+{
+	requireInstanceExts_.Push(extension);
+}
+
+void GraphicsImpl::AddDeviceExtension(const char* extension)
+{
+	requireDeviceExts_.Push(extension);
+}
+
+void GraphicsImpl::SetDefaultDevice(const String& device)
+{
+	requireDevice_ = device;
+}
 bool GraphicsImpl::CreateVulkanInstance(Context* context, const String& appname, SDL_Window* window, const Vector<String>& requestedLayers)
 {
 #ifdef URHO3D_VOLK
@@ -1014,61 +1173,117 @@ bool GraphicsImpl::CreateVulkanInstance(Context* context, const String& appname,
 
     URHO3D_LOGINFOF("Initialize Volk for Vulkan !");
 #endif
+    // get Vulkan API version
+    vkEnumerateInstanceVersion(&vulkanApiVersion_);
+    URHO3D_LOGINFOF("Version Vulkan : %u.%u.%u (%u)", VK_VERSION_MAJOR(vulkanApiVersion_), VK_VERSION_MINOR(vulkanApiVersion_), VK_VERSION_PATCH(vulkanApiVersion_), vulkanApiVersion_);
 
     context_ = context;
 
     // TODO memoryAllocator
     const VkAllocationCallbacks* pAllocator = nullptr;
 
-    // get required extensions for the window context
+    // Get required extensions for the SDL window context
+	PODVector<const char*> contextExtensions;
+    {
     unsigned int extensionCount = 0;
     SDL_Vulkan_GetInstanceExtensions(window, &extensionCount, 0);
     if (!extensionCount)
     {
         URHO3D_LOGERRORF("Unable to query the number of Vulkan instance extension names !");
         return false;
+		}
+		contextExtensions.Resize(extensionCount);
+		SDL_Vulkan_GetInstanceExtensions(window, &extensionCount, contextExtensions.Buffer());
     }
 
-    PODVector<const char*> extensions(extensionCount);
-    SDL_Vulkan_GetInstanceExtensions(window, &extensionCount, extensions.Buffer());
+	// Get available instance extensions
+	{
+		unsigned int availableInstanceExtsCount;
+		vkEnumerateInstanceExtensionProperties(nullptr, &availableInstanceExtsCount, nullptr);
+		Vector<VkExtensionProperties> availableInstanceExts(availableInstanceExtsCount);
+		vkEnumerateInstanceExtensionProperties(nullptr, &availableInstanceExtsCount, availableInstanceExts.Buffer());
 
-    // get available vulkan layers
-    unsigned int layerCount = 0;
-    vkEnumerateInstanceLayerProperties(&layerCount, 0);
-    if (!layerCount)
-        URHO3D_LOGINFOF("no vulkan layer enable !");
+		// Get Require Instance Extensions
+		PODVector<const char*> enableExts;
+		for (PODVector<const char*>::ConstIterator it = requireInstanceExts_.Begin(); it != requireInstanceExts_.End(); ++it)
+		{
+			if (enableExts.Contains(*it))
+				continue;
 
-    Vector<VkLayerProperties> availableLayers(layerCount);
-    if (layerCount)
-        vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.Buffer());
+			bool found = false;
+			for (Vector<VkExtensionProperties>::ConstIterator extt = availableInstanceExts.Begin(); extt != availableInstanceExts.End(); ++extt)
+			{
+				if (strcmp(extt->extensionName, *it) == 0)
+				{
+					found = true;
+					break;
+				}
+			}
+			if (found)
+			{
+				URHO3D_LOGINFOF("found instance extension %s", *it);
+				enableExts.Push(*it);
+			}
+			else
+			{
+				URHO3D_LOGERRORF("instance extension %s not found !", *it);
+			}
+		}
+		if (requireInstanceExts_.Size() != enableExts.Size())
+		{
+			URHO3D_LOGERRORF("All required instance extensions not found !");
+			return false;
+		}
 
-    // validate required layers
-    PODVector<const char*> validatedLayers;
-    bool validateValidationLayers = false;
-    for (Vector<String>::ConstIterator it = requestedLayers.Begin(); it != requestedLayers.End(); ++it)
+		// Add Extensions for SDL context
+		for (PODVector<const char*>::ConstIterator it = contextExtensions.Begin(); it != contextExtensions.End(); ++it)
+		{
+			if (requireInstanceExts_.Contains(*it))
+				continue;
+			requireInstanceExts_.Push(*it);
+		}
+	}
+
+    // Get available vulkan layers
+	PODVector<const char*> validatedLayers;
     {
-        const String& layername = *it;
-        bool layerFound = false;
+        unsigned int layerCount = 0;
+        vkEnumerateInstanceLayerProperties(&layerCount, 0);
+        if (!layerCount)
+            URHO3D_LOGINFOF("no vulkan layer enable !");
 
-        for (Vector<VkLayerProperties>::ConstIterator jt = availableLayers.Begin(); jt != availableLayers.End(); ++jt)
+        Vector<VkLayerProperties> availableLayers(layerCount);
+        if (layerCount)
+            vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.Buffer());
+
+        // validate required layers
+        bool validateValidationLayers = false;
+        for (Vector<String>::ConstIterator it = requestedLayers.Begin(); it != requestedLayers.End(); ++it)
         {
-            if (layername == String(jt->layerName))
+            const String& layername = *it;
+            bool layerFound = false;
+
+            for (Vector<VkLayerProperties>::ConstIterator jt = availableLayers.Begin(); jt != availableLayers.End(); ++jt)
             {
-                layerFound = true;
-                break;
+                if (layername == String(jt->layerName))
+                {
+                    layerFound = true;
+                    break;
+                }
+            }
+
+            // check validation layer support
+            if (layerFound)
+            {
+                validatedLayers.Push(layername.CString());
+                if (validationLayersEnabled_ && layername.Contains("validation"))
+                    validateValidationLayers = true;
             }
         }
 
-        // check validation layer support
-        if (layerFound)
-        {
-            validatedLayers.Push(layername.CString());
-            if (validationLayersEnabled_ && layername.Contains("validation"))
-                validateValidationLayers = true;
-        }
-    }
+        validationLayersEnabled_ = validateValidationLayers;
+	}
 
-    validationLayersEnabled_ = validateValidationLayers;
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
 
     // add validation layer support
@@ -1079,7 +1294,7 @@ bool GraphicsImpl::CreateVulkanInstance(Context* context, const String& appname,
         debugCreateInfo.messageType     = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT     | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT  | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
         debugCreateInfo.pfnUserCallback = debugCallback;
 
-        extensions.Push(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        requireInstanceExts_.Push(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
 
     VkApplicationInfo appInfo{};
@@ -1093,9 +1308,9 @@ bool GraphicsImpl::CreateVulkanInstance(Context* context, const String& appname,
     VkInstanceCreateInfo instanceInfo{};
     instanceInfo.sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     instanceInfo.pApplicationInfo        = &appInfo;
-    instanceInfo.enabledExtensionCount   = extensions.Size();
+    instanceInfo.enabledExtensionCount   = requireInstanceExts_.Size();
     instanceInfo.enabledLayerCount       = validatedLayers.Size();
-    instanceInfo.ppEnabledExtensionNames = extensions.Size()       ? extensions.Buffer()      : nullptr;
+    instanceInfo.ppEnabledExtensionNames = requireInstanceExts_.Size() ? requireInstanceExts_.Buffer() : nullptr;
     instanceInfo.ppEnabledLayerNames     = validatedLayers.Size()  ? validatedLayers.Buffer() : nullptr;
     instanceInfo.pNext                   = debugCreateInfo.sType   ? &debugCreateInfo         : nullptr;
 
@@ -1164,30 +1379,49 @@ bool GraphicsImpl::CreateVulkanInstance(Context* context, const String& appname,
             // get the device properties
             VkPhysicalDeviceProperties deviceProperties;
             vkGetPhysicalDeviceProperties(device, &deviceProperties);
-            URHO3D_LOGINFOF("found physical device [%u] : %s ", deviceindex, deviceProperties.deviceName);
+//            URHO3D_LOGDEBUGF("found physical device [%u] : %s ", deviceindex, deviceProperties.deviceName);
 
-            // check for the required extensions
             unsigned int extensionCount;
-            unsigned int numValidatedExtensions = 0;
             vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
             if (extensionCount == 0)
             {
-                URHO3D_LOGWARNINGF("No device extension found for this device ! Skip");
+//                URHO3D_LOGDEBUGF("No device extension found for this device ! Skip");
                 continue;
             }
-            Vector<VkExtensionProperties> availableExtensions(extensionCount);
-            vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.Buffer());
-            for (unsigned int extindex = 0; extindex < NumDeviceExtensions; extindex++)
+
+			// check for require device extensions
+            Vector<VkExtensionProperties> availableDeviceExtensions(extensionCount);
+			vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableDeviceExtensions.Buffer());
+			PODVector<const char*> enableDeviceExts;
+			for (PODVector<const char*>::ConstIterator it = requireDeviceExts_.Begin(); it != requireDeviceExts_.End(); ++it)
             {
-                for (Vector<VkExtensionProperties>::ConstIterator extt = availableExtensions.Begin(); extt != availableExtensions.End(); ++extt)
+				if (enableDeviceExts.Contains(*it))
+					continue;
+
+				bool found = false;
+                for (Vector<VkExtensionProperties>::ConstIterator extt = availableDeviceExtensions.Begin(); extt != availableDeviceExtensions.End(); ++extt)
                 {
-                    if (String(extt->extensionName) == String(deviceExtensions[extindex]))
-                        numValidatedExtensions++;
+                    if (strcmp(extt->extensionName, *it) == 0)
+                    {
+						found = true;
+						break;
+                    }
                 }
-            }
-            if (numValidatedExtensions != NumDeviceExtensions)
+
+				if (found)
+                {
+//					URHO3D_LOGDEBUGF("found device extension %s", *it);
+					enableDeviceExts.Push(*it);
+				}
+				else
+				{
+					URHO3D_LOGDEBUGF("device extension %s not found !", *it);
+				}
+			}
+
+            if (requireDeviceExts_.Size() != enableDeviceExts.Size())
             {
-                URHO3D_LOGWARNINGF("required device extensions not found for this device !");
+                URHO3D_LOGDEBUGF("All required device extensions not found for the device !");
                 continue;
             }
 
@@ -1216,13 +1450,13 @@ bool GraphicsImpl::CreateVulkanInstance(Context* context, const String& appname,
             // check for surface format and present mode availability
             if (!surfaceFormats.Size())
             {
-                URHO3D_LOGWARNINGF("No surface format found for the device !");
+                URHO3D_LOGDEBUGF("No surface format found for the device !");
                 continue;
             }
 
             if (!presentModes.Size())
             {
-                URHO3D_LOGWARNINGF("No present mode found for the device !");
+                URHO3D_LOGDEBUGF("No present mode found for the device !");
                 continue;
             }
 
@@ -1231,7 +1465,7 @@ bool GraphicsImpl::CreateVulkanInstance(Context* context, const String& appname,
             vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
             if (queueFamilyCount == 0)
             {
-                URHO3D_LOGWARNINGF("No queues family found for the device !");
+                URHO3D_LOGDEBUGF("No queues family found for the device !");
                 continue;
             }
             Vector<VkQueueFamilyProperties> familyProperties(queueFamilyCount);
@@ -1276,7 +1510,7 @@ bool GraphicsImpl::CreateVulkanInstance(Context* context, const String& appname,
                 // set a score
                 validDeviceScores.Push(grQueueIndexes.Size() + prQueueIndexes.Size() + 10 * cbQueueIndexes.Size());
 
-                URHO3D_LOGINFOF("validated physical device [%u] : %s score=%u !", deviceindex, validDevice.name_.CString(), validDeviceScores.Back());
+                URHO3D_LOGINFOF("physical device [%u] : %s (score %u) !", deviceindex, validDevice.name_.CString(), validDeviceScores.Back());
             }
         }
 
@@ -1286,17 +1520,38 @@ bool GraphicsImpl::CreateVulkanInstance(Context* context, const String& appname,
             return false;
         }
 
-        // get the best physical device
-        unsigned int deviceindex = 0;
-        unsigned int bestscore = 0;
-        for (unsigned int i=0; i < validDeviceScores.Size(); i++)
+		int deviceindex = 0;
+		if (!requireDevice_.Empty())
+		{
+			// get the index for required device
+			deviceindex = -1;
+			for (unsigned int i=0; i < validDevices.Size(); i++)
+			{
+				if (validDevices[i].name_.StartsWith(requireDevice_))
+				{
+					deviceindex = i;
+					break;
+				}
+			}
+			if (deviceindex == -1)
+			{
+				URHO3D_LOGERRORF("No Physical device %s found or capable !", requireDevice_.CString());
+				return false;
+			}
+		}
+		else
         {
-            if (validDeviceScores[i] > bestscore)
+            // get the best physical device
+            unsigned int bestscore = 0;
+            for (unsigned int i=0; i < validDeviceScores.Size(); i++)
             {
-                bestscore = validDeviceScores[i];
-                deviceindex = i;
+                if (validDeviceScores[i] > bestscore)
+                {
+                    bestscore = validDeviceScores[i];
+                    deviceindex = i;
+                }
             }
-        }
+		}
 
         // store the physical device info for next uses
         const PhysicalDeviceInfo& device = validDevices[deviceindex];
@@ -1309,12 +1564,14 @@ bool GraphicsImpl::CreateVulkanInstance(Context* context, const String& appname,
         physicalInfo_.surfaceFormats_      = device.surfaceFormats_;
         physicalInfo_.presentModes_        = device.presentModes_;
 
+		vkGetPhysicalDeviceFeatures(physicalInfo_.device_, &physicalInfo_.features_);
         vkGetPhysicalDeviceProperties(physicalInfo_.device_, &physicalInfo_.properties_);
 
     #ifndef URHO3D_VMA
         // get the memory properties (necessary for creating buffers)
 		vkGetPhysicalDeviceMemoryProperties(physicalInfo_.device_, &physicalInfo_.memoryProperties_);
     #endif
+		URHO3D_LOGINFOF("physical device %s selected !", physicalInfo_.name_.CString());
     }
 
     // get the optimal depth format (must have optimal Tiling features)
@@ -1361,18 +1618,34 @@ bool GraphicsImpl::CreateVulkanInstance(Context* context, const String& appname,
         queueCreateInfos.Push(queueCreateInfo);
     }
 
-    // TODO : Device Features
-    VkPhysicalDeviceFeatures deviceFeatures{};
-//    deviceFeatures.logicOp = VK_TRUE;
+    // require all available features
+    physicalInfo_.requireFeatures_ = physicalInfo_.features_;
+
+    // get features for the extension descriptor indexing
+    if (requireDeviceExts_.Contains(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME))
+    {
+        auto& features   = physicalInfo_.GetOrCreateExtensionFeatures<VkPhysicalDeviceDescriptorIndexingFeatures>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES);
+        auto& properties = physicalInfo_.GetOrCreateExtensionProperties<VkPhysicalDeviceDescriptorIndexingProperties>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_PROPERTIES);
+    }
+
+    for (unsigned i = 0; i < requireDeviceExts_.Size(); i++)
+    {
+        URHO3D_LOGINFOF("enable device Extension %s !", requireDeviceExts_[i]);
+    }
+
+    for (unsigned i = 0; i < physicalInfo_.extensionFeatures_.Size(); i++)
+        URHO3D_LOGDEBUGF("enable feature %s ptr=%u", physicalInfo_.extensionFeatures_.GetTypeAt(i), physicalInfo_.extensionFeatures_.At(i));
+
     VkDeviceCreateInfo deviceInfo{};
     deviceInfo.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    deviceInfo.pNext                   = physicalInfo_.extensionFeatures_.Size() ? physicalInfo_.extensionFeatures_.Back() : nullptr;
     deviceInfo.queueCreateInfoCount    = static_cast<uint32_t>(queueCreateInfos.Size());
     deviceInfo.pQueueCreateInfos       = queueCreateInfos.Buffer();
-    deviceInfo.pEnabledFeatures        = &deviceFeatures;
-    deviceInfo.enabledExtensionCount   = NumDeviceExtensions;
-    deviceInfo.ppEnabledExtensionNames = deviceExtensions;
+    deviceInfo.enabledExtensionCount   = static_cast<uint32_t>(requireDeviceExts_.Size());
+    deviceInfo.ppEnabledExtensionNames = requireDeviceExts_.Size() ? requireDeviceExts_.Buffer() : nullptr;
+    deviceInfo.pEnabledFeatures        = &physicalInfo_.requireFeatures_;
     // Deprecated in Vulkan 1.3...
-    deviceInfo.enabledLayerCount       = validatedLayers.Size();
+    deviceInfo.enabledLayerCount       = static_cast<uint32_t>(validatedLayers.Size());
     deviceInfo.ppEnabledLayerNames     = validatedLayers.Size() ? validatedLayers.Buffer() : nullptr;
 
     if (vkCreateDevice(physicalInfo_.device_, &deviceInfo, pAllocator, &device_) != VK_SUCCESS)
@@ -1459,7 +1732,6 @@ bool GraphicsImpl::CreateVulkanInstance(Context* context, const String& appname,
 
     return true;
 }
-
 bool GraphicsImpl::CreateWindowSurface(SDL_Window* window)
 {
     if (!instance_ || !window)
@@ -1535,6 +1807,7 @@ void GraphicsImpl::CleanUpVulkan()
         debugMsg_ = VK_NULL_HANDLE;
     }
 
+    physicalInfo_.CleanUp();
     vkDestroyInstance(instance_, pAllocator);
     instance_ = VK_NULL_HANDLE;
 
@@ -1933,6 +2206,7 @@ void GraphicsImpl::CleanUpSwapChain()
         frame.textureDirty_  = true;
 
         frame.lastPipelineBound_  = VK_NULL_HANDLE;
+        frame.lastPipelineInfoBound_ = nullptr;
     }
 
     if (swapChain_ != VK_NULL_HANDLE)
@@ -2442,7 +2716,9 @@ bool GraphicsImpl::CreateRenderPasses()
                         {
                             desc.loadOp               = i == 0 ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
                             desc.initialLayout        = i == 0 ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_GENERAL; // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                            desc.finalLayout          = i == renderPassInfo.attachments_.Size()-1 ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_GENERAL; //VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                            desc.finalLayout          = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                            // TODO : problem here in Vulkan Validation
+//                            desc.finalLayout          = i == renderPassInfo.attachments_.Size()-1 ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_GENERAL; //VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
                         }
                         else
                         {
@@ -2777,6 +3053,24 @@ bool GraphicsImpl::SetPipeline(unsigned renderPassKey, ShaderVariation* vs, Shad
     return true;
 }
 
+void GraphicsImpl::SetViewport(const IntRect& rect, unsigned index)
+{
+    viewport_.x        = rect.left_;
+    viewport_.y        = Min(rect.top_, rect.bottom_);
+    viewport_.width    = rect.Width();
+    viewport_.height   = rect.Height();
+
+    index = Clamp(index, 0U, MAX_SHADER_VIEWPORTS-1);
+    viewportChanged_ = viewportIndex_ != index;
+    if (viewportChanged_)
+    {
+        viewportIndex_ = index;
+    #ifdef ACTIVE_FRAMELOGDEBUG
+        URHO3D_LOGINFOF("impl viewportindex changed to %u", viewportIndex_);
+    #endif
+    }
+}
+
 VkPipeline GraphicsImpl::CreatePipeline(PipelineInfo* info)
 {
     // check if pipeline exists already
@@ -2921,6 +3215,10 @@ VkPipeline GraphicsImpl::GetPipeline(const StringHash& key) const
     return it != pipelinesInfos_.End() ? it->second_.pipeline_ : VK_NULL_HANDLE;
 }
 
+int GraphicsImpl::GetMaxCompatibleDescriptorSets(PipelineInfo* p1, PipelineInfo* p2) const
+{
+    return -1;
+}
 
 String GraphicsImpl::DumpPipelineStates(unsigned pipelineStates) const
 {
@@ -3137,6 +3435,7 @@ bool GraphicsImpl::PresentFrame()
     }
 
     frame.lastPipelineBound_ = VK_NULL_HANDLE;
+    frame.lastPipelineInfoBound_ = nullptr;
 
     frame_ = nullptr;
 

@@ -34,6 +34,27 @@
 namespace Urho3D
 {
 
+const unsigned ConstantBufferMaxObjects[MAX_SHADERTYPES][MAX_SHADER_PARAMETER_GROUPS] =
+{
+    {         // VS
+        0,    // SP_FRAME
+        8,    // SP_CAMERA
+        0,    // SP_ZONE
+        20,   // SP_LIGHT
+        0,    // SP_MATERIAL
+        400,  // SP_OBJECT
+        0,    // SP_CUSTOM
+    },
+    {         // PS
+        0,    // SP_FRAME
+        0,    // SP_CAMERA
+        0,    // SP_ZONE
+        200,  // SP_LIGHT
+        0,    // SP_MATERIAL
+        8,    // SP_OBJECT
+        0,    // SP_CUSTOM
+    },
+};
 /// Combined information for specific vertex and pixel shaders.
 class URHO3D_API ShaderProgram : public RefCounted
 {

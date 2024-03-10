@@ -299,6 +299,7 @@ enum ShaderType
 {
     VS = 0,
     PS,
+    MAX_SHADERTYPES
 };
 
 /// Shader parameter groups for determining need to update. On APIs that support constant buffers, these correspond to different constant buffers.
@@ -313,6 +314,8 @@ enum ShaderParameterGroup
     SP_CUSTOM,
     MAX_SHADER_PARAMETER_GROUPS
 };
+
+const unsigned MAX_SHADER_VIEWPORTS = 8U;
 
 /// Texture units.
 enum TextureUnit

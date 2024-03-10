@@ -21,6 +21,6 @@
 # THE SOFTWARE.
 #
 
-$(dirname $0)/cmake_generic.sh "$@" -G "CodeLite - Unix Makefiles"
-
+$(dirname $0)/cmake_generic.sh "$@" -D CMAKE_CODELITE_USE_TARGETS=ON -G "CodeLite - Unix Makefiles"
+ 
 # vi: set ts=4 sw=4 expandtab:

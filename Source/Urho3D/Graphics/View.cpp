@@ -671,7 +671,7 @@ void View::Render()
 
             IntVector2 rtSizeNow = graphics_->GetRenderTargetDimensions();
             IntRect viewport = (currentRenderTarget_ == renderTarget_) ? viewRect_ : IntRect(0, 0, rtSizeNow.x_, rtSizeNow.y_);
-            graphics_->SetViewport(viewport);
+            graphics_->SetViewport(viewport, camera_->GetViewport());
 
             debug->SetView(camera_);
             debug->Render();
@@ -781,7 +781,7 @@ void View::SetCameraShaderParameters(Camera* camera)
 //    URHO3D_LOGDEBUG("  Projection Mat : "+projection.ToString());
 //    URHO3D_LOGDEBUG("  Camera View Mat: "+camera->GetView().ToString());
 //    Matrix4 viewproj = projection * camera->GetView();
-//    URHO3D_LOGDEBUG("  View Proj Mat  : "+viewproj.ToString());
+//    URHO3D_LOGINFOF("  View Proj Mat  : camera=%u proj=%s ", camera, viewproj.ToString().CString());
 
     graphics_->SetShaderParameter(VSP_VIEWPROJ, projection * camera->GetView());
 
@@ -1857,7 +1857,7 @@ void View::SetRenderTargets(RenderPathCommand& command)
 
     if (!useCustomDepth)
         graphics_->SetDepthStencil(GetDepthStencil(graphics_->GetRenderTarget(0)));
-    graphics_->SetViewport(viewport);
+    graphics_->SetViewport(viewport, camera_->GetViewport());
     graphics_->SetColorWrite(useColorWrite);
 }
 

@@ -57,6 +57,20 @@ typedef HashMap<unsigned, SharedPtr<ConstantBuffer> > ConstantBufferMap;
 
 struct PhysicalDeviceInfo
 {
+    template <typename T> T* GetExtensionFeatures() const;
+    template <typename T> T& GetOrCreateExtensionFeatures(VkStructureType featuretype);
+
+    template <typename T> T* GetExtensionProperties() const;
+    template <typename T> T& GetOrCreateExtensionProperties(VkStructureType propertytype);
+
+    void CleanUp();
+
+#ifndef URHO3D_VMA
+    bool GetMemoryTypeIndex(uint32_t filter, VkMemoryPropertyFlags properties, uint32_t& memorytype) const;
+#endif
+
+    Collection extensionFeatures_;
+    Collection extensionProperties_;
     VkPhysicalDevice device_;
     String name_;
 
@@ -67,24 +81,15 @@ struct PhysicalDeviceInfo
     VkSurfaceCapabilitiesKHR surfaceCapabilities_;
     Vector<VkSurfaceFormatKHR> surfaceFormats_;
     Vector<VkPresentModeKHR> presentModes_;
-    VkPhysicalDeviceProperties properties_;
 
+    VkPhysicalDeviceFeatures features_;
+    VkPhysicalDeviceProperties properties_;
 #ifndef URHO3D_VMA
     VkPhysicalDeviceMemoryProperties memoryProperties_;
-    bool GetMemoryTypeIndex(uint32_t filter, VkMemoryPropertyFlags properties, uint32_t& memorytype) const
-    {
-        for (uint32_t i = 0; i < memoryProperties_.memoryTypeCount; i++)
-        {
-            if ((filter & (1 << i)) && (memoryProperties_.memoryTypes[i].propertyFlags & properties) == properties)
-            {
-                memorytype = i;
-                return true;
-            }
-        }
-        return false;
-    }
 #endif
+	VkPhysicalDeviceFeatures requireFeatures_;
 };
+struct PipelineInfo;
 
 struct FrameData
 {
@@ -107,6 +112,7 @@ struct FrameData
     bool commandBufferBegun_;
     VkPipeline lastPipelineBound_;
 
+    PipelineInfo* lastPipelineInfoBound_;
     int renderPassIndex_;
 };
 
@@ -323,15 +329,23 @@ public:
     static const unsigned DefaultRenderPassNoClear;
     static const unsigned DefaultRenderPassNoClear2;
     /// Setters
+	// Configuration
+	void AddInstanceExtension(const char* extension);
+	void AddDeviceExtension(const char* gpuextension);
+	void SetDefaultDevice(const String& device);
+
+	// RenderPaths
     void AddRenderPassInfo(const String& attachmentconfig);
     void SetRenderPath(RenderPath* renderPath);
     void SetRenderPass(unsigned passindex);
 
-    void SetPipelineState(unsigned& pipelineStates, PipelineState state, unsigned value);
-    bool SetPipeline(unsigned renderPassKey, ShaderVariation* vs, ShaderVariation* ps, unsigned pipelineStates, VertexBuffer** vertexBuffers);
-
+	/// Pipelines
     PipelineInfo* RegisterPipelineInfo(unsigned renderPassKey, ShaderVariation* vs, ShaderVariation* ps, unsigned states, VertexBuffer** buffers);
     PipelineInfo* RegisterPipelineInfo(unsigned renderPassKey, ShaderVariation* vs, ShaderVariation* ps, unsigned states, unsigned numVertexTables, const PODVector<VertexElement>* vertexTables);
+    
+    void SetPipelineState(unsigned& pipelineStates, PipelineState state, unsigned value);
+    bool SetPipeline(unsigned renderPassKey, ShaderVariation* vs, ShaderVariation* ps, unsigned pipelineStates, VertexBuffer** vertexBuffers);
+    void SetViewport(const IntRect& rect, unsigned index);
 
     /// Getters
     static PipelineInfo* GetPipelineInfo() { return pipelineInfo_; }
@@ -372,6 +386,8 @@ public:
     PipelineInfo* GetPipelineInfo(const StringHash& key) const;
     VkPipeline GetPipeline(const StringHash& key) const;
 
+    int GetMaxCompatibleDescriptorSets(PipelineInfo* p1, PipelineInfo* p2) const;
+
     /// Dump
     String DumpPipelineStates(unsigned pipelineStates) const;
     void DumpRegisteredPipelineInfo() const;
@@ -399,6 +415,9 @@ private:
     SDL_Window* window_;
     Graphics* graphics_;
 
+	String requireDevice_;
+	PODVector<const char*> requireInstanceExts_;
+	PODVector<const char*> requireDeviceExts_;
     bool validationLayersEnabled_;
 
 #ifdef URHO3D_VMA
@@ -409,6 +428,7 @@ private:
     VkDebugUtilsMessengerEXT debugMsg_;
     VkSurfaceKHR surface_, oldSurface_;
 
+    unsigned vulkanApiVersion_;
     static PhysicalDeviceInfo physicalInfo_;
     static VkSurfaceFormatKHR swapChainInfo_;
     static VkFormat depthStencilFormat_;
@@ -449,6 +469,8 @@ private:
     RenderPathInfo* renderPathInfo_;
     int renderPassIndex_;
     Texture2D* viewportTexture_;
+    unsigned viewportIndex_;
+    bool viewportChanged_;
 
     /// Pipelines
     PipelineBuilder pipelineBuilder_;

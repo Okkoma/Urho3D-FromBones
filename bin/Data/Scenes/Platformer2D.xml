@@ -430,11 +430,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="611">
 			<attribute name="Layer" value="3 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/imp/imp_head.png" />
 			<attribute name="Draw Rectangle" value="-1.18 -1.35 1.2 1.36353" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/imp/imp.scml" />
 			<attribute name="Entity" value="Imp" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/imp/imp_head.png" />
 		</component>
 		<component type="RigidBody2D" id="612">
 			<attribute name="Body Type" value="Dynamic" />
@@ -463,12 +463,12 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="682">
 			<attribute name="Layer" value="2 -1" />
+			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0007_foot2" />
 			<attribute name="Flip X" value="true" />
 			<attribute name="Draw Rectangle" value="-1.34927 -2.01678 1.74129 1.97722" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/Orc/Orc.scml" />
 			<attribute name="Entity" value="Orc" />
 			<attribute name="Animation" value="run" />
-			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0000_eyes" />
 		</component>
 		<component type="RigidBody2D" id="683" />
 		<component type="CollisionCircle2D" id="684">
@@ -515,12 +515,12 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="690">
 			<attribute name="Layer" value="2 -1" />
+			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0007_foot2" />
 			<attribute name="Flip X" value="true" />
 			<attribute name="Draw Rectangle" value="-1.34927 -2.01678 1.74129 1.97722" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/Orc/Orc.scml" />
 			<attribute name="Entity" value="Orc" />
 			<attribute name="Animation" value="run" />
-			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0000_eyes" />
 		</component>
 		<component type="RigidBody2D" id="691" />
 		<component type="CollisionCircle2D" id="692">
@@ -683,12 +683,12 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="718">
 			<attribute name="Layer" value="2 -1" />
+			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0007_foot2" />
 			<attribute name="Flip X" value="true" />
 			<attribute name="Draw Rectangle" value="-1.34927 -2.01678 1.74129 1.97722" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/Orc/Orc.scml" />
 			<attribute name="Entity" value="Orc" />
 			<attribute name="Animation" value="run" />
-			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0000_eyes" />
 		</component>
 		<component type="RigidBody2D" id="719" />
 		<component type="CollisionCircle2D" id="720">
@@ -712,12 +712,12 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="722">
 			<attribute name="Layer" value="2 -1" />
+			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0007_foot2" />
 			<attribute name="Flip X" value="true" />
 			<attribute name="Draw Rectangle" value="-1.34927 -2.01678 1.74129 1.97722" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/Orc/Orc.scml" />
 			<attribute name="Entity" value="Orc" />
 			<attribute name="Animation" value="run" />
-			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0000_eyes" />
 		</component>
 		<component type="RigidBody2D" id="723" />
 		<component type="CollisionCircle2D" id="724">
@@ -764,12 +764,12 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="730">
 			<attribute name="Layer" value="2 -1" />
+			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0007_foot2" />
 			<attribute name="Flip X" value="true" />
 			<attribute name="Draw Rectangle" value="-1.34927 -2.01678 1.74129 1.97722" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/Orc/Orc.scml" />
 			<attribute name="Entity" value="Orc" />
 			<attribute name="Animation" value="run" />
-			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0000_eyes" />
 		</component>
 		<component type="RigidBody2D" id="731" />
 		<component type="CollisionCircle2D" id="732">
@@ -793,12 +793,12 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="734">
 			<attribute name="Layer" value="2 -1" />
+			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0007_foot2" />
 			<attribute name="Flip X" value="true" />
 			<attribute name="Draw Rectangle" value="-1.34927 -2.01678 1.74129 1.97722" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/Orc/Orc.scml" />
 			<attribute name="Entity" value="Orc" />
 			<attribute name="Animation" value="run" />
-			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0000_eyes" />
 		</component>
 		<component type="RigidBody2D" id="735" />
 		<component type="CollisionCircle2D" id="736">
@@ -822,12 +822,12 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="738">
 			<attribute name="Layer" value="2 -1" />
+			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0007_foot2" />
 			<attribute name="Flip X" value="true" />
 			<attribute name="Draw Rectangle" value="-1.34927 -2.01678 1.74129 1.97722" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/Orc/Orc.scml" />
 			<attribute name="Entity" value="Orc" />
 			<attribute name="Animation" value="run" />
-			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0000_eyes" />
 		</component>
 		<component type="RigidBody2D" id="739" />
 		<component type="CollisionCircle2D" id="740">
@@ -873,12 +873,12 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="746">
 			<attribute name="Layer" value="2 -1" />
+			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0007_foot2" />
 			<attribute name="Flip X" value="true" />
 			<attribute name="Draw Rectangle" value="-1.34927 -2.01678 1.74129 1.97722" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/Orc/Orc.scml" />
 			<attribute name="Entity" value="Orc" />
 			<attribute name="Animation" value="run" />
-			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0000_eyes" />
 		</component>
 		<component type="RigidBody2D" id="747" />
 		<component type="CollisionCircle2D" id="748">
@@ -902,12 +902,12 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="750">
 			<attribute name="Layer" value="2 -1" />
+			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0007_foot2" />
 			<attribute name="Flip X" value="true" />
 			<attribute name="Draw Rectangle" value="-1.34927 -2.01678 1.74129 1.97722" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/Orc/Orc.scml" />
 			<attribute name="Entity" value="Orc" />
 			<attribute name="Animation" value="run" />
-			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0000_eyes" />
 		</component>
 		<component type="RigidBody2D" id="751" />
 		<component type="CollisionCircle2D" id="752">
@@ -931,12 +931,12 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="754">
 			<attribute name="Layer" value="2 -1" />
+			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0007_foot2" />
 			<attribute name="Flip X" value="true" />
 			<attribute name="Draw Rectangle" value="-1.34927 -2.01678 1.74129 1.97722" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/Orc/Orc.scml" />
 			<attribute name="Entity" value="Orc" />
 			<attribute name="Animation" value="run" />
-			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0000_eyes" />
 		</component>
 		<component type="RigidBody2D" id="755" />
 		<component type="CollisionCircle2D" id="756">
@@ -960,12 +960,12 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="758">
 			<attribute name="Layer" value="2 -1" />
+			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0007_foot2" />
 			<attribute name="Flip X" value="true" />
 			<attribute name="Draw Rectangle" value="-1.34927 -2.01678 1.74129 1.97722" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/Orc/Orc.scml" />
 			<attribute name="Entity" value="Orc" />
 			<attribute name="Animation" value="run" />
-			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0000_eyes" />
 		</component>
 		<component type="RigidBody2D" id="759" />
 		<component type="CollisionCircle2D" id="760">
@@ -989,12 +989,12 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="762">
 			<attribute name="Layer" value="2 -1" />
+			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0007_foot2" />
 			<attribute name="Flip X" value="true" />
 			<attribute name="Draw Rectangle" value="-1.34927 -2.01678 1.74129 1.97722" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/Orc/Orc.scml" />
 			<attribute name="Entity" value="Orc" />
 			<attribute name="Animation" value="run" />
-			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0000_eyes" />
 		</component>
 		<component type="RigidBody2D" id="763" />
 		<component type="CollisionCircle2D" id="764">
@@ -1295,12 +1295,12 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="814">
 			<attribute name="Layer" value="2 -1" />
+			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0007_foot2" />
 			<attribute name="Flip X" value="true" />
 			<attribute name="Draw Rectangle" value="-1.34927 -2.01678 1.74129 1.97722" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/Orc/Orc.scml" />
 			<attribute name="Entity" value="Orc" />
 			<attribute name="Animation" value="run" />
-			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0000_eyes" />
 		</component>
 		<component type="RigidBody2D" id="815" />
 		<component type="CollisionCircle2D" id="816">
@@ -1347,12 +1347,12 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="822">
 			<attribute name="Layer" value="2 -1" />
+			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0007_foot2" />
 			<attribute name="Flip X" value="true" />
 			<attribute name="Draw Rectangle" value="-1.34927 -2.01678 1.74129 1.97722" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/Orc/Orc.scml" />
 			<attribute name="Entity" value="Orc" />
 			<attribute name="Animation" value="run" />
-			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0000_eyes" />
 		</component>
 		<component type="RigidBody2D" id="823" />
 		<component type="CollisionCircle2D" id="824">
@@ -1376,12 +1376,12 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="826">
 			<attribute name="Layer" value="2 -1" />
+			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0007_foot2" />
 			<attribute name="Flip X" value="true" />
 			<attribute name="Draw Rectangle" value="-1.34927 -2.01678 1.74129 1.97722" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/Orc/Orc.scml" />
 			<attribute name="Entity" value="Orc" />
 			<attribute name="Animation" value="run" />
-			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0000_eyes" />
 		</component>
 		<component type="RigidBody2D" id="827" />
 		<component type="CollisionCircle2D" id="828">
@@ -1405,12 +1405,12 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="830">
 			<attribute name="Layer" value="2 -1" />
+			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0007_foot2" />
 			<attribute name="Flip X" value="true" />
 			<attribute name="Draw Rectangle" value="-1.34927 -2.01678 1.74129 1.97722" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/Orc/Orc.scml" />
 			<attribute name="Entity" value="Orc" />
 			<attribute name="Animation" value="run" />
-			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0000_eyes" />
 		</component>
 		<component type="RigidBody2D" id="831" />
 		<component type="CollisionCircle2D" id="832">
@@ -1434,12 +1434,12 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="834">
 			<attribute name="Layer" value="2 -1" />
+			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0007_foot2" />
 			<attribute name="Flip X" value="true" />
 			<attribute name="Draw Rectangle" value="-1.34927 -2.01678 1.74129 1.97722" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/Orc/Orc.scml" />
 			<attribute name="Entity" value="Orc" />
 			<attribute name="Animation" value="run" />
-			<attribute name="Sprite" value="SpriteSheet2D;Urho2D/Orc/Orc.xml@orc_0000_eyes" />
 		</component>
 		<component type="RigidBody2D" id="835" />
 		<component type="CollisionCircle2D" id="836">
@@ -1485,11 +1485,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="845">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="846" />
 		<component type="CollisionCircle2D" id="847">
@@ -1509,11 +1509,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="848">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="849" />
 		<component type="CollisionCircle2D" id="850">
@@ -1533,11 +1533,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="851">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="852" />
 		<component type="CollisionCircle2D" id="853">
@@ -1557,11 +1557,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="854">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="855" />
 		<component type="CollisionCircle2D" id="856">
@@ -1581,11 +1581,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="857">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="858" />
 		<component type="CollisionCircle2D" id="859">
@@ -1605,11 +1605,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="860">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="861" />
 		<component type="CollisionCircle2D" id="862">
@@ -1629,11 +1629,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="863">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="864" />
 		<component type="CollisionCircle2D" id="865">
@@ -1653,11 +1653,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="866">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="867" />
 		<component type="CollisionCircle2D" id="868">
@@ -1677,11 +1677,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="869">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="870" />
 		<component type="CollisionCircle2D" id="871">
@@ -1701,11 +1701,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="872">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="873" />
 		<component type="CollisionCircle2D" id="874">
@@ -1725,11 +1725,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="875">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="876" />
 		<component type="CollisionCircle2D" id="877">
@@ -1749,11 +1749,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="878">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="879" />
 		<component type="CollisionCircle2D" id="880">
@@ -1773,11 +1773,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="881">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="882" />
 		<component type="CollisionCircle2D" id="883">
@@ -1797,11 +1797,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="884">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="885" />
 		<component type="CollisionCircle2D" id="886">
@@ -1821,11 +1821,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="887">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="888" />
 		<component type="CollisionCircle2D" id="889">
@@ -1845,11 +1845,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="890">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="891" />
 		<component type="CollisionCircle2D" id="892">
@@ -1869,11 +1869,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="893">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="894" />
 		<component type="CollisionCircle2D" id="895">
@@ -1893,11 +1893,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="896">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="897" />
 		<component type="CollisionCircle2D" id="898">
@@ -1917,11 +1917,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="899">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="900" />
 		<component type="CollisionCircle2D" id="901">
@@ -1941,11 +1941,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="902">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="903" />
 		<component type="CollisionCircle2D" id="904">
@@ -1965,11 +1965,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="905">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="906" />
 		<component type="CollisionCircle2D" id="907">
@@ -1989,11 +1989,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="908">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="909" />
 		<component type="CollisionCircle2D" id="910">
@@ -2013,11 +2013,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="911">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="912" />
 		<component type="CollisionCircle2D" id="913">
@@ -2037,11 +2037,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="914">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="915" />
 		<component type="CollisionCircle2D" id="916">
@@ -2061,11 +2061,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="917">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="918" />
 		<component type="CollisionCircle2D" id="919">
@@ -2085,11 +2085,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="920">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="921" />
 		<component type="CollisionCircle2D" id="922">
@@ -2109,11 +2109,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="923">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="924" />
 		<component type="CollisionCircle2D" id="925">
@@ -2133,11 +2133,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="926">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="927" />
 		<component type="CollisionCircle2D" id="928">
@@ -2157,11 +2157,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="929">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="930" />
 		<component type="CollisionCircle2D" id="931">
@@ -2181,11 +2181,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="932">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="933" />
 		<component type="CollisionCircle2D" id="934">
@@ -2205,11 +2205,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="935">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="936" />
 		<component type="CollisionCircle2D" id="937">
@@ -2229,11 +2229,11 @@
 		<attribute name="Tags" />
 		<component type="AnimatedSprite2D" id="938">
 			<attribute name="Layer" value="4 -1" />
+			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 			<attribute name="Draw Rectangle" value="-0.32 -0.32 0.32 0.32" />
 			<attribute name="Animation Set" value="AnimationSet2D;Urho2D/GoldIcon.scml" />
 			<attribute name="Entity" value="entity_000" />
 			<attribute name="Animation" value="idle" />
-			<attribute name="Sprite" value="Sprite2D;Urho2D/GoldIcon/1.png" />
 		</component>
 		<component type="RigidBody2D" id="939" />
 		<component type="CollisionCircle2D" id="940">
@@ -2850,7 +2850,7 @@
 		<component type="StaticSprite2D" id="1015">
 			<attribute name="Layer" value="-99 -1" />
 			<attribute name="Sprite" value="Sprite2D;Textures/HeightMap.png" />
-			<attribute name="Color" value="0.19599 0.643696 0.31016 1" />
+			<attribute name="Color" value="0.286996 0.486435 0.989868 1" />
 			<attribute name="Draw Rectangle" value="-5.125 -5.125 5.125 5.125" />
 			<attribute name="Texture Rectangle" value="0 1 1 0" />
 		</component>

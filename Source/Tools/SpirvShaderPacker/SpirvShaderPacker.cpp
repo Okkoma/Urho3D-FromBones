@@ -937,8 +937,9 @@ void Run(Vector<String>& arguments)
                     groupName = groupName.Substring(0, groupName.Length()-2); // Remove the tag VS or PS
                     unsigned char groupIndex = GetStringListIndex(groupName.CString(), parametersGroupNames, 0, false);
 
+                    bool dynamic = ((groupIndex == SP_OBJECT && type == VS) || (groupIndex == SP_CAMERA && type == VS) || (groupIndex == SP_LIGHT && type == VS) || (groupIndex == SP_LIGHT && type == PS));
                     if (debug)
-                        URHO3D_LOGTRACEF("set=%u bind=%u type=UNIFORM_BUFFER group=%s(%u)", set, bind, spvBinding.type_description->type_name, groupIndex);
+                        URHO3D_LOGTRACEF("set=%u bind=%u type=UNIFORM_BUFFER group=%s(%u) dynamic=%s", set, bind, spvBinding.type_description->type_name, groupIndex, dynamic?"true":"false");
 
                     const SpvReflectBlockVariable& block = spvBinding.block;
                     for (unsigned v=0; v < block.member_count; v++ )
@@ -962,7 +963,7 @@ void Run(Vector<String>& arguments)
                     binding.unitStart_ = groupIndex;
                     binding.unitRange_ = 1;
 
-                    if ((groupIndex == SP_OBJECT && type == VS) || (groupIndex == SP_LIGHT && type == PS))
+                    if (dynamic)
                         binding.type_ = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
                 }
             }

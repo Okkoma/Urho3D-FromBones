@@ -342,16 +342,15 @@ void SpriterSaveData(Context* context, AnimationSet2D* animationset, const Strin
         // Color
 
         // ObjInfo
-        for (HashMap<String, Spriter::ObjInfo >::ConstIterator it=entity->objInfos_.Begin(); it != entity->objInfos_.End(); ++it)
+        for (HashMap<StringHash, Spriter::ObjInfo >::ConstIterator it=entity->objInfos_.Begin(); it != entity->objInfos_.End(); ++it)
         {
-            const String& name = it->first_;
             const Spriter::ObjInfo& objinfo = it->second_;
             int type = (int)objinfo.type_;
             if (type < 0 || type > 3)
                 continue;
 
             XMLElement objinfoElem = entityElem.CreateChild("obj_info");
-            objinfoElem.SetAttribute("name", it->first_);
+            objinfoElem.SetAttribute("name", objinfo.name_);
             objinfoElem.SetAttribute("type", SpriterObjInfoStr[type]);
             objinfoElem.SetFloat("w", objinfo.width_);
             objinfoElem.SetFloat("h", objinfo.height_);

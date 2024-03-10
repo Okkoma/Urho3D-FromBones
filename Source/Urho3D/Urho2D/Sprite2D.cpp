@@ -126,11 +126,11 @@ void Sprite2D::SetTexture(Texture2D* texture)
 
 void Sprite2D::SetRectangle(const IntRect& rectangle)
 {
+	sourceSize_ = rectangle.Size();
     rectangle_.left_ = texture_->GetDpiScale() * rectangle.left_;
     rectangle_.top_ = texture_->GetDpiScale() * rectangle.top_;
     rectangle_.right_ = texture_->GetDpiScale() * rectangle.right_;
     rectangle_.bottom_ = texture_->GetDpiScale() * rectangle.bottom_;
-	sourceSize_ = rectangle.Size();
 }
 
 void Sprite2D::SetOffset(const IntVector2& offset)
@@ -168,26 +168,7 @@ bool Sprite2D::GetDrawRectangle(Rect& rect, bool flipX, bool flipY) const
 {
     return GetDrawRectangle(rect, hotSpot_, flipX, flipY);
 }
-/*
-bool Sprite2D::GetDrawRectangle(Rect& rect, const Vector2& hotSpot, bool flipX, bool flipY) const
-{
-    if (rectangle_.Width() == 0 || rectangle_.Height() == 0)
-        return false;
 
-    float width = (float)rectangle_.Width() * PIXEL_SIZE;
-    float height = (float)rectangle_.Height() * PIXEL_SIZE;
-
-    float hotSpotX = flipX ? (1.0f - hotSpot.x_) : hotSpot.x_;
-    float hotSpotY = flipY ? (1.0f - hotSpot.y_) : hotSpot.y_;
-
-    rect.min_.x_ = -width * hotSpotX;
-    rect.max_.x_ = width * (1.0f - hotSpotX);
-    rect.min_.y_ = -height * hotSpotY;
-    rect.max_.y_ = height * (1.0f - hotSpotY);
-
-    return true;
-}
-*/
 bool Sprite2D::GetDrawRectangle(Rect& rect, const Vector2& pivot, bool flipX, bool flipY) const
 {
     if (sourceSize_.x_ == 0 || sourceSize_.y_ == 0)

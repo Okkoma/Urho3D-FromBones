@@ -82,24 +82,26 @@ done < "$projectnames"
 
 # Quitter si aucun projet n'est trouvé
 if [ -z "$projectpair" ]; then
-    echo "Aucun projet trouvé pour : $(basename "$PWD")"
+    echo "Aucun projet trouvé pour $(basename "$PWD") dans $projectnames"
     exit 1
+else
+    APP="$(echo "$projectpair" | cut -d ':' -f 1)"
+    APPDIR="$(pwd)"
+    URHO3D="$(echo "$projectpair" | cut -d ':' -f 2)"
 fi
-
-APP="$(echo "$projectpair" | cut -d ':' -f 1)"
-APPDIR="$(pwd)"
-URHO3D="$(echo "$projectpair" | cut -d ':' -f 2)"
 
 # Obtenir le nom de la target
 cmake_lists_file="$APPDIR/app/src/main/cpplauncher/CMakeLists.txt"
 if [ ! -f "$cmake_lists_file" ]; then
     cmake_lists_file="$APPDIR/app/src/main/cpp/CMakeLists.txt"
 fi
-TARGETNAME=$(sed -n "s/set (TARGET_NAME \(.*\))/\1/p" "$cmake_lists_file")
-if [ -z "$TARGETNAME" ]; then
-    TARGETNAME=$(sed -n "s/set(TARGET_NAME \(.*\))/\1/p" "$cmake_lists_file")
+if [ -f "$cmake_lists_file" ]; then
+    TARGETNAME=$(sed -n "s/set (TARGET_NAME \(.*\))/\1/p" "$cmake_lists_file")
     if [ -z "$TARGETNAME" ]; then
-        TARGETNAME=$APP
+        TARGETNAME=$(sed -n "s/set(TARGET_NAME \(.*\))/\1/p" "$cmake_lists_file")
+        if [ -z "$TARGETNAME" ]; then
+            TARGETNAME=$APP
+        fi
     fi
 fi
 
@@ -109,10 +111,11 @@ U_GRAPHICS_OPENGL="-DURHO3D_OPENGL=1 -DURHO3D_VULKAN=0"
 U_GRAPHICS_VULKAN="-DURHO3D_OPENGL=0 -DURHO3D_VULKAN=1 -DURHO3D_VMA=1 -DURHO3D_VOLK=1"
 U_GRAPHICS=$U_GRAPHICS_OPENGL
 
-U_LINUX_OPT="-DVIDEO_WAYLAND=0 -DURHO3D_OPENGL=1 -DURHO3D_C++11=1 -DURHO3D_PHYSICS=0 -DURHO3D_LUA=0 -DURHO3D_LUAJIT=0 -DURHO3D_LUAJIT_AMALG=0 -DURHO3D_FILEWATCHER=0 -DURHO3D_IK=0 -DURHO3D_NAVIGATION=0 -DURHO3D_PCH=0 -DURHO3D_PLAYER=0 -DURHO3D_SAMPLES=0 -DURHO3D_WEBP=0"
-F_LINUX_OPT="-DURHO3D_OPENGL=1 -DURHO3D_WIN32_CONSOLE=0 -DURHO3D_PHYSICS=0 -DURHO3D_LUA=0 -DURHO3D_NAVIGATION=0 -DURHO3D_IK=0"
+U_LINUX_OPT="-DVIDEO_WAYLAND=0 -DURHO3D_C++11=1 -DURHO3D_PHYSICS=0 -DURHO3D_LUA=0 -DURHO3D_LUAJIT=0 -DURHO3D_LUAJIT_AMALG=0 -DURHO3D_FILEWATCHER=0 -DURHO3D_IK=0 -DURHO3D_NAVIGATION=0 -DURHO3D_PCH=0 -DURHO3D_PLAYER=0 -DURHO3D_WEBP=0"
+F_LINUX_OPT="-DURHO3D_WIN32_CONSOLE=0 -DURHO3D_PHYSICS=0 -DURHO3D_LUA=0 -DURHO3D_NAVIGATION=0 -DURHO3D_IK=0"
 
 EDITOR_OPT="-DURHO3D_ANGELSCRIPT=0"
+VALIDATIONLAYERS="0"
 
 DIR_SHADERS="Shaders/Vulkan"
 
@@ -169,7 +172,7 @@ while [[ $# -gt 0 ]]; do
 		SHADERS=1
 		shift # past argument
 		;;	
-		tool)
+		tool|tools)
 		TOOL=1
 		shift # past argument
 		;;
@@ -184,7 +187,12 @@ while [[ $# -gt 0 ]]; do
 		rel|release)
 		RELEASE=1
 		shift
-		;;	
+		;;
+		debug)
+		RELEASE=0
+		OPTIONPACKSHADER="-debug"
+		shift
+		;;			
 		config)
 		CONFIG=1
 		shift # past argument
@@ -223,6 +231,10 @@ while [[ $# -gt 0 ]]; do
 		CLEANBUILD=clean
 		CLEANLOG=1		
 		shift # past argument
+		;;
+		codelite|lite)
+		CODELITE=1
+		shift
 		;;
 		studio)
 		STUDIO=1
@@ -390,7 +402,7 @@ LaunchLinuxBuild()
 	
 		cd $U_HOME
 	
-		$SCRIPT/compile_shaders.sh $U_HOME/Source/$DIR_SHADERS $U_HOME/bin/CoreData/$DIR_SHADERS
+		$SCRIPT/compile_shaders.sh $OPTIONPACKSHADER $U_HOME/Source/$DIR_SHADERS $U_HOME/bin/CoreData/$DIR_SHADERS
 	fi
 
 	if [[ $U_HOME != $HOME ]]; then
@@ -469,7 +481,7 @@ LaunchLinuxBuild()
 		
 			cd $HOME					
 		
-			$SCRIPT/compile_shaders.sh $HOME/app/src/$DIR_SHADERS $HOME/bin/Data/$DIR_SHADERS
+			$SCRIPT/compile_shaders.sh $OPTIONPACKSHADER $HOME/app/src/$DIR_SHADERS $HOME/bin/Data/$DIR_SHADERS
 		fi		
 
 		if [[ $TOOL -eq 1 ]]; then
@@ -517,15 +529,19 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 
 	echo "... run on a $PLATFORM platform ..."
 	
-	U_OPT="-DURHO3D_TOOLS=$TOOL -DURHO3D_VULKAN_VALIDATION=$VALIDATIONLAYERS"
-
+	U_OPT="-DURHO3D_SAMPLES=$SAMPLES -DURHO3D_TOOLS=$TOOL"
+    
 	if [[ $LINUX -eq 1 ]]; then
 
 		OS=`cat /etc/os-release | grep ^NAME= | cut -d '"' -f 2`
 		VERSION=`cat /etc/os-release | grep ^VERSION_ID= | cut -d '"' -f 2`
 		OSVERSION=$OS$VERSION
 	
-		CMAKESCRIPT=$SCRIPT/cmake_codeblocks.sh
+		if [[ $CODELITE -eq 1 ]]; then
+			CMAKESCRIPT="$SCRIPT/cmake_codelite.sh"
+		else
+			CMAKESCRIPT="$SCRIPT/cmake_codeblocks.sh"
+		fi
 
 		if [[ $ALL -eq 1 ]]; then
 
@@ -545,6 +561,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 
 			# Vk Static
 			VULKAN=1
+            U_OPT="$U_OPT -DURHO3D_VULKAN_VALIDATION=$VALIDATIONLAYERS"
 			U_GRAPHICS="$U_GRAPHICS_VULKAN"
 			LIBSHARED=0
 			OSVERSION=$SAVED_OSVERSION			
@@ -564,6 +581,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 				SaveConfig
 				
 				VULKAN=0
+				U_OPT="-DURHO3D_SAMPLES=$SAMPLES -DURHO3D_TOOLS=$TOOL"
 				U_GRAPHICS="$U_GRAPHICS_OPENGL"
 				LaunchLinuxBuild
 
@@ -575,6 +593,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 				SaveConfig
 				
 				VULKAN=1
+				U_OPT="-DURHO3D_SAMPLES=$SAMPLES -DURHO3D_TOOLS=$TOOL -DURHO3D_VULKAN_VALIDATION=$VALIDATIONLAYERS"
 				U_GRAPHICS="$U_GRAPHICS_VULKAN"		
 				LaunchLinuxBuild
 
@@ -969,7 +988,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 		
 			cd $U_HOME
 		
-			$SCRIPT/compile_shaders.sh Source/$DIR_SHADERS $U_HOME/bin/CoreData/$DIR_SHADERS
+			$SCRIPT/compile_shaders.sh $OPTIONPACKSHADER Source/$DIR_SHADERS $U_HOME/bin/CoreData/$DIR_SHADERS
 		fi
 		
 		if [[ $U_HOME != $HOME ]]; then
@@ -1040,7 +1059,7 @@ if [[ $CONFIG -eq 1 ]] || [[ $BUILD -eq 1 ]] || [[ $INSTALL -eq 1 ]] || [[ $TOOL
 			
 				cd $HOME				
 			
-				$SCRIPT/compile_shaders.sh app/src/$DIR_SHADERS $HOME/bin/Data/$DIR_SHADERS
+				$SCRIPT/compile_shaders.sh $OPTIONPACKSHADER app/src/$DIR_SHADERS $HOME/bin/Data/$DIR_SHADERS
 			fi			
 		fi
 

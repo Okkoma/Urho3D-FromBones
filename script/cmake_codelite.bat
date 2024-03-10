@@ -20,4 +20,4 @@
 :: THE SOFTWARE.
 ::
 
-@"%~dp0cmake_generic.bat" %* -G "CodeLite - MinGW Makefiles"
+@"%~dp0cmake_generic.bat" %* -D CMAKE_CODELITE_USE_TARGETS=ON -G "CodeLite - MinGW Makefiles"

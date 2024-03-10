@@ -1667,7 +1667,7 @@ void Graphics::SetDepthStencil(Texture2D* texture)
     SetDepthStencil(depthStencil);
 }
 
-void Graphics::SetViewport(const IntRect& rect)
+void Graphics::SetViewport(const IntRect& rect, unsigned index)
 {
     IntVector2 size = GetRenderTargetDimensions();
 

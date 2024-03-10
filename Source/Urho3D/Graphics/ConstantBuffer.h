@@ -30,8 +30,6 @@
 namespace Urho3D
 {
 
-const unsigned MAX_OBJECTS = 1000;
-
 /// Hardware constant buffer.
 class URHO3D_API ConstantBuffer : public Object, public GPUObject
 {
@@ -48,7 +46,8 @@ public:
     /// Release the buffer.
     virtual void Release();
 
-    void SetDynamic(bool enable) { dynamic_ = enable; objectindex_ = 0; }
+    void SetNumObjects(unsigned num) { objectnum_ = num; objectindex_ = 0; }
+    unsigned GetNumObjects() const { return objectnum_; }
     unsigned GetObjectIndex() const { return objectindex_; }
 
     /// Set size and create GPU-side buffer. Return true on success.
@@ -66,8 +65,6 @@ public:
     /// Return whether has unapplied data.
     bool IsDirty() const { return dirty_; }
 
-    bool IsDynamic() const { return dynamic_; }
-
 private:
     /// Shadow data.
     SharedArrayPtr<unsigned char> shadowData_;
@@ -76,7 +73,7 @@ private:
     /// Dirty flag.
     bool dirty_;
 
-    bool dynamic_;
+    unsigned objectnum_;
     unsigned objectindex_;
     unsigned offsetToUpdate_;
     unsigned rangeToUpdate_;

@@ -68,7 +68,7 @@ struct ShaderParameter
         unsigned regCount_;
     };
 
-    /// Constant buffer index. Only used on Direct3D11.
+    /// Constant buffer index. Only used on Direct3D11 and Vulkan
     unsigned buffer_;
     /// Constant buffer pointer. Defined only in shader programs.
     ConstantBuffer* bufferPtr_;
