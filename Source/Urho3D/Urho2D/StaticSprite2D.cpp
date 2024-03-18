@@ -150,12 +150,12 @@ void StaticSprite2D::SetFlip(bool flipX, bool flipY, bool swapXY)
 
     flipX_ = flipX;
     flipY_ = flipY;
-
     swapXY_ = swapXY;
-    sourceBatchesDirty_ = true;
-    drawRectDirty_ = true;
 
+    sourceBatchesDirty_ = true;
     MarkNetworkUpdate();
+
+    drawRectDirty_ = true;
 }
 
 void StaticSprite2D::SetFlipX(bool flipX)
@@ -213,9 +213,9 @@ void StaticSprite2D::SetUseHotSpot(bool useHotSpot)
     useHotSpot_ = useHotSpot;
 
     sourceBatchesDirty_ = true;
-    drawRectDirty_ = true;
-
     MarkNetworkUpdate();
+
+    drawRectDirty_ = true;
 }
 
 void StaticSprite2D::SetUseDrawRect(bool useDrawRect)
@@ -249,9 +249,9 @@ void StaticSprite2D::SetHotSpot(const Vector2& hotspot)
     if (useHotSpot_)
     {
         sourceBatchesDirty_ = true;
-        drawRectDirty_ = true;
-
         MarkNetworkUpdate();
+
+        drawRectDirty_ = true;
     }
 }
 
@@ -392,12 +392,16 @@ bool StaticSprite2D::UpdateDrawRectangle()
         {
             if (useHotSpot_)
             {
-                if (!sprite_->GetDrawRectangle(drawRect_, hotSpot_))
+                if (!sprite_->GetDrawRectangle(drawRect_, hotSpot_, flipX_, flipY_))
+                // Graphics.TODO 13/03/2024
+                //if (!sprite_->GetDrawRectangle(drawRect_, hotSpot_))
                     return false;
             }
             else
             {
-                if (!sprite_->GetDrawRectangle(drawRect_))
+                if (!sprite_->GetDrawRectangle(drawRect_, flipX_, flipY_))
+                // Graphics.TODO 13/03/2024
+                //if (!sprite_->GetDrawRectangle(drawRect_))
                     return false;
             }
         }

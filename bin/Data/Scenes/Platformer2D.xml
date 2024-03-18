@@ -2850,7 +2850,7 @@
 		<component type="StaticSprite2D" id="1015">
 			<attribute name="Layer" value="-99 -1" />
 			<attribute name="Sprite" value="Sprite2D;Textures/HeightMap.png" />
-			<attribute name="Color" value="0.286996 0.486435 0.989868 1" />
+			<attribute name="Color" value="0.232368 0.542772 0.147282 1" />
 			<attribute name="Draw Rectangle" value="-5.125 -5.125 5.125 5.125" />
 			<attribute name="Texture Rectangle" value="0 1 1 0" />
 		</component>

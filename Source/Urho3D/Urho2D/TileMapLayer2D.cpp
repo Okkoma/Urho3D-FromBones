@@ -361,8 +361,7 @@ void TileMapLayer2D::SetTileLayer(const TmxTileLayer2D* tileLayer)
             if (!tile)
                 continue;
 
-            //SharedPtr<Node> tileNode(GetNode()->CreateTemporaryChild("Tile"));
-            SharedPtr<Node> tileNode(GetNode()->CreateChild("Tile"));
+            SharedPtr<Node> tileNode(GetNode()->CreateTemporaryChild("Tile"));
             tileNode->SetPosition(Vector3(info.TileIndexToPosition(x, y)));
 
             StaticSprite2D* staticSprite = tileNode->CreateComponent<StaticSprite2D>();
@@ -370,6 +369,22 @@ void TileMapLayer2D::SetTileLayer(const TmxTileLayer2D* tileLayer)
             staticSprite->SetFlip(tile->GetFlipX(), tile->GetFlipY(), tile->GetSwapXY());
             staticSprite->SetLayer(drawOrder_);
             staticSprite->SetOrderInLayer(y * width + x);
+
+            // We need to correct the position of the staticsprite when flipping
+            // if the sprite of the tile has not the same hotspot than the staticsprite
+			if ((tile->GetFlipX() && tile->GetSprite()->GetHotSpot().x_ != 0.5f) || 
+				(tile->GetFlipY() && tile->GetSprite()->GetHotSpot().y_ != 0.5f))
+			{
+				staticSprite->SetHotSpot(Vector2(0.5f, 0.5f));
+				staticSprite->SetUseHotSpot(true);
+				staticSprite->UpdateDrawRectangle();
+				Rect rect = staticSprite->GetDrawRect();
+				Vector2 offset = (Vector2(0.5f, 0.5f)-tile->GetSprite()->GetHotSpot()) * Vector2(tile->GetSprite()->GetSourceSize()) * PIXEL_SIZE;
+				rect.min_ += offset;
+				rect.max_ += offset;
+				staticSprite->SetDrawRect(rect);
+				staticSprite->SetUseDrawRect(true);
+			}
 
             nodes_[y * width + x] = tileNode;
         }

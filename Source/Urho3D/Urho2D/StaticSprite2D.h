@@ -132,6 +132,8 @@ public:
 
     virtual void DrawDebugGeometry(DebugRenderer* debug, bool depthTest);
 
+    virtual bool UpdateDrawRectangle();
+
 protected:
     /// Recalculate the world-space bounding box.
     virtual void OnWorldBoundingBoxUpdate();
@@ -141,8 +143,6 @@ protected:
     virtual void UpdateSourceBatches();
     /// Update material.
     virtual void UpdateMaterial();
-
-    virtual bool UpdateDrawRectangle();
 
     /// Sprite.
     SharedPtr<Sprite2D> sprite_;

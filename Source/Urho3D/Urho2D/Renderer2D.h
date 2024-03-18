@@ -24,6 +24,8 @@
 
 #include "../Graphics/Drawable.h"
 
+//#define INDEXBUFFER_BY_VIEWBATCH
+
 namespace Urho3D
 {
 
@@ -48,6 +50,10 @@ struct ViewBatchInfo2D
     unsigned indexCount_[2];
     /// Vertex count.
     unsigned vertexCount_[2];
+#ifdef INDEXBUFFER_BY_VIEWBATCH
+    /// Index buffer.
+    SharedPtr<IndexBuffer> indexBuffer_[2];
+#endif
     /// Vertex buffer.
     SharedPtr<VertexBuffer> vertexBuffer_[2];
     /// Batch updated frame number.
@@ -60,6 +66,10 @@ struct ViewBatchInfo2D
     Vector<SharedPtr<Material> > materials_;
     /// Geometries.
     Vector<SharedPtr<Geometry> > geometries_;
+
+    FrameInfo frame_;
+    const Frustum* frustum_;
+    BoundingBox frustum2D_;
 };
 
 /// 2D renderer component.
@@ -95,20 +105,13 @@ public:
     /// Return material by texture and blend mode.
     Material* GetMaterial(Texture2D* texture, BlendMode blendMode);
 
-    const FrameInfo& GetFrameInfo() const { return frame_; }
+    const FrameInfo& GetCurrentFrameInfo() const { return currentViewBatchInfo_->frame_; }
 
     /// Check visibility.
-    bool CheckVisibility(Drawable2D* drawable) const;
-//    bool IsDrawableVisible(Drawable2D* drawable) const;
-
-    void UpdateFrustumBoundingBox(Camera* camera);
-
-    const BoundingBox& GetFrustumBoundingBox() const;
+    bool CheckVisibility(ViewBatchInfo2D* viewinfo,  Drawable2D* drawable) const;
 
     void Dump() const;
-/*
-    bool geometryDirty_;
-*/
+
 private:
     /// Recalculate the world-space bounding box.
     virtual void OnWorldBoundingBoxUpdate();
@@ -121,34 +124,26 @@ private:
     /// Get all drawables in node.
     void GetDrawables(PODVector<Drawable2D*>& drawables, Node* node);
     /// Update view batch info.
-    void UpdateViewBatchInfo(ViewBatchInfo2D& viewBatchInfo, Camera* camera);
+    void UpdateViewBatchInfo(ViewBatchInfo2D& viewBatchInfo);
     /// Add view batch.
     void AddViewBatch(ViewBatchInfo2D& viewBatchInfo, int primitivetype, Material* material, unsigned indexStart, unsigned indexCount, unsigned vertexStart, unsigned vertexCount);
 
     unsigned initialVertexBufferSize_;
-
+#ifndef INDEXBUFFER_BY_VIEWBATCH
     /// Index buffer.
     SharedPtr<IndexBuffer> indexBuffer_[2];
+#endif
     /// Material.
     SharedPtr<Material> material_;
     /// Drawables.
     PODVector<Drawable2D*> drawables_;
-    /// View frame info for current frame.
-    FrameInfo frame_;
     /// View batch info.
     HashMap<Camera*, ViewBatchInfo2D> viewBatchInfos_;
-    /// Frustum for current frame.
-    const Frustum* frustum_;
-    /// Frustum bounding box for current frame.
-    BoundingBox frustumBoundingBox_;
-    /// View mask of current camera for visibility checking.
-    unsigned viewMask_;
+    ViewBatchInfo2D* currentViewBatchInfo_;
     /// Cached materials.
     HashMap<Texture2D*, HashMap<int, SharedPtr<Material> > > cachedMaterials_;
     /// Cached techniques per blend mode.
     HashMap<int, SharedPtr<Technique> > cachedTechniques_;
-
-
 };
 
 }

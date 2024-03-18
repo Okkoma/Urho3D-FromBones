@@ -46,6 +46,7 @@
 
 #include "../DebugNew.h"
 
+
 namespace Urho3D
 {
 
@@ -54,8 +55,8 @@ extern const char* blendModeNames[];
 //static const unsigned MASK_VERTEX2D = MASK_POSITION | MASK_COLOR | MASK_TEXCOORD1 | MASK_TEXCOORD2;
 static const unsigned MASK_VERTEX2D = MASK_POSITION | MASK_COLOR | MASK_TEXCOORD1 | MASK_TANGENT;
 
-static const int QUAD2D = 1;
 static const int TRIANGLE2D = 0;
+static const int QUAD2D = 1;
 
 static PODVector<VertexElement> vertexElements2D_;
 static unsigned VERTEX2DSIZE;
@@ -75,13 +76,12 @@ ViewBatchInfo2D::ViewBatchInfo2D() :
 Renderer2D::Renderer2D(Context* context) :
     Drawable(context, DRAWABLE_GEOMETRY),
     initialVertexBufferSize_(8000U),
-    material_(new Material(context)),
-    frustum_(0),
-    viewMask_(DEFAULT_VIEWMASK)
+    material_(new Material(context))
 {
+#ifndef INDEXBUFFER_BY_VIEWBATCH
     for (int i=0; i<2; i++)
         indexBuffer_[i] = new IndexBuffer(context_);
-
+#endif
     material_->SetName("Urho2D");
 
     Technique* tech = new Technique(context_);
@@ -139,13 +139,11 @@ Renderer2D::Renderer2D(Context* context) :
     #endif
     }
 
-    frame_.frameNumber_ = 0;
     SubscribeToEvent(E_BEGINVIEWUPDATE, URHO3D_HANDLER(Renderer2D, HandleBeginViewUpdate));
 }
 
 Renderer2D::~Renderer2D()
-{
-}
+{ }
 
 void Renderer2D::RegisterObject(Context* context)
 {
@@ -192,11 +190,14 @@ void Renderer2D::UpdateBatches(const FrameInfo& frame)
 
 void Renderer2D::UpdateGeometry(const FrameInfo& frame)
 {
+    ViewBatchInfo2D& viewBatchInfo = viewBatchInfos_[frame.camera_];
+
+#ifndef INDEXBUFFER_BY_VIEWBATCH
     // update index buffers
     unsigned indexCount[2] = { 0, 0 };
     for (HashMap<Camera*, ViewBatchInfo2D>::ConstIterator i = viewBatchInfos_.Begin(); i != viewBatchInfos_.End(); ++i)
     {
-        if (i->second_.batchUpdatedFrameNumber_ == frame_.frameNumber_)
+        if (i->second_.batchUpdatedFrameNumber_ == frame.frameNumber_)
         {
             indexCount[TRIANGLE2D] = (unsigned)Max((int)indexCount[TRIANGLE2D], (int)i->second_.indexCount_[TRIANGLE2D]);
             indexCount[QUAD2D]     = (unsigned)Max((int)indexCount[QUAD2D], (int)i->second_.indexCount_[QUAD2D]);
@@ -205,11 +206,6 @@ void Renderer2D::UpdateGeometry(const FrameInfo& frame)
     // update index buffer triangles
     if (indexBuffer_[TRIANGLE2D]->IsDataLost() || indexBuffer_[TRIANGLE2D]->GetIndexCount() < indexCount[TRIANGLE2D])
     {
-//        if (indexBuffer_[TRIANGLE2D]->IsDataLost())
-//            URHO3D_LOGERROR("Renderer2D : TRIANGLE2D DataLost !");
-//        else
-//            URHO3D_LOGWARNINGF("Renderer2D : New IndexCount for TRIANGLE2D new=%u old=%u !", indexCount[TRIANGLE2D], indexBuffer_[TRIANGLE2D]->GetIndexCount());
-
         bool largeIndices = indexCount[TRIANGLE2D] > 0xffff;
         indexBuffer_[TRIANGLE2D]->SetSize(indexCount[TRIANGLE2D], largeIndices);
 
@@ -245,19 +241,12 @@ void Renderer2D::UpdateGeometry(const FrameInfo& frame)
         }
         else
         {
-//            URHO3D_LOGERROR("Renderer2D : Failed to lock index buffer for TRIANGLE2D");
             indexBuffer_[TRIANGLE2D]->ClearDataLost();
-//            return;
         }
     }
     // update index buffer quads
     if (indexBuffer_[QUAD2D]->IsDataLost() || indexBuffer_[QUAD2D]->GetIndexCount() < indexCount[QUAD2D])
     {
-//        if (indexBuffer_[QUAD2D]->IsDataLost())
-//            URHO3D_LOGERROR("Renderer2D : QUAD2D DataLost !");
-//        else
-//            URHO3D_LOGWARNINGF("Renderer2D : New IndexCount for QUAD2D new=%u old=%u !", indexCount[QUAD2D], indexBuffer_[QUAD2D]->GetIndexCount());
-
         bool largeIndices = (indexCount[QUAD2D] * 4 / 6) > 0xffff;
         indexBuffer_[QUAD2D]->SetSize(indexCount[QUAD2D], largeIndices);
         void* buffer = indexBuffer_[QUAD2D]->Lock(0, indexCount[QUAD2D], true);
@@ -298,30 +287,113 @@ void Renderer2D::UpdateGeometry(const FrameInfo& frame)
         }
         else
         {
-//            URHO3D_LOGERROR("Renderer2D : Failed to lock index buffer for QUAD2D");
             indexBuffer_[QUAD2D]->ClearDataLost();
-//            return;
         }
     }
-
-    Camera* camera = frame.camera_;
-    ViewBatchInfo2D& viewBatchInfo = viewBatchInfos_[camera];
-
-    if (viewBatchInfo.vertexBufferUpdateFrameNumber_ != frame_.frameNumber_)
+#else
+    if (viewBatchInfo.vertexBufferUpdateFrameNumber_ != frame.frameNumber_)
     {
-//        URHO3D_PROFILE(Renderer2DUpdateVertex);
+        // update index buffer triangles
+        if (viewBatchInfo.indexBuffer_[TRIANGLE2D])
+        if (viewBatchInfo.indexBuffer_[TRIANGLE2D]->IsDataLost() || viewBatchInfo.indexBuffer_[TRIANGLE2D]->GetIndexCount() < viewBatchInfo.indexCount_[TRIANGLE2D])
+        {
+            bool largeIndices = viewBatchInfo.indexCount_[TRIANGLE2D] > 0xffff;
+            viewBatchInfo.indexBuffer_[TRIANGLE2D]->SetSize(viewBatchInfo.indexCount_[TRIANGLE2D], largeIndices);
 
+            void* buffer = viewBatchInfo.indexBuffer_[TRIANGLE2D]->Lock(0, viewBatchInfo.indexCount_[TRIANGLE2D], true);
+            if (buffer)
+            {
+                unsigned trianglescount = viewBatchInfo.indexCount_[TRIANGLE2D] / 3;
+                if (largeIndices)
+                {
+                    unsigned* dest = reinterpret_cast<unsigned*>(buffer);
+                    for (unsigned i = 0; i < trianglescount; ++i)
+                    {
+                        unsigned base = i * 3;
+                        dest[0] = base;
+                        dest[1] = base + 1;
+                        dest[2] = base + 2;
+                        dest += 3;
+                    }
+                }
+                else
+                {
+                    unsigned short* dest = reinterpret_cast<unsigned short*>(buffer);
+                    for (unsigned i = 0; i < trianglescount; ++i)
+                    {
+                        unsigned base = i * 3;
+                        dest[0] = (unsigned short)(base);
+                        dest[1] = (unsigned short)(base + 1);
+                        dest[2] = (unsigned short)(base + 2);
+                        dest += 3;
+                    }
+                }
+                viewBatchInfo.indexBuffer_[TRIANGLE2D]->Unlock();
+            }
+            else
+            {
+                viewBatchInfo.indexBuffer_[TRIANGLE2D]->ClearDataLost();
+            }
+        }
+        // update index buffer quads
+        if (viewBatchInfo.indexBuffer_[QUAD2D])
+        if (viewBatchInfo.indexBuffer_[QUAD2D]->IsDataLost() || viewBatchInfo.indexBuffer_[QUAD2D]->GetIndexCount() < viewBatchInfo.indexCount_[QUAD2D])
+        {
+            bool largeIndices = (viewBatchInfo.indexCount_[QUAD2D] * 4 / 6) > 0xffff;
+            viewBatchInfo.indexBuffer_[QUAD2D]->SetSize(viewBatchInfo.indexCount_[QUAD2D], largeIndices);
+            void* buffer = viewBatchInfo.indexBuffer_[QUAD2D]->Lock(0, viewBatchInfo.indexCount_[QUAD2D], true);
+            if (buffer)
+            {
+                unsigned quadCount = viewBatchInfo.indexCount_[QUAD2D] / 6;
+                if (largeIndices)
+                {
+                    unsigned* dest = reinterpret_cast<unsigned*>(buffer);
+                    for (unsigned i = 0; i < quadCount; ++i)
+                    {
+                        unsigned base = i * 4;
+                        dest[0] = base;
+                        dest[1] = base + 1;
+                        dest[2] = base + 2;
+                        dest[3] = base;
+                        dest[4] = base + 2;
+                        dest[5] = base + 3;
+                        dest += 6;
+                    }
+                }
+                else
+                {
+                    unsigned short* dest = reinterpret_cast<unsigned short*>(buffer);
+                    for (unsigned i = 0; i < quadCount; ++i)
+                    {
+                        unsigned base = i * 4;
+                        dest[0] = (unsigned short)(base);
+                        dest[1] = (unsigned short)(base + 1);
+                        dest[2] = (unsigned short)(base + 2);
+                        dest[3] = (unsigned short)(base);
+                        dest[4] = (unsigned short)(base + 2);
+                        dest[5] = (unsigned short)(base + 3);
+                        dest += 6;
+                    }
+                }
+                viewBatchInfo.indexBuffer_[QUAD2D]->Unlock();
+            }
+            else
+            {
+                viewBatchInfo.indexBuffer_[QUAD2D]->ClearDataLost();
+            }
+        }
+    }
+#endif
+    if (viewBatchInfo.vertexBufferUpdateFrameNumber_ != frame.frameNumber_)
+    {
         // update vertex buffers
-        for (int primitiveType=0; primitiveType<2; primitiveType++)
+        for (int primitiveType = 0; primitiveType < 2; primitiveType++)
         {
             VertexBuffer* vertexBuffer = viewBatchInfo.vertexBuffer_[primitiveType];
             unsigned vertexcount = viewBatchInfo.vertexCount_[primitiveType];
 
             if (vertexcount > vertexBuffer->GetVertexCount())
             {
-//                URHO3D_PROFILE(Renderer2DUpdateNewVertex);
-//                URHO3D_LOGERRORF("Renderer2D : vertex buffer prim=%d vertex size=(old=%u/new=%u)",
-//                                 primitiveType, vertexBuffer->GetVertexCount(), vertexcount);
             #ifdef URHO3D_VULKAN
                 vertexBuffer->SetSize(vertexcount, vertexElements2D_, true);
             #else
@@ -354,145 +426,10 @@ void Renderer2D::UpdateGeometry(const FrameInfo& frame)
             }
         }
 
-        viewBatchInfo.vertexBufferUpdateFrameNumber_ = frame_.frameNumber_;
+        viewBatchInfo.vertexBufferUpdateFrameNumber_ = frame.frameNumber_;
     }
 }
 
-/*
-void Renderer2D::UpdateGeometry(const FrameInfo& frame)
-{
-    ViewBatchInfo2D& viewBatchInfo = viewBatchInfos_[frame.camera_];
-    unsigned indexCount = viewBatchInfo.indexCount_;
-    unsigned vertexCount = viewBatchInfo.vertexCount_;
-    geometryDirty_ = geometryDirty_ || indexBuffer_->IsDataLost() || indexBuffer_->GetIndexCount() != indexCount
-                        || viewBatchInfo.numquadvertices_ != viewBatchInfo.lastnumquadvertices_;
-
-    // Fill index buffer
-    if (geometryDirty_)
-    {
-        bool largeIndices = indexCount > 0xffff;
-        indexBuffer_->SetSize(indexCount, largeIndices);
-
-        viewBatchInfo.lastnumquadvertices_ = viewBatchInfo.numquadvertices_;
-
-        void* buffer = indexBuffer_->Lock(0, indexCount, true);
-        if (buffer)
-        {
-            const PODVector<const SourceBatch2D*>& sourceBatches = viewBatchInfo.sourceBatches_;
-
-            if (largeIndices)
-            {
-                unsigned* dest = reinterpret_cast<unsigned*>(buffer);
-                unsigned vertexCounter = 0;
-                for (unsigned b = 0; b < sourceBatches.Size(); ++b)
-                {
-                    if (sourceBatches[b]->quadvertices_)
-                    {
-                        unsigned numquads = sourceBatches[b]->vertices_.Size() / 4;
-                        for (unsigned i = 0; i < numquads; ++i)
-                        {
-                            unsigned base = vertexCounter + i * 4;
-                            dest[0] = base;
-                            dest[1] = base + 1;
-                            dest[2] = base + 2;
-                            dest[3] = base;
-                            dest[4] = base + 2;
-                            dest[5] = base + 3;
-                            dest += 6;
-                        }
-                    }
-                    else
-                    {
-                        unsigned numtriangles = sourceBatches[b]->vertices_.Size() / 3;
-                        for (unsigned i = 0; i < numtriangles; ++i)
-                        {
-                            unsigned base = vertexCounter + i * 3;
-                            dest[0] = base;
-                            dest[1] = base + 1;
-                            dest[2] = base + 2;
-                            dest += 3;
-                        }
-                    }
-                    vertexCounter += sourceBatches[b]->vertices_.Size();
-                }
-            }
-            else
-            {
-                unsigned short* dest = reinterpret_cast<unsigned short*>(buffer);
-                unsigned vertexCounter = 0;
-                for (unsigned b = 0; b < sourceBatches.Size(); ++b)
-                {
-                    if (sourceBatches[b]->quadvertices_)
-                    {
-                        unsigned numquads = sourceBatches[b]->vertices_.Size() / 4;
-                        for (unsigned i = 0; i < numquads; ++i)
-                        {
-                            unsigned base = vertexCounter + i * 4;
-                            dest[0] = (unsigned short)(base);
-                            dest[1] = (unsigned short)(base + 1);
-                            dest[2] = (unsigned short)(base + 2);
-                            dest[3] = (unsigned short)(base);
-                            dest[4] = (unsigned short)(base + 2);
-                            dest[5] = (unsigned short)(base + 3);
-                            dest += 6;
-                        }
-                    }
-                    else
-                    {
-                        unsigned numtriangles = sourceBatches[b]->vertices_.Size() / 3;
-                        for (unsigned i = 0; i < numtriangles; ++i)
-                        {
-                            unsigned base = vertexCounter + i * 3;
-                            dest[0] = (unsigned short)(base);
-                            dest[1] = (unsigned short)(base + 1);
-                            dest[2] = (unsigned short)(base + 2);
-                            dest += 3;
-                        }
-                    }
-                    vertexCounter += sourceBatches[b]->vertices_.Size();
-                }
-            }
-
-            indexBuffer_->Unlock();
-        }
-        else
-        {
-            URHO3D_LOGERROR("Failed to lock index buffer");
-            return;
-        }
-    }
-
-    if (geometryDirty_ || viewBatchInfo.vertexBufferUpdateFrameNumber_ != frame_.frameNumber_)
-    {
-        VertexBuffer* vertexBuffer = viewBatchInfo.vertexBuffer_;
-        if (vertexBuffer->GetVertexCount() < vertexCount)
-            vertexBuffer->SetSize(vertexCount, MASK_VERTEX2D, true);
-
-        if (vertexCount)
-        {
-            Vertex2D* dest = reinterpret_cast<Vertex2D*>(vertexBuffer->Lock(0, vertexCount, true));
-            if (dest)
-            {
-                const PODVector<const SourceBatch2D*>& sourceBatches = viewBatchInfo.sourceBatches_;
-                for (unsigned b = 0; b < sourceBatches.Size(); ++b)
-                {
-                    const Vector<Vertex2D>& vertices = sourceBatches[b]->vertices_;
-                    for (unsigned i = 0; i < vertices.Size(); ++i)
-                        dest[i] = vertices[i];
-                    dest += vertices.Size();
-                }
-
-                vertexBuffer->Unlock();
-            }
-            else
-                URHO3D_LOGERROR("Failed to lock vertex buffer");
-        }
-
-        viewBatchInfo.vertexBufferUpdateFrameNumber_ = frame_.frameNumber_;
-        geometryDirty_ = false;
-    }
-}
-*/
 
 UpdateGeometryType Renderer2D::GetUpdateGeometryType()
 {
@@ -554,53 +491,29 @@ Material* Renderer2D::GetMaterial(Texture2D* texture, BlendMode blendMode)
     return newMaterial;
 }
 
-//bool Renderer2D::CheckVisibility(Drawable2D* drawable) const
-//{
-//    if ((viewMask_ & drawable->GetViewMask()) == 0)
-//        return false;
-//
-//    const BoundingBox& box = drawable->GetWorldBoundingBox();
-//    if (frustum_)
-//        return frustum_->IsInsideFast(box) != OUTSIDE;
-//
-//    return frustumBoundingBox_.IsInsideFast2D(box) != OUTSIDE;
-//}
-
-bool Renderer2D::CheckVisibility(Drawable2D* drawable) const
+bool Renderer2D::CheckVisibility(ViewBatchInfo2D* viewinfo,  Drawable2D* drawable) const
 {
-    if ((viewMask_ & drawable->GetViewMask()) == 0)
+    if ((viewinfo->frame_.camera_->GetViewMask() & drawable->GetViewMask()) == 0)
         return false;
 
-    if (frustumBoundingBox_.Defined())
-        return frustumBoundingBox_.IsInsideFast2D(drawable->GetWorldBoundingBox2D()) != OUTSIDE;
-
-    if (frustum_)
-        return frustum_->IsInsideFast(drawable->GetWorldBoundingBox2D()) != OUTSIDE;
-
-    return false;
+    return viewinfo->frustum2D_.Defined() ?
+        viewinfo->frustum2D_.IsInsideFast2D(drawable->GetWorldBoundingBox2D()) != OUTSIDE :
+        viewinfo->frustum_->IsInsideFast(drawable->GetWorldBoundingBox2D()) != OUTSIDE;
 }
 
 void CheckDrawableVisibility(const WorkItem* item, unsigned threadIndex)
 {
-    Renderer2D* renderer = reinterpret_cast<Renderer2D*>(item->aux_);
+    ViewBatchInfo2D* viewinfo = reinterpret_cast<ViewBatchInfo2D*>(item->aux_);
     Drawable2D** start = reinterpret_cast<Drawable2D**>(item->start_);
     Drawable2D** end = reinterpret_cast<Drawable2D**>(item->end_);
 
     while (start != end)
     {
         Drawable2D* drawable = *start++;
-        if (renderer->CheckVisibility(drawable))
-            drawable->MarkInView(renderer->frame_);
+        if (drawable->GetRenderer()->CheckVisibility(viewinfo, drawable))
+            drawable->MarkInView(viewinfo->frame_);
     }
 }
-
-//bool Renderer2D::IsDrawableVisible(Drawable2D* drawable) const
-//{
-//    if ((viewMask_ & drawable->GetViewMask()) == 0 || !drawable->GetNode()->IsEnabled())
-//        return false;
-//
-//    return allViewsBox_.IsInsideFast2D(drawable->GetWorldBoundingBox()) != OUTSIDE;
-//}
 
 void Renderer2D::OnWorldBoundingBoxUpdate()
 {
@@ -641,24 +554,6 @@ SharedPtr<Material> Renderer2D::CreateMaterial(Texture2D* texture, BlendMode ble
     return newMaterial;
 }
 
-void Renderer2D::UpdateFrustumBoundingBox(Camera* camera)
-{
-    frustum_ = &camera->GetFrustum();
-
-    if (camera->IsOrthographic() && camera->GetNode()->GetWorldDirection() == Vector3::FORWARD)
-    {
-        // Define bounding box with min and max points
-        frustumBoundingBox_.Define(frustum_->vertices_[2], frustum_->vertices_[4]);
-//        URHO3D_LOGWARNINGF("Renderer2D() - UpdateFrustrumBoundingBox : frustum_=%u frustumBoundingBox_=%s!", frustum_, frustumBoundingBox_.ToString().CString());
-        frustum_ = 0;
-    }
-}
-
-const BoundingBox& Renderer2D::GetFrustumBoundingBox() const
-{
-    return frustumBoundingBox_;
-}
-
 void Renderer2D::HandleBeginViewUpdate(StringHash eventType, VariantMap& eventData)
 {
     using namespace BeginViewRender;
@@ -667,20 +562,21 @@ void Renderer2D::HandleBeginViewUpdate(StringHash eventType, VariantMap& eventDa
     if (GetScene() != eventData[P_SCENE].GetPtr())
         return;
 
-    frame_ = static_cast<View*>(eventData[P_VIEW].GetPtr())->GetFrameInfo();
-
-    URHO3D_PROFILE(UpdateRenderer2D);
-
     Camera* camera = static_cast<Camera*>(eventData[P_CAMERA].GetPtr());
-
     if (!camera)
         return;
 
-    UpdateFrustumBoundingBox(camera);
+    URHO3D_PROFILE(UpdateRenderer2D);
 
-    viewMask_ = camera->GetViewMask();
-
-//    URHO3D_LOGINFOF("Renderer2D this=%u viewupdate for scene=%u camera=%u!", this, GetScene(), camera);
+    ViewBatchInfo2D& viewBatchInfo         = viewBatchInfos_[camera];
+    currentViewBatchInfo_ = &viewBatchInfo;
+    viewBatchInfo.frame_         = static_cast<View*>(eventData[P_VIEW].GetPtr())->GetFrameInfo();
+    viewBatchInfo.frame_.camera_ = camera;
+    viewBatchInfo.frustum_       = &camera->GetFrustum();
+    if (camera->IsOrthographic() && camera->GetNode()->GetWorldDirection() == Vector3::FORWARD)
+        viewBatchInfo.frustum2D_.Define(viewBatchInfo.frustum_->vertices_[2], viewBatchInfo.frustum_->vertices_[4]);
+    else
+        viewBatchInfo.frustum2D_.Clear();
 
     // Check visibility
     {
@@ -702,7 +598,7 @@ void Renderer2D::HandleBeginViewUpdate(StringHash eventType, VariantMap& eventDa
             SharedPtr<WorkItem> item = queue->GetFreeItem();
             item->priority_ = M_MAX_UNSIGNED;
             item->workFunction_ = CheckDrawableVisibility;
-            item->aux_ = this;
+            item->aux_ = currentViewBatchInfo_;
 
             PODVector<Drawable2D*>::Iterator end = drawables_.End();
             if (i < numWorkItems - 1 && end - start > drawablesPerItem)
@@ -718,11 +614,13 @@ void Renderer2D::HandleBeginViewUpdate(StringHash eventType, VariantMap& eventDa
         queue->Complete(M_MAX_UNSIGNED);
     }
 
-    ViewBatchInfo2D& viewBatchInfo = viewBatchInfos_[camera];
-
     // Create vertex buffer if not allocated
     for (int primitiveType=0; primitiveType<2; primitiveType++)
     {
+    #ifdef INDEXBUFFER_BY_VIEWBATCH
+        if (!viewBatchInfo.indexBuffer_[primitiveType])
+            viewBatchInfo.indexBuffer_[primitiveType] = new IndexBuffer(context_);
+    #endif
         if (!viewBatchInfo.vertexBuffer_[primitiveType])
         {
             viewBatchInfo.vertexBuffer_[primitiveType] = new VertexBuffer(context_);
@@ -736,7 +634,7 @@ void Renderer2D::HandleBeginViewUpdate(StringHash eventType, VariantMap& eventDa
         }
     }
 
-    UpdateViewBatchInfo(viewBatchInfo, camera);
+    UpdateViewBatchInfo(viewBatchInfo);
 
     // Go through the drawables to form geometries & batches and calculate the total vertex / index count,
     // but upload the actual vertex data later. The idea is that the View class copies our batch vector to
@@ -784,11 +682,13 @@ static inline bool CompareSourceBatch2Ds(const SourceBatch2D* lhs, const SourceB
     return lhs < rhs;
 }
 
-void Renderer2D::UpdateViewBatchInfo(ViewBatchInfo2D& viewBatchInfo, Camera* camera)
+void Renderer2D::UpdateViewBatchInfo(ViewBatchInfo2D& viewBatchInfo)
 {
     // Already update in same frame ?
-    if (viewBatchInfo.batchUpdatedFrameNumber_ == frame_.frameNumber_)
+    if (viewBatchInfo.batchUpdatedFrameNumber_ == viewBatchInfo.frame_.frameNumber_)
         return;
+
+    Camera* camera = viewBatchInfo.frame_.camera_;
 
     static PODVector<unsigned> sourceBatchedAtEndDrawables;
     sourceBatchedAtEndDrawables.Clear();
@@ -881,7 +781,7 @@ void Renderer2D::UpdateViewBatchInfo(ViewBatchInfo2D& viewBatchInfo, Camera* cam
         viewBatchInfo.vertexCount_[primitiveType] = vStart[primitiveType] + vCount[primitiveType];
     }
 
-    viewBatchInfo.batchUpdatedFrameNumber_ = frame_.frameNumber_;
+    viewBatchInfo.batchUpdatedFrameNumber_ = viewBatchInfo.frame_.frameNumber_;
 }
 
 void Renderer2D::AddViewBatch(ViewBatchInfo2D& viewBatchInfo, int primitivetype, Material* material, unsigned indexStart, unsigned indexCount,
@@ -902,7 +802,11 @@ void Renderer2D::AddViewBatch(ViewBatchInfo2D& viewBatchInfo, int primitivetype,
     }
 
     Geometry* geometry = viewBatchInfo.geometries_[viewBatchInfo.batchCount_];
+#ifndef INDEXBUFFER_BY_VIEWBATCH
     geometry->SetIndexBuffer(indexBuffer_[primitivetype]);
+#else
+    geometry->SetIndexBuffer(viewBatchInfo.indexBuffer_[primitivetype]);
+#endif
     geometry->SetVertexBuffer(0, viewBatchInfo.vertexBuffer_[primitivetype]);
     geometry->SetDrawRange(TRIANGLE_LIST, indexStart, indexCount, vertexStart, vertexCount, false);
 
@@ -911,6 +815,7 @@ void Renderer2D::AddViewBatch(ViewBatchInfo2D& viewBatchInfo, int primitivetype,
 
 void Renderer2D::Dump() const
 {
+/*
     URHO3D_LOGINFOF("Renderer2D() - Dump : frustumBoundingBox=%s", frustumBoundingBox_.ToString().CString());
     for (unsigned i=0; i < drawables_.Size(); i++)
     {
@@ -922,6 +827,7 @@ void Renderer2D::Dump() const
                         drawables_[i]->GetNode()->GetName().CString(), drawables_[i]->GetNode()->GetID(),
                         visibility ? "true" : "false", drawables_[i]->GetSourceBatchesToRender(viewBatchInfos_.Begin()->first_).Size());
     }
+*/
 }
 
 }

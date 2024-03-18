@@ -6,8 +6,9 @@
 **/.cache
 **/.gradle
 **/.vscode
+**/tmp-*/
 /tools
 /lib/*/*.so
 /Local
-/*-tmp
 .fuse*
+

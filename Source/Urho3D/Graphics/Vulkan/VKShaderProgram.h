@@ -38,7 +38,7 @@ const unsigned ConstantBufferMaxObjects[MAX_SHADERTYPES][MAX_SHADER_PARAMETER_GR
 {
     {         // VS
         0,    // SP_FRAME
-        8,    // SP_CAMERA
+        32,   // SP_CAMERA
         0,    // SP_ZONE
         20,   // SP_LIGHT
         0,    // SP_MATERIAL
@@ -51,7 +51,7 @@ const unsigned ConstantBufferMaxObjects[MAX_SHADERTYPES][MAX_SHADER_PARAMETER_GR
         0,    // SP_ZONE
         200,  // SP_LIGHT
         0,    // SP_MATERIAL
-        8,    // SP_OBJECT
+        32,   // SP_OBJECT
         0,    // SP_CUSTOM
     },
 };

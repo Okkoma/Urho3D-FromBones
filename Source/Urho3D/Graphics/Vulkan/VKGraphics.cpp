@@ -56,46 +56,10 @@
 
 #include "../../DebugNew.h"
 
+#define ACTIVE_DESCRIPTOR_UPDATEANDBIND_NEW
 
 namespace Urho3D
 {
-
-//static void GetGLPrimitiveType(unsigned elementCount, PrimitiveType type, unsigned& primitiveCount, GLenum& glPrimitiveType)
-//{
-//    switch (type)
-//    {
-//    case QUAD_LIST:
-//    case TRIANGLE_LIST:
-//        primitiveCount = elementCount / 3;
-//        glPrimitiveType = GL_TRIANGLES;
-//        break;
-//
-//    case LINE_LIST:
-//        primitiveCount = elementCount / 2;
-//        glPrimitiveType = GL_LINES;
-//        break;
-//
-//    case POINT_LIST:
-//        primitiveCount = elementCount;
-//        glPrimitiveType = GL_POINTS;
-//        break;
-//
-//    case TRIANGLE_STRIP:
-//        primitiveCount = elementCount - 2;
-//        glPrimitiveType = GL_TRIANGLE_STRIP;
-//        break;
-//
-//    case LINE_STRIP:
-//        primitiveCount = elementCount - 1;
-//        glPrimitiveType = GL_LINE_STRIP;
-//        break;
-//
-//    case TRIANGLE_FAN:
-//        primitiveCount = elementCount - 2;
-//        glPrimitiveType = GL_TRIANGLE_FAN;
-//        break;
-//    }
-//}
 
 const Vector2 Graphics::pixelUVOffset(0.0f, 0.0f);
 bool Graphics::gl3Support = false;
@@ -1013,7 +977,6 @@ bool Graphics::SetVertexBuffers(const PODVector<VertexBuffer*>& buffers, unsigne
 bool Graphics::SetVertexBuffers(const Vector<SharedPtr<VertexBuffer> >& buffers, unsigned instanceOffset)
 {
     return SetVertexBuffers(reinterpret_cast<const PODVector<VertexBuffer*>&>(buffers), instanceOffset);
-    return true;
 }
 
 void Graphics::SetIndexBuffer(IndexBuffer* buffer)
@@ -2708,7 +2671,7 @@ void Graphics::PrepareDraw()
     }
 
     // Set Descriptors.
-#if 1 == 1
+#ifdef ACTIVE_DESCRIPTOR_UPDATEANDBIND_NEW
     if (impl_->pipelineInfo_ && impl_->pipelineInfo_->descriptorsGroups_.Size())
     {
         const unsigned MaxBindingsBySet = 16;
