@@ -422,7 +422,6 @@ bool StaticSprite2D::UpdateDrawRectangle()
             {
                 URHO3D_LOGERRORF("StaticSprite2D() - UpdateDrawRectangle : node=%s(%u) ... no sprite && no texture in custommaterial !!!",
                                 node_->GetName().CString(), node_->GetID());
-
             }
         }
     }

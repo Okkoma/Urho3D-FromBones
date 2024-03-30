@@ -28,6 +28,7 @@
 #include "../../Graphics/GraphicsImpl.h"
 #include "../../Graphics/VertexBuffer.h"
 #include "../../Graphics/IndexBuffer.h"
+#include "../../Graphics/Technique.h"
 
 #include "../../IO/Log.h"
 
@@ -936,8 +937,16 @@ bool PipelineBuilder::CreateDescriptors(PipelineInfo* info)
 
     return true;
 }
+
 void PipelineBuilder::CreatePipeline(PipelineInfo* info)
 {
+    VkRenderPass renderPass = impl_->GetRenderPassInfo(info->renderPassKey_)->renderPass_;
+    if (renderPass == VK_NULL_HANDLE)
+    {
+        URHO3D_LOGERRORF("Can't create pipeline : no renderpass renderpasskey=%u !", info->renderPassKey_);
+        return;
+    }
+
     // Set Vertex Attributes
     {
         for (unsigned binding = 0; binding < numVertexBindings_; binding++)
@@ -1057,7 +1066,7 @@ void PipelineBuilder::CreatePipeline(PipelineInfo* info)
     pipelineInfo.pMultisampleState   = &multiSampleState_;
     pipelineInfo.pColorBlendState    = &colorBlendState_;
     pipelineInfo.layout              = info->pipelineLayout_;
-    pipelineInfo.renderPass          = impl_->GetRenderPassInfo(info->renderPassKey_)->renderPass_;
+    pipelineInfo.renderPass          = renderPass;
     pipelineInfo.subpass             = 0;
     pipelineInfo.basePipelineHandle  = VK_NULL_HANDLE;
 
@@ -1129,10 +1138,12 @@ GraphicsImpl::GraphicsImpl() :
     pipelineStates_ = defaultPipelineStates_;
     stencilValue_ = 0;
 
-    AddRenderPassInfo("PRESENTCLEAR_TARGETCLEAR_DEPTHCLEAR");
-//    AddRenderPassInfo("PRESENT_TARGET_DEPTH");
-    AddRenderPassInfo("PRESENT_DEPTH");
-    AddRenderPassInfo("FRAME_DEPTH");
+    // Add built-in renderPathInfos
+    AddRenderPassInfo("CLEAR_1C_1DS");
+    AddRenderPassInfo("CLEAR_2C_1DS");
+    AddRenderPassInfo("RENDER_1C_1DS");
+    AddRenderPassInfo("RENDER_2C_1DS");
+    AddRenderPassInfo("PRESENT_1C");
 
     SetRenderPath(0);
 
@@ -1162,6 +1173,7 @@ void GraphicsImpl::SetDefaultDevice(const String& device)
 {
 	requireDevice_ = device;
 }
+
 bool GraphicsImpl::CreateVulkanInstance(Context* context, const String& appname, SDL_Window* window, const Vector<String>& requestedLayers)
 {
 #ifdef URHO3D_VOLK
@@ -1732,6 +1744,7 @@ bool GraphicsImpl::CreateVulkanInstance(Context* context, const String& appname,
 
     return true;
 }
+
 bool GraphicsImpl::CreateWindowSurface(SDL_Window* window)
 {
     if (!instance_ || !window)
@@ -2088,14 +2101,40 @@ bool GraphicsImpl::CreateSwapChain(int width, int height, bool* srgb, bool* vsyn
     return true;
 }
 
-void GraphicsImpl::CleanUpSwapChain()
+void GraphicsImpl::CleanUpRenderPasses()
 {
-    URHO3D_LOGDEBUGF("CleanUpSwapChain ... ");
+    // TODO : memoryAllocator
+    const VkAllocationCallbacks* pAllocator = nullptr;
 
-    swapChainDirty_ = true;
+    // Destroy RenderPath Attachments
+    for (HashMap<unsigned, RenderPathInfo >::Iterator it = renderPathInfos_.Begin(); it != renderPathInfos_.End(); ++it)
+    {
+        RenderPathInfo& renderPathInfo = it->second_;
+        for (Vector<RenderAttachment>::Iterator jt = renderPathInfo.renderAttachments_.Begin(); jt != renderPathInfo.renderAttachments_.End(); jt++)
+            DestroyAttachment(*jt);
+    }
 
-    vkDeviceWaitIdle(device_);
+    // Destroy RenderPasses
+    for (HashMap<unsigned, RenderPassInfo >::Iterator it = renderPassInfos_.Begin(); it != renderPassInfos_.End(); ++it)
+    {
+        RenderPassInfo& renderPassInfo = it->second_;
 
+        if (renderPassInfo.renderPass_ != VK_NULL_HANDLE)
+        {
+            vkDestroyRenderPass(device_, renderPassInfo.renderPass_, pAllocator);
+            renderPassInfo.renderPass_ = VK_NULL_HANDLE;
+        }
+
+        for (Vector<VkFramebuffer>::Iterator kt = renderPassInfo.framebuffers_.Begin(); kt != renderPassInfo.framebuffers_.End(); ++kt)
+        {
+            vkDestroyFramebuffer(device_, *kt, pAllocator);
+            *kt = VK_NULL_HANDLE;
+        }
+    }
+}
+
+void GraphicsImpl::CleanUpPipelines()
+{
     // TODO : memoryAllocator
     const VkAllocationCallbacks* pAllocator = nullptr;
 
@@ -2133,36 +2172,22 @@ void GraphicsImpl::CleanUpSwapChain()
             }
         }
     }
+}
 
-    // Destroy RenderPasses
-    for (HashMap<unsigned, RenderPassInfo >::Iterator it = renderPassInfos_.Begin(); it != renderPassInfos_.End(); ++it)
-    {
-        RenderPassInfo& renderPassInfo = it->second_;
+void GraphicsImpl::CleanUpSwapChain()
+{
+    URHO3D_LOGDEBUGF("CleanUpSwapChain ... ");
 
-        if (renderPassInfo.renderPass_ != VK_NULL_HANDLE)
-        {
-            vkDestroyRenderPass(device_, renderPassInfo.renderPass_, pAllocator);
-            renderPassInfo.renderPass_ = VK_NULL_HANDLE;
-        }
+    swapChainDirty_ = true;
 
-        for (Vector<VkFramebuffer>::Iterator kt = renderPassInfo.framebuffers_.Begin(); kt != renderPassInfo.framebuffers_.End(); ++kt)
-        {
-            vkDestroyFramebuffer(device_, *kt, pAllocator);
-            *kt = VK_NULL_HANDLE;
-        }
+    vkDeviceWaitIdle(device_);
 
-        for (Vector<RenderAttachment>::Iterator kt = renderPassInfo.attachments_.Begin(); kt != renderPassInfo.attachments_.End(); ++kt)
-        {
-            DestroyAttachment(*kt);
-        }
+    // TODO : memoryAllocator
+    const VkAllocationCallbacks* pAllocator = nullptr;
 
-        if (renderPassInfo.viewportTexture_)
-        {
-            renderPassInfo.viewportTexture_->SetGPUObject(0, 0);
-            renderPassInfo.viewportTexture_->SetShaderResourceView(0);
-            renderPassInfo.viewportTexture_.Reset();
-        }
-    }
+    CleanUpPipelines();
+
+    CleanUpRenderPasses();
 
     for (unsigned int i = 0; i < frames_.Size(); i++)
     {
@@ -2235,7 +2260,7 @@ void GraphicsImpl::UpdateSwapChain(int width, int height, bool* srgb, bool* vsyn
 
     if (CreateSwapChain(width, height, srgb, vsync, triplebuffer))
     {
-        if (CreateRenderPasses())
+        if (CreateRenderPaths())
         {
             CreatePipelines();
 
@@ -2254,34 +2279,15 @@ unsigned GetKey(RenderPath* renderpath)
     return str.AppendWithFormat("%u", renderpath).ToHash();
 }
 
-const char* RenderAttachmentUsageStrings_[] =
-{
-    "PRESENT",
-    "TARGET",
-    "DEPTH"
-};
-
 const unsigned GraphicsImpl::DefaultRenderPassWithTarget = StringHash("PRESENTCLEAR_TARGETCLEAR_DEPTHCLEAR").Value();
-const unsigned GraphicsImpl::DefaultRenderPass = StringHash("PRESENTCLEAR_DEPTHCLEAR").Value();
-const unsigned GraphicsImpl::DefaultRenderPassWithTargetNoClear = StringHash("PRESENT_TARGET_DEPTH").Value();
 const unsigned GraphicsImpl::DefaultRenderPassNoClear = StringHash("FRAME_DEPTH").Value();
-const unsigned GraphicsImpl::DefaultRenderPassNoClear2 = StringHash("PRESENT_DEPTH").Value();
 
-unsigned GetPassKey(RenderPassInfo* passinfo)
-{
-    String str;
-    for (unsigned i=0; i < passinfo->attachments_.Size(); i ++)
-    {
-        str += RenderAttachmentUsageStrings_[passinfo->attachments_[i].usage_];
-        if (passinfo->clearColors_.Size())
-            str += "CLEAR";
-
-        if (i < passinfo->attachments_.Size()-1)
-            str += "_";
-    }
-
-    return StringHash(str).Value();
-}
+// built-in renderpathinfos
+const unsigned GraphicsImpl::ClearPass_1C_1DS  = StringHash("CLEAR_1C_1DS").Value();
+const unsigned GraphicsImpl::ClearPass_2C_1DS  = StringHash("CLEAR_2C_1DS").Value();
+const unsigned GraphicsImpl::RenderPass_1C_1DS = StringHash("RENDER_1C_1DS").Value();
+const unsigned GraphicsImpl::RenderPass_2C_1DS = StringHash("RENDER_2C_1DS").Value();
+const unsigned GraphicsImpl::PresentPass_1C    = StringHash("PRESENT_1C").Value();
 
 void GraphicsImpl::AddRenderPassInfo(const String& attachmentconfig)
 {
@@ -2291,112 +2297,15 @@ void GraphicsImpl::AddRenderPassInfo(const String& attachmentconfig)
     {
         RenderPassInfo& renderPassInfo = renderPassInfos_[passkey];
         renderPassInfo.key_ = passkey;
-        renderPassInfo.numColorAttachments_ = 0;
-        renderPassInfo.numDepthAttachments_ = 0;
 
+        // Get the numbers of attachments Color and Depth
         Vector<String> attachmentstrs = attachmentconfig.Split('_', false);
-        for (unsigned i = 0; i < attachmentstrs.Size(); i++)
-        {
-            if (attachmentstrs[i].StartsWith("DEPTH"))
-                renderPassInfo.numDepthAttachments_++;
-            else
-                renderPassInfo.numColorAttachments_++;
-        }
+        // Color Attachments
+        renderPassInfo.numColorAttachments_ = (attachmentstrs.Size() > 1) ? ToUInt(attachmentstrs[1].Substring(0, attachmentstrs[1].Length()-1)) : 0U;
+        // Depth Attachments
+        renderPassInfo.numDepthAttachments_ = (attachmentstrs.Size() > 2) ? ToUInt(attachmentstrs[2].Substring(0, attachmentstrs[2].Length()-2)) : 0U;
     }
 }
-
-/*
-void GraphicsImpl::SetRenderPath(RenderPath* renderPath)
-{
-    RenderPassInfo* renderPathInfo = 0;
-
-    unsigned key = GetKey(renderPath);
-
-    if (renderPathInfos_.Contains(key))
-    {
-        // Get existing RenderPathInfo
-        URHO3D_LOGWARNINGF("GraphicsImpl() - SetRenderPath : renderPath=%u use already registered renderpathinfo !");
-
-        renderPathInfo = &renderPathInfos_[key];
-    }
-    else
-    {
-        // Create new RenderPathInfo
-
-        RenderPathInfo& renderPI = renderPathInfos_[key];
-        renderPI.renderPath_ = renderPath;
-
-        Vector<String> inputs;
-        Vector<String> outputs;
-        for (unsigned i = 0; i < renderPath->commands_.Size(); ++i)
-        {
-            RenderPathCommand& cmd = renderPath->commands_[i];
-
-            bool newPass = false;
-
-            if (cmd.type_ == CMD_CLEAR)
-            {
-                // create a pass and add the clear colors
-                renderPI.renderPasses_.Resize(renderPI.renderPasses_.Size()+1);
-
-                // create a new pass for command clear
-    //            cmd.clearFlags_
-    //            cmd.clearColor
-    //            cmd.clearDepth_
-    //            cmd.clearStencil_
-
-                renderPI.renderPasses_.Back().renderPathCommandIndex_ = i;
-                continue;
-            }
-
-            // add the inputs render attachments
-            for (unsigned j = 0; j < MAX_TEXTURE_UNITS; ++j)
-            {
-                if (cmd.textureNames_[j].Empty())
-                    continue;
-
-                inputs.Push(cmd.textureNames_[j]);
-
-                // add newpass when using previous output attachments as input
-                newPass |= outputs.Contains(inputs.Back());
-            }
-
-            if (newPass)
-            {
-
-            }
-
-            // add the outputs render attachments
-            for (unsigned j = 0; j < cmd.outputs_.Size(); ++j)
-            {
-                outputs.Push(cmd.outputs_[j].name_);
-            }
-
-            if (!outputs.Size())
-                outputs.Push("viewport");
-
-            // setup the new subpass
-            if (newPass)
-            {
-                if (inputs.Size())
-                {
-
-                }
-
-            }
-        }
-
-        renderPathInfo = &renderPI;
-    }
-
-    // change the current renderPath
-    if (renderPathInfo_ != renderPathInfo)
-    {
-        renderPathInfo_ = renderPathInfo;
-//        renderPassDirty_ = true;
-    }
-}
-*/
 
 // TEST ONLY
 void GraphicsImpl::SetRenderPath(RenderPath* renderPath)
@@ -2407,106 +2316,83 @@ void GraphicsImpl::SetRenderPath(RenderPath* renderPath)
 
     unsigned key = GetKey(renderPath);
 
-    if (renderPathInfos_.Contains(key))
+    HashMap<unsigned, RenderPathInfo>::Iterator it = renderPathInfos_.Find(key);
+    if (it == renderPathInfos_.End())
     {
-        // Get existing RenderPathInfo
-        URHO3D_LOGWARNINGF("GraphicsImpl() - SetRenderPath : renderPath=%u use already registered renderpathinfo !");
+        // TODO : read renderpath configuration
+        // TODO : and convert to pass/subpasses descriptions
 
+        // This is an hardcorded vulkan version of "ForwardUrho2D.Xml"
         renderPathInfo = &renderPathInfos_[key];
-    }
-    /*
-    else
-    {
-        RenderPathInfo& renderPI = renderPathInfos_[key];
-        renderPI.renderPath_ = renderPath;
-        renderPI.renderPathCommandIndexToRenderPassIndex_[0] = 0;
+        renderPathInfo->renderPath_ = renderPath;
+        renderPathInfo->passInfos_.Resize(4);
 
-        // add a default renderpathinfo
-        // add a unique pass with color+depth attachments
-        renderPI.renderPasses_.Resize(1);
-        RenderPassInfo& renderPassInfo = renderPI.renderPasses_.Back();
-        renderPassInfo.renderPathCommandIndex_ = 0;
-        renderPassInfo.clearColors_[0].color = { 0.f, 0.f, 0.f, 1.f };
-        renderPassInfo.clearColors_[1].depthStencil = { 1.f, 1U };
-
-        renderPassInfo.attachments_.Resize(2);
-        RenderAttachment& colorAttachment = renderPassInfo.attachments_[0];
-        colorAttachment.usage_ = RENDERATTACHMENT_PRESENT;
-        RenderAttachment& depthAttachment = renderPassInfo.attachments_[1];
-        depthAttachment.usage_ = RENDERATTACHMENT_DEPTH;
-
-        renderPathInfo = &renderPI;
-    }
-    */
-    else
-    {
-        RenderPathInfo& renderPI = renderPathInfos_[key];
-        renderPI.renderPath_ = renderPath;
-
-        const unsigned numPasses = 2;
-
-        renderPI.renderPassInfos_.Resize(numPasses);
         int pass = 0;
-        // Render Pass 1 : clear to alpha
+        // Render Pass 0 : clear
         {
-            unsigned passkey = StringHash(DefaultRenderPassWithTarget).Value();
-
-            RenderPassInfo& renderPassInfo = renderPassInfos_[passkey];
-
-            renderPassInfo.key_ = passkey;
-            renderPassInfo.renderPathCommandIndex_ = 0;
-
+            RenderPassInfo& renderPassInfo = renderPassInfos_[ClearPass_2C_1DS];
+            renderPassInfo.type_                        = PASS_CLEAR;
+            renderPassInfo.key_                         = ClearPass_2C_1DS;
+            renderPassInfo.renderPathCommandIndex_      = M_MAX_UNSIGNED-1;
             renderPassInfo.attachments_.Resize(3);
-            renderPassInfo.attachments_[0].usage_ = RENDERATTACHMENT_PRESENT;
-            renderPassInfo.attachments_[1].usage_ = RENDERATTACHMENT_TARGET;
-            renderPassInfo.attachments_[2].usage_ = RENDERATTACHMENT_DEPTH;
-
+            renderPassInfo.attachments_[0]              = RENDERSLOT_PRESENT;
+            renderPassInfo.attachments_[1]              = RENDERSLOT_TARGET1;
+            renderPassInfo.attachments_[2]              = RENDERSLOT_DEPTH;
             renderPassInfo.clearColors_.Resize(3);
-            renderPassInfo.clearColors_[0].color = { 0.f, 0.f, 0.f, 1.f };
-            renderPassInfo.clearColors_[1].color = { 0.f, 0.f, 0.f, 1.f };
+            renderPassInfo.clearColors_[0].color        = { 0.f, 0.f, 0.f, 1.f };
+            renderPassInfo.clearColors_[1].color        = { 0.f, 0.f, 0.f, 1.f };
             renderPassInfo.clearColors_[2].depthStencil = { 1.f, 1U };
 
-            renderPI.renderPassInfos_[pass] = &renderPassInfo;
-            renderPI.renderPathCommandIndexToRenderPassIndex_[renderPassInfo.renderPathCommandIndex_] = pass;
+            renderPathInfo->passInfos_[pass] = &renderPassInfo;
+            renderPathInfo->renderPathCommandIndexToRenderPassIndex_[renderPassInfo.renderPathCommandIndex_] = pass;
         }
         pass++;
-        // Render Pass 2 : refract to front
+        // Render Pass 1 : alpha
         {
-            unsigned passkey = StringHash(DefaultRenderPassNoClear).Value();
+            RenderPassInfo& renderPassInfo = renderPassInfos_[RenderPass_2C_1DS];
+            renderPassInfo.type_                   = PASS_RENDER;
+            renderPassInfo.key_                    = RenderPass_2C_1DS;
+            renderPassInfo.renderPathCommandIndex_ = Technique::GetPassIndex("alpha");
+            renderPassInfo.attachments_.Resize(3);
+            renderPassInfo.attachments_[0]         = RENDERSLOT_PRESENT;
+            renderPassInfo.attachments_[1]         = RENDERSLOT_TARGET1;
+            renderPassInfo.attachments_[2]         = RENDERSLOT_DEPTH;
 
-            RenderPassInfo& renderPassInfo = renderPassInfos_[passkey];
-
-            renderPassInfo.key_ = passkey;
-            renderPassInfo.renderPathCommandIndex_ = 11; // <= it's the index for water2d
-
-            renderPassInfo.attachments_.Resize(2);
-            renderPassInfo.attachments_[0].usage_ = RENDERATTACHMENT_PRESENT;
-            renderPassInfo.attachments_[1].usage_ = RENDERATTACHMENT_DEPTH;
-
-            renderPI.renderPassInfos_[pass] = &renderPassInfo;
-            renderPI.renderPathCommandIndexToRenderPassIndex_[renderPassInfo.renderPathCommandIndex_] = pass;
+            renderPathInfo->passInfos_[pass]       = &renderPassInfo;
+            renderPathInfo->renderPathCommandIndexToRenderPassIndex_[renderPassInfo.renderPathCommandIndex_] = pass;
         }
-        /*
         pass++;
-        // Render Pass 3 : front
+        // Render Pass 2 : water to front
         {
-            unsigned passkey = StringHash(DefaultRenderPassNoClear2).Value();
-
-            RenderPassInfo& renderPassInfo = renderPassInfos_[passkey];
-
-            renderPassInfo.key_ = passkey;
-            renderPassInfo.renderPathCommandIndex_ = 10;
-
+            RenderPassInfo& renderPassInfo = renderPassInfos_[RenderPass_1C_1DS];
+            renderPassInfo.type_                   = PASS_RENDER;
+            renderPassInfo.key_                    = RenderPass_1C_1DS;
+            renderPassInfo.renderPathCommandIndex_ = Technique::GetPassIndex("water");
             renderPassInfo.attachments_.Resize(2);
-            renderPassInfo.attachments_[0].usage_ = RENDERATTACHMENT_PRESENT;
-            renderPassInfo.attachments_[1].usage_ = RENDERATTACHMENT_DEPTH;
+            renderPassInfo.attachments_[0]         = RENDERSLOT_PRESENT;
+            renderPassInfo.attachments_[1]         = RENDERSLOT_DEPTH;
 
-            renderPI.renderPassInfos_[pass] = &renderPassInfo;
-            renderPI.renderPathCommandIndexToRenderPassIndex_[renderPassInfo.renderPathCommandIndex_] = pass;
+            renderPathInfo->passInfos_[pass]       = &renderPassInfo;
+            renderPathInfo->renderPathCommandIndexToRenderPassIndex_[renderPassInfo.renderPathCommandIndex_] = pass;
         }
-        */
-        renderPathInfo = &renderPI;
+        pass++;
+        // Render Pass 3 : presentation
+        {
+            RenderPassInfo& renderPassInfo = renderPassInfos_[PresentPass_1C];
+            renderPassInfo.type_                   = PASS_PRESENT;
+            renderPassInfo.key_                    = PresentPass_1C;
+            renderPassInfo.renderPathCommandIndex_ = M_MAX_UNSIGNED;
+            renderPassInfo.attachments_.Resize(1);
+            renderPassInfo.attachments_[0]         = RENDERSLOT_PRESENT;
 
+            renderPathInfo->passInfos_[pass]       = &renderPassInfo;
+            renderPathInfo->renderPathCommandIndexToRenderPassIndex_[renderPassInfo.renderPathCommandIndex_] = pass;
+        }
+    }
+    else
+    {
+        URHO3D_LOGWARNINGF("GraphicsImpl() - SetRenderPath : renderPath=%u use already registered renderpathinfo !");
+        renderPathInfo = &it->second_;
     }
 
     renderPathInfo_ = renderPathInfo;
@@ -2516,55 +2402,66 @@ void GraphicsImpl::SetRenderPass(unsigned commandpassindex)
 {
     if (renderPathInfo_)
     {
+    #ifdef ACTIVE_FRAMELOGDEBUG
+        URHO3D_LOGDEBUGF("GraphicsImpl() - SetRenderPass : commandpassindex=%u ...", commandpassindex);
+    #endif
         HashMap<unsigned, unsigned>::ConstIterator it = renderPathInfo_->renderPathCommandIndexToRenderPassIndex_.Find(commandpassindex);
         if (it != renderPathInfo_->renderPathCommandIndexToRenderPassIndex_.End())
         {
             unsigned renderPassIndex = it->second_;
         #ifdef ACTIVE_FRAMELOGDEBUG
-            URHO3D_LOGDEBUGF("GraphicsImpl() - SetRenderPass : commandpassindex=%u renderpassIndex=%u implRenderPassIndex=%d", commandpassindex, renderPassIndex, renderPassIndex_);
+            URHO3D_LOGDEBUGF("GraphicsImpl() - SetRenderPass : commandpassindex=%u renderpassIndex=%u ", commandpassindex, renderPassIndex);
         #endif
             if (renderPassIndex_ != renderPassIndex)
             {
                 renderPassIndex_ = renderPassIndex;
                 // take the viewport texture generated at the previous pass.
-                viewportTexture_ = renderPassIndex > 0 && renderPathInfo_->renderPassInfos_[renderPassIndex-1]->viewportTexture_
-                                        ? renderPathInfo_->renderPassInfos_[renderPassIndex-1]->viewportTexture_ : 0;
+                viewportTexture_ = renderPassIndex_ <= 0 || !frame_ ? 0 : renderPathInfo_->renderAttachments_[frame_->id_ * MAX_RENDERSLOTS + RENDERSLOT_TARGET1].texture_;
             }
         }
     }
 }
 
+Texture2D* GraphicsImpl::GetCurrentViewportTexture() const
+{
+    return viewportTexture_;
+}
+
 const RenderPassInfo* GraphicsImpl::GetRenderPassInfo(unsigned renderPassKey) const
 {
-    HashMap<unsigned, RenderPassInfo > ::ConstIterator it = renderPassInfos_.Find(renderPassKey);
+    HashMap<unsigned, RenderPassInfo >::ConstIterator it = renderPassInfos_.Find(renderPassKey);
     return it != renderPassInfos_.End() ? &it->second_ : nullptr;
 }
 
-void GraphicsImpl::CreateAttachment(RenderAttachment& attachment)
+void GraphicsImpl::CreateImageAttachment(int slot, int frame, RenderAttachment& attachment, unsigned width, unsigned height)
 {
+    URHO3D_LOGINFOF("CreateImageAttachment slot=%d frame=%d !", slot, frame);
+
     // TODO : memoryAllocator
     const VkAllocationCallbacks* pAllocator = nullptr;
 
-    // create  image
+    attachment.slot_  = slot;
+    attachment.frame_ = frame;
 
+    // create image
     VkImageCreateInfo imageInfo{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     imageInfo.imageType     = VK_IMAGE_TYPE_2D;
-    if (attachment.usage_ == RENDERATTACHMENT_TARGET)
-        imageInfo.format    = swapChainInfo_.format;
-    else if (attachment.usage_ == RENDERATTACHMENT_DEPTH)
+    if (attachment.slot_ == RENDERSLOT_DEPTH)
         imageInfo.format    = depthStencilFormat_;
-    imageInfo.extent.width  = swapChainExtent_.width;
-    imageInfo.extent.height = swapChainExtent_.height;
+    else
+        imageInfo.format    = swapChainInfo_.format;
+    imageInfo.extent.width  = width;
+    imageInfo.extent.height = height;
     imageInfo.extent.depth  = 1;
     imageInfo.mipLevels     = 1;
     imageInfo.arrayLayers   = 1;
     imageInfo.samples       = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.tiling        = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    if (attachment.usage_ == RENDERATTACHMENT_TARGET)
-        imageInfo.usage     = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    else if (attachment.usage_ == RENDERATTACHMENT_DEPTH)
+    if (attachment.slot_ == RENDERSLOT_DEPTH)
         imageInfo.usage     = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    else
+        imageInfo.usage     = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     imageInfo.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
     imageInfo.flags         = 0;
 
@@ -2604,32 +2501,47 @@ void GraphicsImpl::CreateAttachment(RenderAttachment& attachment)
 #endif
 
     // create image view
-
     VkImageViewCreateInfo imageViewInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
     imageViewInfo.viewType                        = VK_IMAGE_VIEW_TYPE_2D;
     imageViewInfo.image                           = attachment.image_;
-    if (attachment.usage_ == RENDERATTACHMENT_TARGET)
-        imageViewInfo.format                      = swapChainInfo_.format;
-    else if (attachment.usage_ == RENDERATTACHMENT_DEPTH)
+    if (attachment.slot_ == RENDERSLOT_DEPTH)
         imageViewInfo.format                      = depthStencilFormat_;
+    else
+        imageViewInfo.format                      = swapChainInfo_.format;
     imageViewInfo.subresourceRange.baseMipLevel   = 0;
     imageViewInfo.subresourceRange.levelCount     = 1;
     imageViewInfo.subresourceRange.baseArrayLayer = 0;
     imageViewInfo.subresourceRange.layerCount     = 1;
-    if (attachment.usage_ == RENDERATTACHMENT_TARGET)
-        imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    else if (attachment.usage_ == RENDERATTACHMENT_DEPTH)
+    if (attachment.slot_ == RENDERSLOT_DEPTH)
         imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+    else
+        imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 
     if (vkCreateImageView(device_, &imageViewInfo, pAllocator, &attachment.imageView_) != VK_SUCCESS)
     {
         URHO3D_LOGERRORF("Can't create image view !");
         return;
     }
+
+    if (attachment.slot_ < RENDERSLOT_DEPTH)
+    {
+        attachment.texture_ = SharedPtr<Texture2D>(new Texture2D(context_));
+        attachment.texture_->SetName("viewport");
+        attachment.texture_->SetGPUObject(attachment.image_, attachment.memory_);
+        attachment.texture_->SetShaderResourceView(attachment.imageView_);
+    }
 }
 
 void GraphicsImpl::DestroyAttachment(RenderAttachment& attachment)
 {
+    if (attachment.slot_ <= RENDERSLOT_PRESENT)
+        return;
+
+    URHO3D_LOGINFOF("DestroyAttachment frame=%d slot=%d !", attachment.frame_, attachment.slot_);
+
+    attachment.slot_  = -1;
+    attachment.frame_ = -1;
+
     // TODO : memoryAllocator
     const VkAllocationCallbacks* pAllocator = nullptr;
 
@@ -2657,175 +2569,204 @@ void GraphicsImpl::DestroyAttachment(RenderAttachment& attachment)
         attachment.memory_ = VK_NULL_HANDLE;
     }
 #endif
+
+    if (attachment.texture_)
+    {
+        attachment.texture_->SetGPUObject(0, 0);
+        attachment.texture_->SetShaderResourceView(0);
+        attachment.texture_.Reset();
+    }
 }
 
-bool GraphicsImpl::CreateRenderPasses()
+bool GraphicsImpl::CreateRenderPaths()
 {
-    URHO3D_LOGDEBUGF("GraphicsImpl() - Create Render Passes ...");
-
-    const VkAllocationCallbacks* pAllocator = nullptr;
-
-    VkImageView depthStencil;
-
     for (HashMap<unsigned, RenderPathInfo >::Iterator it = renderPathInfos_.Begin(); it != renderPathInfos_.End(); ++it)
     {
-        RenderPathInfo& renderPathInfo = it->second_;
+        if (!CreateRenderPasses(it->second_))
+            return false;
 
-        for (unsigned i = 0; i < renderPathInfo.renderPassInfos_.Size(); i++)
+        if (!CreateRenderPathAttachments(it->second_))
+            return false;
+    }
+
+    return true;
+}
+
+bool GraphicsImpl::CreateRenderPasses(RenderPathInfo& renderPathInfo)
+{
+    const VkAllocationCallbacks* pAllocator = nullptr;
+
+    // Create Render Pass
+    for (unsigned passindex = 0; passindex < renderPathInfo.passInfos_.Size(); passindex++)
+    {
+        RenderPassInfo& renderPassInfo = *renderPathInfo.passInfos_[passindex];
+        if (renderPassInfo.renderPass_ != VK_NULL_HANDLE)
+            continue;
+
+        URHO3D_LOGDEBUGF("GraphicsImpl() - Create Render Passes renderPathInfo=%u .. passindex=%u renderpasskey=%u ...", &renderPathInfo, passindex, renderPassInfo.key_);
+
+        // Set Attachments Descriptions & References
+        PODVector<VkAttachmentDescription> attachmentDescriptions;
+        attachmentDescriptions.Resize(renderPassInfo.attachments_.Size());
+        PODVector<VkAttachmentReference> colorRefs;
+        colorRefs.Resize(renderPassInfo.numColorAttachments_);
+        PODVector<VkAttachmentReference> depthRefs;
+        depthRefs.Resize(renderPassInfo.numDepthAttachments_);
+        unsigned icolor = 0;
+        unsigned idepth = 0;
+        for (unsigned j = 0; j < renderPassInfo.attachments_.Size(); j++)
         {
-            RenderPassInfo& renderPassInfo = *renderPathInfo.renderPassInfos_[i];
+            int slot = renderPassInfo.attachments_[j];
+            VkAttachmentDescription& desc = attachmentDescriptions[j];
 
-            // Create Render Pass
-            if (renderPassInfo.renderPass_ == VK_NULL_HANDLE)
+            // Color Attachment
+            if (slot < RENDERSLOT_DEPTH)
             {
-                unsigned numColorAttachments = 0;
-                unsigned numDepthAttachments = 0;
-                for (unsigned j=0; j < renderPassInfo.attachments_.Size(); j++)
+                desc.format                   = swapChainInfo_.format;
+                desc.samples                  = VK_SAMPLE_COUNT_1_BIT;
+                desc.loadOp                   = renderPassInfo.clearColors_.Size() ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+                desc.storeOp                  = VK_ATTACHMENT_STORE_OP_STORE;
+                desc.stencilLoadOp            = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                desc.stencilStoreOp           = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                desc.flags                    = 0;
+
+                if (slot == RENDERSLOT_PRESENT)
                 {
-                    if (renderPassInfo.attachments_[j].usage_ < RENDERATTACHMENT_DEPTH)
-                        numColorAttachments++;
-                    else
-                        numDepthAttachments++;
+                    desc.initialLayout        = renderPassInfo.type_ == PASS_CLEAR ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                    desc.finalLayout          = renderPassInfo.type_ == PASS_PRESENT ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                }
+                else
+                {
+                    desc.initialLayout        = renderPassInfo.type_ == PASS_CLEAR ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                    desc.finalLayout          = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
                 }
 
-                // Set Attachments Descriptions & References
-                PODVector<VkAttachmentDescription> attachmentDescriptions;
-                attachmentDescriptions.Resize(renderPassInfo.attachments_.Size());
-                PODVector<VkAttachmentReference> colorRefs;
-                colorRefs.Resize(numColorAttachments);
-                PODVector<VkAttachmentReference> depthRefs;
-                depthRefs.Resize(numDepthAttachments);
-                unsigned icolor = 0;
-                unsigned idepth = 0;
-                for (unsigned j=0; j < renderPassInfo.attachments_.Size(); j++)
-                {
-                    RenderAttachment& attachment = renderPassInfo.attachments_[j];
-                    VkAttachmentDescription& desc = attachmentDescriptions[j];
-
-                    // Color Attachment
-                    if (attachment.usage_ < RENDERATTACHMENT_DEPTH)
-                    {
-                        desc.format                   = swapChainInfo_.format;
-                        desc.samples                  = VK_SAMPLE_COUNT_1_BIT;
-                        desc.storeOp                  = VK_ATTACHMENT_STORE_OP_STORE;
-                        desc.stencilLoadOp            = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                        desc.stencilStoreOp           = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                        desc.flags                    = 0;
-
-                        if (attachment.usage_ == RENDERATTACHMENT_PRESENT)
-                        {
-                            desc.loadOp               = i == 0 ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
-                            desc.initialLayout        = i == 0 ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_GENERAL; // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                            desc.finalLayout          = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-                            // TODO : problem here in Vulkan Validation
-//                            desc.finalLayout          = i == renderPassInfo.attachments_.Size()-1 ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_GENERAL; //VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                        }
-                        else
-                        {
-                            desc.loadOp               = i == 0 ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;//VK_ATTACHMENT_LOAD_OP_CLEAR;
-                            desc.initialLayout        = VK_IMAGE_LAYOUT_UNDEFINED;
-                            desc.finalLayout          = VK_IMAGE_LAYOUT_GENERAL;//VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                        }
-
-                        VkAttachmentReference& ref    = colorRefs[icolor++];
-                        ref.attachment                = j;
-                        ref.layout                    = VK_IMAGE_LAYOUT_GENERAL;//VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                    }
-                    // Depth Attachment
-                    else
-                    {
-                        desc.format                   = depthStencilFormat_;
-                        desc.samples                  = VK_SAMPLE_COUNT_1_BIT;
-                        desc.loadOp                   = i == 0 ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
-                        desc.storeOp                  = i < renderPathInfo.renderPassInfos_.Size() - 1 ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                        desc.stencilLoadOp            = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                        desc.stencilStoreOp           = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                        desc.initialLayout            = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;//VK_IMAGE_LAYOUT_UNDEFINED;
-                        desc.finalLayout              = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-                        desc.flags                    = 0;
-
-                        VkAttachmentReference& ref    = depthRefs[idepth++];
-                        ref.attachment                = j;
-                        ref.layout                    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-                    }
-                }
-
-                // One Subpass Description
-                VkSubpassDescription subpassDescription = {};
-                {
-                    subpassDescription.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
-                    subpassDescription.colorAttachmentCount    = numColorAttachments;
-                    subpassDescription.pColorAttachments       = &colorRefs[0];
-                    subpassDescription.pDepthStencilAttachment = &depthRefs[0];
-                    subpassDescription.inputAttachmentCount    = 0;
-                    subpassDescription.pInputAttachments       = nullptr;
-                    subpassDescription.preserveAttachmentCount = 0;
-                    subpassDescription.pPreserveAttachments    = nullptr;
-                    subpassDescription.pResolveAttachments     = nullptr;
-                }
-
-                // Dependencies for layout transitions
-                PODVector<VkSubpassDependency> dependencies;
-                /*
-                {
-                    dependencies.Resize(2);
-                    // First dependency at the start of the renderpass
-                    // Does the transition from final to initial layout
-                    dependencies[0].srcSubpass      = VK_SUBPASS_EXTERNAL;
-                    dependencies[0].dstSubpass      = 0;
-                    dependencies[0].srcStageMask    = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-                    dependencies[0].dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-                    dependencies[0].srcAccessMask   = VK_ACCESS_MEMORY_READ_BIT;
-                    dependencies[0].dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-                    dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-                    // Second dependency at the end the renderpass
-                    // Does the transition from the initial to the final layout
-                    // Technically this is the same as the implicit subpass dependency, but we are gonna state it explicitly here
-                    dependencies[1].srcSubpass      = 0;
-                    dependencies[1].dstSubpass      = VK_SUBPASS_EXTERNAL;
-                    dependencies[1].srcStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-                    dependencies[1].dstStageMask    = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-                    dependencies[1].srcAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-                    dependencies[1].dstAccessMask   = VK_ACCESS_MEMORY_READ_BIT;
-                    dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-                }
-                */
-                // Pass Creation
-                VkRenderPassCreateInfo rpInfo   = {VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
-                rpInfo.attachmentCount  = attachmentDescriptions.Size();
-                rpInfo.pAttachments     = &attachmentDescriptions[0];
-                rpInfo.subpassCount     = 1;
-                rpInfo.pSubpasses       = &subpassDescription;
-                rpInfo.dependencyCount  = dependencies.Size();
-                rpInfo.pDependencies    = dependencies.Size() ? &dependencies[0] : nullptr;
-                if (vkCreateRenderPass(device_, &rpInfo, pAllocator, &renderPassInfo.renderPass_) != VK_SUCCESS)
-                {
-                    URHO3D_LOGERRORF("Can't create renderpass !");
-                    return false;
-                }
+                VkAttachmentReference& ref    = colorRefs[icolor++];
+                ref.attachment                = j;
+                ref.layout                    = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             }
-
-            // Create Attachment Images, ImageViews & Viewport Texture (if need)
-            for (unsigned j = 0; j < renderPassInfo.attachments_.Size(); j++)
+            // Depth Attachment
+            else
             {
-                RenderAttachment& attachment = renderPassInfo.attachments_[j];
-                if (attachment.usage_ == RENDERATTACHMENT_TARGET)
-                {
-                    CreateAttachment(attachment);
-                    renderPassInfo.viewportTexture_ = SharedPtr<Texture2D>(new Texture2D(context_));
-                    renderPassInfo.viewportTexture_->SetName("viewport");
-                    renderPassInfo.viewportTexture_->SetGPUObject(attachment.image_, attachment.memory_);
-                    renderPassInfo.viewportTexture_->SetShaderResourceView(attachment.imageView_);
-                }
-                else if (attachment.usage_ == RENDERATTACHMENT_DEPTH && i == 0)
-                {
-                    CreateAttachment(attachment);
-                    depthStencil = attachment.imageView_;
-                }
-            }
+                desc.format                   = depthStencilFormat_;
+                desc.samples                  = VK_SAMPLE_COUNT_1_BIT;
+                desc.loadOp                   = renderPassInfo.clearColors_.Size() ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+                desc.storeOp                  = passindex < renderPathInfo.passInfos_.Size() - 1 ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                desc.stencilLoadOp            = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                desc.stencilStoreOp           = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                desc.initialLayout            = renderPassInfo.type_ == PASS_CLEAR ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                desc.finalLayout              = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                desc.flags                    = 0;
 
-            // Create Frame Buffers by frame
-            renderPassInfo.framebuffers_.Resize(numFrames_);
+                VkAttachmentReference& ref    = depthRefs[idepth++];
+                ref.attachment                = j;
+                ref.layout                    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            }
+        }
+
+        // One Subpass Description
+        VkSubpassDescription subpassDescription = {};
+        {
+            subpassDescription.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
+            subpassDescription.colorAttachmentCount    = colorRefs.Size();
+            subpassDescription.pColorAttachments       = colorRefs.Size() ? &colorRefs[0] : nullptr;
+            subpassDescription.pDepthStencilAttachment = depthRefs.Size() ? &depthRefs[0] : nullptr;
+            subpassDescription.inputAttachmentCount    = 0;
+            subpassDescription.pInputAttachments       = nullptr;
+            subpassDescription.preserveAttachmentCount = 0;
+            subpassDescription.pPreserveAttachments    = nullptr;
+            subpassDescription.pResolveAttachments     = nullptr;
+        }
+
+        // Dependencies for layout transitions
+        PODVector<VkSubpassDependency> dependencies;
+        {
+            dependencies.Resize(2);
+            // First dependency at the start of the renderpass
+            // Does the transition from final to initial layout
+            dependencies[0].srcSubpass      = VK_SUBPASS_EXTERNAL;
+            dependencies[0].dstSubpass      = 0;
+            dependencies[0].srcStageMask    = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+            dependencies[0].dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependencies[0].srcAccessMask   = VK_ACCESS_MEMORY_READ_BIT;
+            dependencies[0].dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+            // Second dependency at the end the renderpass
+            // Does the transition from the initial to the final layout
+            // Technically this is the same as the implicit subpass dependency, but we are gonna state it explicitly here
+            dependencies[1].srcSubpass      = 0;
+            dependencies[1].dstSubpass      = VK_SUBPASS_EXTERNAL;
+            dependencies[1].srcStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependencies[1].dstStageMask    = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+            dependencies[1].srcAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            dependencies[1].dstAccessMask   = VK_ACCESS_MEMORY_READ_BIT;
+            dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+        }
+
+        // Pass Creation
+        VkRenderPassCreateInfo rpInfo   = {VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
+        rpInfo.attachmentCount  = attachmentDescriptions.Size();
+        rpInfo.pAttachments     = &attachmentDescriptions[0];
+        rpInfo.subpassCount     = 1;
+        rpInfo.pSubpasses       = &subpassDescription;
+        rpInfo.dependencyCount  = dependencies.Size();
+        rpInfo.pDependencies    = dependencies.Size() ? &dependencies[0] : nullptr;
+
+        bool ok = vkCreateRenderPass(device_, &rpInfo, pAllocator, &renderPassInfo.renderPass_) == VK_SUCCESS;
+        if (!ok || renderPassInfo.renderPass_ == VK_NULL_HANDLE)
+        {
+            URHO3D_LOGERRORF("Can't create renderPathInfo=%u renderpass passindex=%u !", &renderPathInfo, passindex);
+            continue;
+        }
+
+        URHO3D_LOGDEBUGF("GraphicsImpl() - Create Render Passes renderPathInfo=%u .. passindex=%u renderpass=%u... OK !",
+                         &renderPathInfo, passindex, renderPassInfo.renderPass_);
+    }
+
+    return true;
+}
+
+bool GraphicsImpl::CreateRenderPathAttachments(RenderPathInfo& renderPathInfo)
+{
+    const VkAllocationCallbacks* pAllocator = nullptr;
+
+    // Create RenderPath attachments
+    unsigned width  = swapChainExtent_.width;
+    unsigned height = swapChainExtent_.height;
+
+    renderPathInfo.renderAttachments_.Resize(MAX_RENDERSLOTS * numFrames_);
+    for (unsigned i = 0; i < renderPathInfo.renderAttachments_.Size(); i++)
+        renderPathInfo.renderAttachments_[i].slot_ = -1;
+
+    for (unsigned frameindex = 0; frameindex < numFrames_; frameindex++)
+    {
+        // Create Attachment Images, ImageViews & Viewport Texture (if need)
+        for (unsigned passindex = 0; passindex < renderPathInfo.passInfos_.Size(); passindex++)
+        {
+            RenderPassInfo& renderPassInfo = *renderPathInfo.passInfos_[passindex];
+            for (unsigned attindex = 0; attindex < renderPassInfo.attachments_.Size(); attindex++)
+            {
+                int slot = renderPassInfo.attachments_[attindex];
+                RenderAttachment& attachment = renderPathInfo.renderAttachments_[frameindex * MAX_RENDERSLOTS + slot];
+
+                URHO3D_LOGINFOF("attachment frame=%u slot=%d ... %s", frameindex, slot, attachment.slot_ == -1 && attachment.slot_ != RENDERSLOT_PRESENT ? "tocreate":"created");
+
+                if (attachment.slot_ == -1 && slot > RENDERSLOT_PRESENT)
+                    CreateImageAttachment(slot, frameindex, attachment, width, height);
+            }
+        }
+    }
+
+    // Create Frame Buffers by frame
+    for (unsigned passindex = 0; passindex < renderPathInfo.passInfos_.Size(); passindex++)
+    {
+        RenderPassInfo& renderPassInfo = *renderPathInfo.passInfos_[passindex];
+
+        renderPassInfo.framebuffers_.Resize(numFrames_);
+
+        for (unsigned frameindex = 0; frameindex < numFrames_; frameindex++)
+        {
+            FrameData& frame = frames_[frameindex];
 
             PODVector<VkImageView> framebufferAttachments;
             framebufferAttachments.Resize(renderPassInfo.attachments_.Size());
@@ -2834,31 +2775,23 @@ bool GraphicsImpl::CreateRenderPasses()
             framebufferInfo.renderPass      = renderPassInfo.renderPass_;
             framebufferInfo.attachmentCount = renderPassInfo.attachments_.Size();
             framebufferInfo.pAttachments    = &framebufferAttachments[0];
-            framebufferInfo.width           = swapChainExtent_.width;
-            framebufferInfo.height          = swapChainExtent_.height;
+            framebufferInfo.width           = width;
+            framebufferInfo.height          = height;
             framebufferInfo.layers          = 1;
 
-            for (unsigned j = 0; j < numFrames_; j++)
+            for (unsigned k = 0; k < renderPassInfo.attachments_.Size(); k++)
             {
-                FrameData& frame = frames_[j];
+                int slot = renderPassInfo.attachments_[k];
+                if (slot == RENDERSLOT_PRESENT)
+                    framebufferAttachments[k] = frame.imageView_;
+                else if (slot != -1)
+                    framebufferAttachments[k] = renderPathInfo.renderAttachments_[frameindex * MAX_RENDERSLOTS + slot].imageView_;
+            }
 
-                for (unsigned k = 0; k < renderPassInfo.attachments_.Size(); k++)
-                {
-                    const RenderAttachment& attachment = renderPassInfo.attachments_[k];
-
-                    if (attachment.usage_ == RENDERATTACHMENT_PRESENT)
-                        framebufferAttachments[k] = frame.imageView_;
-                    else if (attachment.usage_ == RENDERATTACHMENT_DEPTH)
-                        framebufferAttachments[k] = depthStencil;
-                    else
-                        framebufferAttachments[k] = attachment.imageView_;
-                }
-
-                if (vkCreateFramebuffer(device_, &framebufferInfo, pAllocator, &renderPassInfo.framebuffers_[j]) != VK_SUCCESS)
-                {
-                    URHO3D_LOGERRORF("Can't create framebuffer !");
-                    return false;
-                }
+            if (vkCreateFramebuffer(device_, &framebufferInfo, pAllocator, &renderPassInfo.framebuffers_[frameindex]) != VK_SUCCESS)
+            {
+                URHO3D_LOGERRORF("Can't create framebuffer !");
+                return false;
             }
         }
     }
@@ -2867,7 +2800,41 @@ bool GraphicsImpl::CreateRenderPasses()
 }
 
 
+void GraphicsImpl::SetViewport(const IntRect& rect, unsigned viewport)
+{
+    unsigned width  = (unsigned)rect.Width();
+    unsigned height = (unsigned)rect.Height();
+
+    viewport = Clamp(viewport, 0U, MAX_SHADER_VIEWPORTS-1);
+
+    viewportRects_[viewport] = rect;
+
+    screenScissor_.offset = { rect.left_, Min(rect.top_, rect.bottom_) };
+    screenScissor_.extent = { width, height };
+
+    viewport_.x          = screenScissor_.offset.x;
+    viewport_.y          = screenScissor_.offset.y;
+    viewport_.width      = width;
+    viewport_.height     = height;
+
+    viewportChanged_ = viewportIndex_ != viewport || viewport_.width != width || viewport_.height != height;
+    if (viewportChanged_)
+    {
+        viewportIndex_ = viewport;
+    #ifdef ACTIVE_FRAMELOGDEBUG
+        URHO3D_LOGINFOF("GraphicsImpl() - SetViewport : viewport=%u rect=%s width=%u height=%u",
+                        viewportIndex_, rect.ToString().CString(), width, height);
+    #endif
+    }
+}
+
+
 // Pipeline
+
+void GraphicsImpl::ResetToDefaultPipelineStates()
+{
+    pipelineStates_ = defaultPipelineStates_;
+}
 
 void GraphicsImpl::SetPipelineState(unsigned& pipelineStates, PipelineState state, unsigned value)
 {
@@ -3051,24 +3018,6 @@ bool GraphicsImpl::SetPipeline(unsigned renderPassKey, ShaderVariation* vs, Shad
     pipelineDirty_ = false;
 
     return true;
-}
-
-void GraphicsImpl::SetViewport(const IntRect& rect, unsigned index)
-{
-    viewport_.x        = rect.left_;
-    viewport_.y        = Min(rect.top_, rect.bottom_);
-    viewport_.width    = rect.Width();
-    viewport_.height   = rect.Height();
-
-    index = Clamp(index, 0U, MAX_SHADER_VIEWPORTS-1);
-    viewportChanged_ = viewportIndex_ != index;
-    if (viewportChanged_)
-    {
-        viewportIndex_ = index;
-    #ifdef ACTIVE_FRAMELOGDEBUG
-        URHO3D_LOGINFOF("impl viewportindex changed to %u", viewportIndex_);
-    #endif
-    }
 }
 
 VkPipeline GraphicsImpl::CreatePipeline(PipelineInfo* info)
@@ -3355,6 +3304,7 @@ bool GraphicsImpl::AcquireFrame()
 //    }
 
     frame.commandBufferBegun_ = true;
+    frame.renderPassBegun_ = false;
     frame.renderPassIndex_ = -1;
     renderPassIndex_ = 0;
 
@@ -3376,13 +3326,20 @@ bool GraphicsImpl::PresentFrame()
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         VkResult result = vkBeginCommandBuffer(frame.commandBuffer_, &beginInfo);
     }
-
-    if (renderPassIndex_ == -1 || frame.renderPassIndex_ != renderPassIndex_)
+    else if (frame.renderPassBegun_)
     {
-        URHO3D_LOGDEBUGF("PresentFrame : Empty Frame : passindex=%d", renderPassIndex_);
+        vkCmdEndRenderPass(frame.commandBuffer_);
+    }
 
-        RenderPassInfo* renderPassInfo = renderPathInfo_->renderPassInfos_[0];
+    if (frame.renderPassIndex_ != renderPathInfo_->passInfos_.Size()-1)
+    {
+        // Always finish by a presentation pass
+    #ifdef ACTIVE_FRAMELOGDEBUG
+        URHO3D_LOGERRORF("PresentPass passindex=%u ", renderPathInfo_->passInfos_.Size()-1);
+    #endif
+        RenderPassInfo* renderPassInfo = renderPathInfo_->passInfos_.Back();
 
+        // Begin the presentation pass
         VkRenderPassBeginInfo renderPassBI{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
         renderPassBI.renderPass         = renderPassInfo->renderPass_;
         renderPassBI.framebuffer        = renderPassInfo->framebuffers_[frame.id_];
@@ -3391,15 +3348,15 @@ bool GraphicsImpl::PresentFrame()
         renderPassBI.clearValueCount    = renderPassInfo->clearColors_.Size();
         renderPassBI.pClearValues       = renderPassInfo->clearColors_.Size() ? &renderPassInfo->clearColors_[0] : 0;
         vkCmdBeginRenderPass(frame.commandBuffer_, &renderPassBI, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdEndRenderPass(frame.commandBuffer_);
     }
-
-    vkCmdEndRenderPass(frame.commandBuffer_);
 
     // Complete the command buffer.
     result = vkEndCommandBuffer(frame.commandBuffer_);
 
     frame.renderPassIndex_ = -1;
     frame.commandBufferBegun_ = false;
+    frame.renderPassBegun_ = false;
     renderPassIndex_ = 0;
 
     // Submit command buffer to graphics queue

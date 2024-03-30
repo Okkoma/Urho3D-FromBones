@@ -429,7 +429,11 @@ bool View::Define(RenderSurface* renderTarget, Viewport* viewport)
         if (!command.enabled_)
             continue;
 
-        if (command.type_ == CMD_SCENEPASS)
+        if (command.type_ == CMD_CLEAR)
+        {
+            command.passIndex_ = M_MAX_UNSIGNED-1;
+        }
+        else if (command.type_ == CMD_SCENEPASS)
         {
             hasScenePasses_ = true;
 
@@ -1606,7 +1610,7 @@ void View::ExecuteRenderPathCommands()
                 {
                     URHO3D_PROFILE(ClearRenderTarget);
                 #ifdef ACTIVE_FRAMELOGDEBUG
-                    URHO3D_LOGDEBUGF("View Execute Clear %s...", command.pass_.CString());
+                    URHO3D_LOGERRORF("View Execute Clear %s passindex=%u ...", command.pass_.CString(), command.passIndex_);
                 #endif
                     Color clearColor = command.clearColor_;
                     if (command.useFogColor_)
@@ -1624,7 +1628,7 @@ void View::ExecuteRenderPathCommands()
                     {
                         URHO3D_PROFILE(RenderScenePass);
                     #ifdef ACTIVE_FRAMELOGDEBUG
-                        URHO3D_LOGDEBUGF("View Execute Scene Pass %s passindex=%u ...", command.pass_.CString(), command.passIndex_);
+                        URHO3D_LOGERRORF("View Execute Scene Pass %s passindex=%u ...", command.pass_.CString(), command.passIndex_);
                     #endif
                         SetRenderTargets(command);
                         bool allowDepthWrite = SetTextures(command);
@@ -1663,9 +1667,9 @@ void View::ExecuteRenderPathCommands()
                 if (!actualView->lightQueues_.Empty())
                 {
                     URHO3D_PROFILE(RenderLights);
-                #ifdef ACTIVE_FRAMELOGDEBUG
+//                #ifdef ACTIVE_FRAMELOGDEBUG
                     URHO3D_LOGDEBUGF("View Execute Forward Lights %s...", command.pass_.CString());
-                #endif
+//                #endif
                     SetRenderTargets(command);
 
                     for (Vector<LightBatchQueue>::Iterator it = actualView->lightQueues_.Begin(); it != actualView->lightQueues_.End(); ++it)
@@ -1876,7 +1880,10 @@ bool View::SetTextures(RenderPathCommand& command)
         if (!command.textureNames_[i].Compare("viewport", false))
         {
         #ifdef URHO3D_VULKAN
-            graphics_->SetTexture(i, graphics_->GetImpl()->GetViewportTexture());
+            Texture2D* texture = graphics_->GetImpl()->GetCurrentViewportTexture();
+            graphics_->SetTexture(i, texture);
+            URHO3D_LOGDEBUGF("View() - SetTextures ... pass=%s texturename[%d]=%s texture=%u(%u)",
+                             command.pass_.CString(), i, command.textureNames_[i].CString(), texture, currentViewportTexture_);
         #else
             graphics_->SetTexture(i, currentViewportTexture_);
         #endif

@@ -89,6 +89,7 @@ struct PhysicalDeviceInfo
 #endif
 	VkPhysicalDeviceFeatures requireFeatures_;
 };
+
 struct PipelineInfo;
 
 struct FrameData
@@ -98,7 +99,6 @@ struct FrameData
     /// Frame Outputs datas
     VkImage image_;
     VkImageView imageView_;
-//    VkFramebuffer frameBuffer_;
 
     /// SwapChain Synchronization Objects
 //    VkSemaphore acquireSync_;
@@ -110,22 +110,62 @@ struct FrameData
 
     bool textureDirty_;
     bool commandBufferBegun_;
+    bool renderPassBegun_;
     VkPipeline lastPipelineBound_;
 
     PipelineInfo* lastPipelineInfoBound_;
     int renderPassIndex_;
+    unsigned viewportIndex_;
+    unsigned subpassIndex_;
 };
 
 enum
 {
-    RENDERATTACHMENT_PRESENT = 0,
-    RENDERATTACHMENT_TARGET,
-    RENDERATTACHMENT_DEPTH
+    PASS_CLEAR = 0,
+    PASS_RENDER,
+    PASS_PRESENT
+};
+
+struct RenderPassInfo
+{
+    RenderPassInfo() : type_(-1), key_(0), renderPass_(0), numColorAttachments_(0), numDepthAttachments_(0) { }
+
+    int type_;
+    unsigned key_;
+    unsigned renderPathCommandIndex_;
+    unsigned numColorAttachments_;
+    unsigned numDepthAttachments_;
+
+    VkRenderPass renderPass_;
+
+    Vector<int> attachments_;
+    Vector<VkClearValue> clearColors_;
+
+    // Frame Buffers for each frame of the swapchain
+    Vector<VkFramebuffer> framebuffers_;
+};
+
+enum
+{
+    RENDERSLOT_PRESENT = 0,
+    RENDERSLOT_TARGET1,
+    RENDERSLOT_TARGET2,
+    RENDERSLOT_TARGET3,
+    RENDERSLOT_TARGET4,
+    RENDERSLOT_TARGET5,
+    RENDERSLOT_TARGET6,
+    RENDERSLOT_TARGET7,
+    RENDERSLOT_TARGET8,
+    RENDERSLOT_TARGET9,
+    RENDERSLOT_TARGET10,
+    RENDERSLOT_DEPTH,
+
+    MAX_RENDERSLOTS
 };
 
 struct RenderAttachment
 {
-    int usage_;
+    int slot_, frame_;
 
     VkImage image_;
     VkImageView imageView_;
@@ -136,33 +176,16 @@ struct RenderAttachment
 #else
     VmaAllocation memory_;
 #endif
-};
 
-struct RenderPassInfo
-{
-    RenderPassInfo() : key_(0), renderPass_(0), numColorAttachments_(0), numDepthAttachments_(0) { }
-
-    unsigned key_;
-    unsigned renderPathCommandIndex_;
-    unsigned numColorAttachments_;
-    unsigned numDepthAttachments_;
-
-    VkRenderPass renderPass_;
-
-    Vector<RenderAttachment> attachments_;
-    Vector<VkClearValue> clearColors_;
-
-    SharedPtr<Texture2D> viewportTexture_;
-
-    // Frame Buffers for each frame of the swapchain
-    Vector<VkFramebuffer> framebuffers_;
+    SharedPtr<Texture2D> texture_;
 };
 
 struct RenderPathInfo
 {
     SharedPtr<RenderPath> renderPath_;
-
-    Vector<RenderPassInfo* > renderPassInfos_;
+    // Attachements by Slot and By FrameIndex
+    Vector<RenderAttachment > renderAttachments_;
+    Vector<RenderPassInfo* > passInfos_;
     HashMap<unsigned, unsigned > renderPathCommandIndexToRenderPassIndex_;
 };
 
@@ -324,10 +347,14 @@ public:
     GraphicsImpl();
 
     static const unsigned DefaultRenderPassWithTarget;
-    static const unsigned DefaultRenderPass;
-    static const unsigned DefaultRenderPassWithTargetNoClear;
     static const unsigned DefaultRenderPassNoClear;
-    static const unsigned DefaultRenderPassNoClear2;
+
+    static const unsigned ClearPass_1C_1DS;
+    static const unsigned ClearPass_2C_1DS;
+    static const unsigned RenderPass_1C_1DS;
+    static const unsigned RenderPass_2C_1DS;
+    static const unsigned PresentPass_1C;
+
     /// Setters
 	// Configuration
 	void AddInstanceExtension(const char* extension);
@@ -342,11 +369,11 @@ public:
 	/// Pipelines
     PipelineInfo* RegisterPipelineInfo(unsigned renderPassKey, ShaderVariation* vs, ShaderVariation* ps, unsigned states, VertexBuffer** buffers);
     PipelineInfo* RegisterPipelineInfo(unsigned renderPassKey, ShaderVariation* vs, ShaderVariation* ps, unsigned states, unsigned numVertexTables, const PODVector<VertexElement>* vertexTables);
-    
+
+    void ResetToDefaultPipelineStates();
     void SetPipelineState(unsigned& pipelineStates, PipelineState state, unsigned value);
     bool SetPipeline(unsigned renderPassKey, ShaderVariation* vs, ShaderVariation* ps, unsigned pipelineStates, VertexBuffer** vertexBuffers);
     void SetViewport(const IntRect& rect, unsigned index);
-
     /// Getters
     static PipelineInfo* GetPipelineInfo() { return pipelineInfo_; }
     static unsigned GetUBOPaddedSize(unsigned size);
@@ -373,7 +400,7 @@ public:
     const VkRect2D& GetScissor() const { return screenScissor_; }
     const VkRect2D& GetFrameScissor() const { return frameScissor_; }
 
-    Texture2D* GetViewportTexture() const { return viewportTexture_; }
+    Texture2D* GetCurrentViewportTexture() const;
 
     const RenderPassInfo* GetRenderPassInfo(unsigned renderPassKey) const;
 
@@ -395,15 +422,21 @@ public:
 private:
     bool CreateVulkanInstance(Context* context, const String& appname, SDL_Window* window, const Vector<String>& requestedLayers);
     bool CreateWindowSurface(SDL_Window* window);
+
     void CleanUpVulkan();
+    void CleanUpRenderPasses();
+    void CleanUpPipelines();
+    void CleanUpSwapChain();
 
     bool CreateSwapChain(int width=0, int height=0, bool* srgb=0, bool* vsync=0, bool* triplebuffer=0);
     void UpdateSwapChain(int width=0, int height=0, bool* srgb=0, bool* vsync=0, bool* triplebuffer=0);
-    void CleanUpSwapChain();
 
-    void CreateAttachment(RenderAttachment& attachment);
+    void CreateImageAttachment(int slot, int frame, RenderAttachment& attachment, unsigned width, unsigned height);
     void DestroyAttachment(RenderAttachment& attachment);
-    bool CreateRenderPasses();
+
+    bool CreateRenderPasses(RenderPathInfo& renderPathInfo);
+    bool CreateRenderPathAttachments(RenderPathInfo& renderPathInfo);
+    bool CreateRenderPaths();
 
     void CreatePipelines();
     VkPipeline CreatePipeline(PipelineInfo* info);
@@ -474,6 +507,7 @@ private:
 
     /// Pipelines
     PipelineBuilder pipelineBuilder_;
+    IntRect viewportRects_[MAX_SHADER_VIEWPORTS];
     VkViewport viewport_;
     VkRect2D screenScissor_, frameScissor_;
     VkPipelineCache pipelineCache_;
@@ -503,7 +537,6 @@ private:
     ShaderProgramMap shaderPrograms_;
     /// Shader program in use.
     ShaderProgram* shaderProgram_;
-
 };
 
 }

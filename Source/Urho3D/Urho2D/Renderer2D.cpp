@@ -122,13 +122,13 @@ Renderer2D::Renderer2D(Context* context) :
             for (unsigned blendmode=0; blendmode < MAX_BLENDMODES; blendmode++)
                 states[blendmode] = graphics->GetImpl()->GetDefaultPipelineStates(PIPELINESTATE_BLENDMODE, blendmode);
 
-            graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassWithTarget, vs, ps, states[BLEND_REPLACE],  1, &vertexElements2D_);
-            graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassWithTarget, vs, ps, states[BLEND_ALPHA],    1, &vertexElements2D_);
-            graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassWithTarget, vs, ps, states[BLEND_ADDALPHA], 1, &vertexElements2D_);
+            graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS, vs, ps, states[BLEND_REPLACE],  1, &vertexElements2D_);
+            graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS, vs, ps, states[BLEND_ALPHA],    1, &vertexElements2D_);
+            graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS, vs, ps, states[BLEND_ADDALPHA], 1, &vertexElements2D_);
 
-            graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassNoClear, vs, ps, states[BLEND_REPLACE],  1, &vertexElements2D_);
-            graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassNoClear, vs, ps, states[BLEND_ALPHA],    1, &vertexElements2D_);
-            graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::DefaultRenderPassNoClear, vs, ps, states[BLEND_ADDALPHA], 1, &vertexElements2D_);
+            graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, vs, ps, states[BLEND_REPLACE],  1, &vertexElements2D_);
+            graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, vs, ps, states[BLEND_ALPHA],    1, &vertexElements2D_);
+            graphics->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, vs, ps, states[BLEND_ADDALPHA], 1, &vertexElements2D_);
         }
     #else
         vertexElements2D_.Push(VertexElement(TYPE_VECTOR3, SEM_POSITION));

@@ -596,8 +596,64 @@ void Graphics::Clear(unsigned flags, const Color& color, float depth, unsigned s
 //    if (flags & CLEAR_STENCIL && stencilWriteMask_ != M_MAX_UNSIGNED)
 //        glStencilMask(stencilWriteMask_);
 
-    // TODO : Vulkan RenderPass clearing
-    SetScissorTest(false);
+    // Vulkan RenderPass clearing
+
+    if (impl_->viewportIndex_ > 0)
+        return;
+
+    if (!impl_->frame_)
+        return;
+
+    FrameData& frame = *impl_->frame_;
+
+	// Begin command recording.
+	if (!frame.commandBufferBegun_)
+	{
+	    VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        VkResult result = vkBeginCommandBuffer(frame.commandBuffer_, &beginInfo);
+        frame.commandBufferBegun_ = true;
+	}
+	// End of the current renderpass.
+	else if (frame.renderPassBegun_)
+    {
+        vkCmdEndRenderPass(frame.commandBuffer_);
+        frame.renderPassBegun_ = false;
+    }
+
+	// Begin the next renderpass.
+    if (frame.renderPassIndex_ != impl_->renderPassIndex_)
+    {
+        frame.renderPassIndex_ = impl_->renderPassIndex_;
+
+    #ifdef ACTIVE_FRAMELOGDEBUG
+        URHO3D_LOGERRORF("Clear ... passindex=%d ...", frame.renderPassIndex_);
+    #endif
+
+        RenderPassInfo* renderPassInfo = impl_->renderPathInfo_->passInfos_[frame.renderPassIndex_];
+
+        VkRenderPassBeginInfo renderPassBI{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+        renderPassBI.renderPass         = renderPassInfo->renderPass_;
+        renderPassBI.framebuffer        = renderPassInfo->framebuffers_[frame.id_];
+        renderPassBI.renderArea.offset  = { 0, 0 };
+        renderPassBI.renderArea.extent  = impl_->swapChainExtent_;
+        renderPassBI.clearValueCount    = renderPassInfo->clearColors_.Size();
+        renderPassBI.pClearValues       = renderPassInfo->clearColors_.Size() ? &renderPassInfo->clearColors_[0] : 0;
+        vkCmdBeginRenderPass(frame.commandBuffer_, &renderPassBI, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdEndRenderPass(frame.commandBuffer_);
+
+        impl_->renderPassIndex_ = 1;
+    }
+
+//    SetShaders(GetShader(VS, "Basic"), GetShader(PS, "Basic"));
+//
+//    impl_->ResetToDefaultPipelineStates();
+//    impl_->pipelineDirty_ = true;
+//    impl_->indexBufferDirty_ = impl_->vertexBuffersDirty_ = false;
+//
+//    PrepareDraw();
+
+//    SetScissorTest(false);
 }
 
 bool Graphics::ResolveToTexture(Texture2D* destination, const IntRect& viewport)
@@ -1615,7 +1671,7 @@ void Graphics::SetViewport(const IntRect& rect, unsigned index)
     viewport_ = rectCopy;
     impl_->SetViewport(viewport_, index);
 
-//    URHO3D_LOGDEBUGF("Graphics - SetViewport() %s", viewport_.ToString().CString());
+//    URHO3D_LOGINFOF("Graphics() - SetViewport : index=%u rect=%s rtsize=%s", index, viewport_.ToString().CString(), rtSize.ToString().CString());
 
     // Disable scissor test, needs to be re-enabled by the user
     SetScissorTest(false);
@@ -2602,6 +2658,7 @@ void Graphics::CheckFeatureSupport()
     sRGBSupport_ = sRGBWriteSupport_;
 }
 
+
 void Graphics::PrepareDraw()
 {
     if (!impl_->frame_)
@@ -2611,6 +2668,7 @@ void Graphics::PrepareDraw()
     }
 
     FrameData& frame = *impl_->frame_;
+
 #ifdef ACTIVE_FRAMELOGDEBUG
     URHO3D_LOGDEBUGF("PrepareDraw ... frame=%u ... pipelineDirty=%s textureDirty=%s frameRenderPassIndex=%d implRenderPassIndex=%d",
                      impl_->GetFrameIndex(), impl_->pipelineDirty_ ? "true":"false",
@@ -2619,12 +2677,13 @@ void Graphics::PrepareDraw()
 #endif
 
     // End of the current renderpass.
-    if (frame.renderPassIndex_ != -1 && frame.renderPassIndex_ != impl_->renderPassIndex_)
+    if (frame.renderPassBegun_ && frame.renderPassIndex_ != -1 && frame.renderPassIndex_ != impl_->renderPassIndex_)
     {
     #ifdef ACTIVE_FRAMELOGDEBUG
         URHO3D_LOGDEBUG("PrepareDraw ... Render Pass End !");
     #endif
         vkCmdEndRenderPass(frame.commandBuffer_);
+        frame.renderPassBegun_ = false;
     }
 
 	// Begin command recording.
@@ -2645,12 +2704,42 @@ void Graphics::PrepareDraw()
         frame.renderPassIndex_ = impl_->renderPassIndex_;
 
     #ifdef ACTIVE_FRAMELOGDEBUG
-        URHO3D_LOGDEBUGF("PrepareDraw ... Begin New Render Pass %d ...", frame.renderPassIndex_);
+        URHO3D_LOGDEBUGF("PrepareDraw ... Begin New Render passindex=%d ...", frame.renderPassIndex_);
     #endif
 
-        RenderPassInfo* renderPassInfo = impl_->renderPathInfo_->renderPassInfos_[frame.renderPassIndex_];
+        RenderPassInfo* renderPassInfo = impl_->renderPathInfo_->passInfos_[frame.renderPassIndex_];
 
         // Begin the render pass.
+        VkRenderPassBeginInfo renderPassBI{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+        renderPassBI.renderPass         = renderPassInfo->renderPass_;
+        renderPassBI.framebuffer        = renderPassInfo->framebuffers_[frame.id_];
+        renderPassBI.renderArea.offset  = { 0, 0 };
+        renderPassBI.renderArea.extent  = impl_->swapChainExtent_;
+        renderPassBI.clearValueCount    = renderPassInfo->clearColors_.Size();
+        renderPassBI.pClearValues       = renderPassInfo->clearColors_.Size() ? &renderPassInfo->clearColors_[0] : 0;
+        vkCmdBeginRenderPass(frame.commandBuffer_, &renderPassBI, VK_SUBPASS_CONTENTS_INLINE);
+
+        frame.renderPassBegun_ = true;
+        impl_->pipelineDirty_ = true;
+    }
+
+/*
+	// Begin the next renderpass.
+    if (frame.renderPassIndex_ != impl_->renderPassIndex_)
+    {
+        frame.renderPassIndex_ = impl_->renderPassIndex_;
+        frame.viewportIndex_   = impl_->viewportIndex_;
+        frame.subpassIndex_    = 0;
+
+        RenderPassInfo* renderPassInfo = impl_->renderPathInfo_->passInfos_[frame.renderPassIndex_];
+
+//    #ifdef ACTIVE_FRAMELOGDEBUG
+        URHO3D_LOGDEBUGF("PrepareDraw ... Begin New Render Pass %d on viewport=%u ... renderpasskey=%u numattachements=%u  ...",
+                         frame.renderPassIndex_, frame.viewportIndex_, renderPassInfo->key_, renderPassInfo->attachments_.Size());
+//    #endif
+
+        // Begin the render pass.
+        // subpass : render target
         VkRenderPassBeginInfo renderPassBI{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
         renderPassBI.renderPass         = renderPassInfo->renderPass_;
         renderPassBI.framebuffer        = renderPassInfo->framebuffers_[frame.id_];
@@ -2663,10 +2752,34 @@ void Graphics::PrepareDraw()
         impl_->pipelineDirty_ = true;
     }
 
+    // Begin the next render subpass.
+    if (frame.viewportIndex_ != impl_->viewportIndex_)
+    {
+        // finish the view render by copying the rendertarget to the frame
+        vkCmdNextSubpass(frame.commandBuffer_, VK_SUBPASS_CONTENTS_INLINE);
+
+        VkImageBlit region{};
+        region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.srcSubresource.layerCount = 1;
+        region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.dstSubresource.layerCount = 1;
+        region.srcOffsets[0] = { 0, 0, 0 };  // Coin supérieur gauche
+        region.srcOffsets[1] = { width, height, 1 }; // Coin inférieur droit
+        region.dstOffsets[0] = { 0, 0, 0 };  // Coin supérieur gauche
+        region.dstOffsets[1] = { width, height, 1 }; // Coin inférieur droit
+        vkCmdBlitImage(frame.commandBuffer_, renderPassInfo->attachments_.Front().image_, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                       frame.image_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_LINEAR);
+
+        // start the next view
+        frame.viewportIndex_ = impl_->viewportIndex_;
+        vkCmdNextSubpass(frame.commandBuffer_, VK_SUBPASS_CONTENTS_INLINE);
+        impl_->pipelineDirty_ = true;
+    }
+*/
     // Set the Pipeline if dirty (shaders changed or/and states changed)
     if (vertexShader_ && pixelShader_ && (!impl_->pipelineInfo_ || impl_->pipelineDirty_))
     {
-        unsigned renderPassKey = impl_->renderPathInfo_->renderPassInfos_[frame.renderPassIndex_]->key_;
+        unsigned renderPassKey = impl_->renderPathInfo_->passInfos_[frame.renderPassIndex_]->key_;
         impl_->SetPipeline(renderPassKey, vertexShader_, pixelShader_, impl_->pipelineStates_, vertexBuffers_);
     }
 
@@ -2796,20 +2909,20 @@ void Graphics::PrepareDraw()
 
                         if (!texture)
                         {
-                        #ifdef ACTIVE_FRAMELOGDEBUG
-                            URHO3D_LOGERRORF("PrepareDraw ... update stage=%s Set=%u.%u check texture unit=%u %u/%u no Texture in the unit ... SKIP !",
-                                             shaderStage == VS ? "VS":"PS", set, binding.id_+numTexturesToUpdate, unit, numTexturesToUpdate, binding.unitRange_);
-                        #endif
+//                        #ifdef ACTIVE_FRAMELOGDEBUG
+//                            URHO3D_LOGERRORF("PrepareDraw ... update stage=%s Set=%u.%u check texture unit=%u %u/%u no Texture in the unit ... SKIP !",
+//                                             shaderStage == VS ? "VS":"PS", set, binding.id_+numTexturesToUpdate, unit, numTexturesToUpdate, binding.unitRange_);
+//                        #endif
                             continue;
                         }
 
                         if (!texture->GetShaderResourceView() || !texture->GetSampler())
                         {
-                        #ifdef ACTIVE_FRAMELOGDEBUG
-                            URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u check texture unit=%u %u/%u name=%s imageview=%u sampler=%u ... SKIP !",
-                                             shaderStage == VS ? "VS":"PS", set, binding.id_+numTexturesToUpdate, unit, numTexturesToUpdate, binding.unitRange_,
-                                             texture->GetName().CString(), texture->GetShaderResourceView(), texture->GetSampler());
-                        #endif
+//                        #ifdef ACTIVE_FRAMELOGDEBUG
+//                            URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u check texture unit=%u %u/%u name=%s imageview=%u sampler=%u ... SKIP !",
+//                                             shaderStage == VS ? "VS":"PS", set, binding.id_+numTexturesToUpdate, unit, numTexturesToUpdate, binding.unitRange_,
+//                                             texture->GetName().CString(), texture->GetShaderResourceView(), texture->GetSampler());
+//                        #endif
                             continue;
                         }
 
@@ -3091,7 +3204,7 @@ void Graphics::PrepareDraw()
                         }
 
                         VkDescriptorImageInfo& imageInfo = imageInfos[numSamplerUpdate+numTexturesToUpdate];
-                        imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;//VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                         imageInfo.imageView   = (VkImageView)(texture->GetShaderResourceView());
                         imageInfo.sampler     = (VkSampler)(texture->GetSampler());
 
@@ -3121,7 +3234,7 @@ void Graphics::PrepareDraw()
                         {
                             // use the last updated texture
                             VkDescriptorImageInfo& imageInfo = imageInfos[numSamplerUpdate+unit];
-                            imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;//VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                             imageInfo.imageView   = (VkImageView)(lasttexture->GetShaderResourceView());
                             imageInfo.sampler     = (VkSampler)(lasttexture->GetSampler());
                         }
