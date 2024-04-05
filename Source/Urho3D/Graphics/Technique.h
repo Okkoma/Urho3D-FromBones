@@ -270,6 +270,10 @@ public:
     static unsigned litAlphaPassIndex;
     /// Index for shadow pass. Initialized once GetPassIndex() has been called for the first time.
     static unsigned shadowPassIndex;
+#ifdef URHO3D_VULKAN
+    static unsigned clearPassIndex;
+    static unsigned presentationPassIndex;
+#endif
 
 private:
     /// Require desktop GPU flag.

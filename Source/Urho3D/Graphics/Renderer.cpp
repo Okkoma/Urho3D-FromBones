@@ -1716,39 +1716,29 @@ void Renderer::Initialize()
 
     unsigned stateBlendAlphaMS1 = graphics_->GetImpl()->GetDefaultPipelineStates(PIPELINESTATE_BLENDMODE, BLEND_ALPHA);
     unsigned stateBlendAlphaMS4 = graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS1, PIPELINESTATE_SAMPLES, 2);
-/*
-    unsigned defaultstates      = graphics_->GetImpl()->GetDefaultPipelineStates();
 
-    // Clear
-    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::ClearPass_1C_1DS, noTextureVS, noTexturePS, defaultstates, 1, &vertexElements);
-    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::ClearPass_2C_1DS, noTextureVS, noTexturePS, defaultstates, 1, &vertexElements);
-
-    // Present
-    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::PresentPass_1C, noTextureVS, noTexturePS, defaultstates, 1, &vertexElements);
-*/
     // Primitive Triangle
-    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS, noTextureVS, noTexturePS, stateBlendAlphaMS1, 1, &vertexElements);
-    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS, noTextureVS, noTexturePS, stateBlendAlphaMS4, 1, &vertexElements);
-    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, noTextureVS, noTexturePS, stateBlendAlphaMS1, 1, &vertexElements);
-    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, noTextureVS, noTexturePS, stateBlendAlphaMS4, 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_1, noTextureVS, noTexturePS, stateBlendAlphaMS1, 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_2, noTextureVS, noTexturePS, stateBlendAlphaMS4, 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_1, noTextureVS, noTexturePS, stateBlendAlphaMS1, 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_2, noTextureVS, noTexturePS, stateBlendAlphaMS4, 1, &vertexElements);
 
     // Primitive Line
     stateBlendAlphaMS1 = graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS1, PIPELINESTATE_PRIMITIVE, 1);
-    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS, noTextureVS, noTexturePS, stateBlendAlphaMS1, 1, &vertexElements);
-    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS1, PIPELINESTATE_LINEWIDTH, 1), 1, &vertexElements);
-    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS1, PIPELINESTATE_LINEWIDTH, 2), 1, &vertexElements);
-    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, noTextureVS, noTexturePS, stateBlendAlphaMS1, 1, &vertexElements);
-    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS1, PIPELINESTATE_LINEWIDTH, 1), 1, &vertexElements);
-    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS1, PIPELINESTATE_LINEWIDTH, 2), 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_1, noTextureVS, noTexturePS, stateBlendAlphaMS1, 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_1, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS1, PIPELINESTATE_LINEWIDTH, 1), 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_1, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS1, PIPELINESTATE_LINEWIDTH, 2), 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_2, noTextureVS, noTexturePS, stateBlendAlphaMS1, 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_2, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS1, PIPELINESTATE_LINEWIDTH, 1), 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_2, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS1, PIPELINESTATE_LINEWIDTH, 2), 1, &vertexElements);
 
     stateBlendAlphaMS4 = graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS4, PIPELINESTATE_PRIMITIVE, 1);
-    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS, noTextureVS, noTexturePS, stateBlendAlphaMS4, 1, &vertexElements);
-    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS4, PIPELINESTATE_LINEWIDTH, 1), 1, &vertexElements);
-    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS4, PIPELINESTATE_LINEWIDTH, 2), 1, &vertexElements);
-    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, noTextureVS, noTexturePS, stateBlendAlphaMS4, 1, &vertexElements);
-    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS4, PIPELINESTATE_LINEWIDTH, 1), 1, &vertexElements);
-    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS4, PIPELINESTATE_LINEWIDTH, 2), 1, &vertexElements);
-
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_1, noTextureVS, noTexturePS, stateBlendAlphaMS4, 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_1, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS4, PIPELINESTATE_LINEWIDTH, 1), 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_1, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS4, PIPELINESTATE_LINEWIDTH, 2), 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_2, noTextureVS, noTexturePS, stateBlendAlphaMS4, 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_2, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS4, PIPELINESTATE_LINEWIDTH, 1), 1, &vertexElements);
+    graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_2, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS4, PIPELINESTATE_LINEWIDTH, 2), 1, &vertexElements);
 #endif
 
     SubscribeToEvent(E_RENDERUPDATE, URHO3D_HANDLER(Renderer, HandleRenderUpdate));

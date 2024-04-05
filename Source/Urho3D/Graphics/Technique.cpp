@@ -236,6 +236,10 @@ unsigned Technique::lightPassIndex = 0;
 unsigned Technique::litBasePassIndex = 0;
 unsigned Technique::litAlphaPassIndex = 0;
 unsigned Technique::shadowPassIndex = 0;
+#ifdef URHO3D_VULKAN
+unsigned Technique::clearPassIndex = 0;
+unsigned Technique::presentationPassIndex = 0;
+#endif
 
 HashMap<String, unsigned> Technique::passIndices;
 
@@ -534,14 +538,18 @@ unsigned Technique::GetPassIndex(const String& passName)
     // Initialize built-in pass indices on first call
     if (passIndices.Empty())
     {
-        basePassIndex = passIndices["base"] = 0;
-        alphaPassIndex = passIndices["alpha"] = 1;
-        materialPassIndex = passIndices["material"] = 2;
-        deferredPassIndex = passIndices["deferred"] = 3;
-        lightPassIndex = passIndices["light"] = 4;
-        litBasePassIndex = passIndices["litbase"] = 5;
-        litAlphaPassIndex = passIndices["litalpha"] = 6;
-        shadowPassIndex = passIndices["shadow"] = 7;
+        basePassIndex         = passIndices["base"]     = 0;
+        alphaPassIndex        = passIndices["alpha"]    = 1;
+        materialPassIndex     = passIndices["material"] = 2;
+        deferredPassIndex     = passIndices["deferred"] = 3;
+        lightPassIndex        = passIndices["light"]    = 4;
+        litBasePassIndex      = passIndices["litbase"]  = 5;
+        litAlphaPassIndex     = passIndices["litalpha"] = 6;
+        shadowPassIndex       = passIndices["shadow"]   = 7;
+    #ifdef URHO3D_VULKAN
+        clearPassIndex        = passIndices["clear"]    = 8;
+        presentationPassIndex = passIndices["present"]  = 9;
+    #endif
     }
 
     String nameLower = passName.ToLower();

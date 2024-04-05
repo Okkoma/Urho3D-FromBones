@@ -693,8 +693,18 @@ void View::Render()
 
     // Run framebuffer blitting if necessary. If scene was resolved from backbuffer, do not touch depth
     // (backbuffer should contain proper depth already)
+
+#ifdef URHO3D_VULKAN
+    graphics_->GetImpl()->SetRenderPass(Technique::presentationPassIndex);
+    if (graphics_->GetImpl()->GetCurrentViewportTexture())
+    {
+//        URHO3D_LOGDEBUGF("Blit to viewRect=%s", viewRect_.ToString().CString());
+        BlitFramebuffer(graphics_->GetImpl()->GetCurrentViewportTexture(), 0, !usedResolve_);
+    }
+#else
     if (currentRenderTarget_ != renderTarget_)
         BlitFramebuffer(currentRenderTarget_->GetParentTexture(), renderTarget_, !usedResolve_);
+#endif
 
     SendViewEvent(E_ENDVIEWRENDER);
 }
@@ -816,11 +826,15 @@ void View::SetGBufferShaderParameters(const IntVector2& texSize, const IntRect& 
     Vector4 bufferUVOffset((pixelUVOffset.x_ + (float)viewRect.left_) / texWidth + widthRange,
         (pixelUVOffset.y_ + (float)viewRect.top_) / texHeight + heightRange, widthRange, heightRange);
 #endif
+
     graphics_->SetShaderParameter(VSP_GBUFFEROFFSETS, bufferUVOffset);
 
     float invSizeX = 1.0f / texWidth;
     float invSizeY = 1.0f / texHeight;
     graphics_->SetShaderParameter(PSP_GBUFFERINVSIZE, Vector2(invSizeX, invSizeY));
+
+//    URHO3D_LOGDEBUGF("SetShaderParameter texSize=%s viewRect=%s VSP_GBUFFEROFFSETS=%s PSP_GBUFFERINVSIZE=%f %f",
+//                     texSize.ToString().CString(), viewRect.ToString().CString(), bufferUVOffset.ToString().CString(), invSizeX, invSizeY);
 }
 
 void View::GetDrawables()
@@ -2188,8 +2202,11 @@ void View::BlitFramebuffer(Texture* source, RenderSurface* destination, bool dep
     // If blitting to the destination rendertarget, use the actual viewport. Intermediate textures on the other hand
     // are always viewport-sized
     IntVector2 srcSize(source->GetWidth(), source->GetHeight());
-    IntVector2 destSize = destination ? IntVector2(destination->GetWidth(), destination->GetHeight()) : IntVector2(
-        graphics_->GetWidth(), graphics_->GetHeight());
+    if (srcSize.x_ == 0)
+        srcSize = viewRect_.Size();
+
+    IntVector2 destSize = destination ? IntVector2(destination->GetWidth(), destination->GetHeight()) :
+                                        IntVector2(graphics_->GetWidth(), graphics_->GetHeight());
 
     IntRect srcRect = (GetRenderSurfaceFromTexture(source) == renderTarget_) ? viewRect_ : IntRect(0, 0, srcSize.x_, srcSize.y_);
     IntRect destRect = (destination == renderTarget_) ? viewRect_ : IntRect(0, 0, destSize.x_, destSize.y_);
@@ -2206,7 +2223,9 @@ void View::BlitFramebuffer(Texture* source, RenderSurface* destination, bool dep
     for (unsigned i = 1; i < MAX_RENDERTARGETS; ++i)
         graphics_->SetRenderTarget(i, (RenderSurface*)0);
     graphics_->SetDepthStencil(GetDepthStencil(destination));
-    graphics_->SetViewport(destRect);
+
+//    URHO3D_LOGDEBUGF("View::BlitFramebuffer ... destRect=%s", destRect.ToString().CString());
+    graphics_->SetViewport(destRect, camera_->GetViewport());
 
     static const char* shaderName = "CopyFramebuffer";
     graphics_->SetShaders(graphics_->GetShader(VS, shaderName), graphics_->GetShader(PS, shaderName));

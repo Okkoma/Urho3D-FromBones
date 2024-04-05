@@ -94,78 +94,101 @@ struct PipelineInfo;
 
 struct FrameData
 {
+	// state
     unsigned id_;
-
-    /// Frame Outputs datas
-    VkImage image_;
-    VkImageView imageView_;
-
-    /// SwapChain Synchronization Objects
-//    VkSemaphore acquireSync_;
-//    VkSemaphore releaseSync_;
-    VkFence     submitSync_;
-
-    VkCommandPool commandPool_;
-    VkCommandBuffer commandBuffer_;
-
+    int viewportIndex_;
+    int renderPassIndex_;
+    int subpassIndex_;
     bool textureDirty_;
     bool commandBufferBegun_;
     bool renderPassBegun_;
+	PipelineInfo* lastPipelineInfoBound_;
+
+    VkCommandPool commandPool_;
+    VkCommandBuffer commandBuffer_;
     VkPipeline lastPipelineBound_;
+	VkFence     submitSync_;
 
-    PipelineInfo* lastPipelineInfoBound_;
-    int renderPassIndex_;
-    unsigned viewportIndex_;
-    unsigned subpassIndex_;
-};
+	// Data dependent on screen size
+    VkImage image_;
+    VkImageView imageView_;
 
-enum
-{
-    PASS_CLEAR = 0,
-    PASS_RENDER,
-    PASS_PRESENT
-};
-
-struct RenderPassInfo
-{
-    RenderPassInfo() : type_(-1), key_(0), renderPass_(0), numColorAttachments_(0), numDepthAttachments_(0) { }
-
-    int type_;
-    unsigned key_;
-    unsigned renderPathCommandIndex_;
-    unsigned numColorAttachments_;
-    unsigned numDepthAttachments_;
-
-    VkRenderPass renderPass_;
-
-    Vector<int> attachments_;
-    Vector<VkClearValue> clearColors_;
-
-    // Frame Buffers for each frame of the swapchain
     Vector<VkFramebuffer> framebuffers_;
 };
 
-enum
+struct ViewportRect
+{
+	int viewSizeIndex_;
+	VkRect2D rect_;
+};
+
+enum RenderPassType
+{
+    PASS_CLEAR = 0,
+    PASS_VIEW,
+    PASS_PRESENT
+};
+
+enum RenderSlotType
 {
     RENDERSLOT_PRESENT = 0,
     RENDERSLOT_TARGET1,
     RENDERSLOT_TARGET2,
-    RENDERSLOT_TARGET3,
-    RENDERSLOT_TARGET4,
-    RENDERSLOT_TARGET5,
-    RENDERSLOT_TARGET6,
-    RENDERSLOT_TARGET7,
-    RENDERSLOT_TARGET8,
-    RENDERSLOT_TARGET9,
-    RENDERSLOT_TARGET10,
     RENDERSLOT_DEPTH,
 
-    MAX_RENDERSLOTS
+    MAX_RENDERSLOTS,
+
+    RENDERSLOT_NONE,
+};
+
+struct RenderSubpassInfo
+{
+    Vector<VkAttachmentReference> colors_;
+    Vector<VkAttachmentReference> depths_;
+    Vector<VkAttachmentReference> inputs_;
+};
+
+struct RenderPassAttachmentInfo
+{
+	int slot_;
+	bool clear_;
+};
+
+struct RenderPassInfo
+{
+    RenderPassInfo() : id_(0), type_(0), key_(0U), renderPass_(0) { }
+
+	int id_;
+    int type_;
+    unsigned key_;
+
+    VkRenderPass renderPass_;
+
+    Vector<RenderPassAttachmentInfo> attachments_;
+	Vector<RenderSubpassInfo> subpasses_;
+	Vector<VkClearValue> clearValues_;
 };
 
 struct RenderAttachment
 {
-    int slot_, frame_;
+    RenderAttachment() :
+        slot_(RENDERSLOT_NONE),
+        viewSizeIndex_(0),
+        image_(0),
+        imageView_(0),
+        sampler_(0),
+        memory_(0) { }
+
+    RenderAttachment(const RenderAttachment& r) :
+        slot_(r.slot_),
+        viewSizeIndex_(r.viewSizeIndex_),
+        image_(r.image_),
+        imageView_(r.imageView_),
+        sampler_(r.sampler_),
+        memory_(r.memory_),
+        texture_(r.texture_) { }
+
+    int slot_, viewSizeIndex_;
 
     VkImage image_;
     VkImageView imageView_;
@@ -180,13 +203,11 @@ struct RenderAttachment
     SharedPtr<Texture2D> texture_;
 };
 
-struct RenderPathInfo
+struct RenderPathData
 {
     SharedPtr<RenderPath> renderPath_;
-    // Attachements by Slot and By FrameIndex
-    Vector<RenderAttachment > renderAttachments_;
     Vector<RenderPassInfo* > passInfos_;
-    HashMap<unsigned, unsigned > renderPathCommandIndexToRenderPassIndex_;
+	HashMap<unsigned, Pair<unsigned, unsigned > > renderPathCommandIndexToRenderPassIndexes_;
 };
 
 enum PipelineState
@@ -349,10 +370,9 @@ public:
     static const unsigned DefaultRenderPassWithTarget;
     static const unsigned DefaultRenderPassNoClear;
 
-    static const unsigned ClearPass_1C_1DS;
-    static const unsigned ClearPass_2C_1DS;
-    static const unsigned RenderPass_1C_1DS;
-    static const unsigned RenderPass_2C_1DS;
+    static const unsigned ClearPass_1C;
+    static const unsigned RenderPass_1C_1DS_1;
+    static const unsigned RenderPass_1C_1DS_2;
     static const unsigned PresentPass_1C;
 
     /// Setters
@@ -366,15 +386,18 @@ public:
     void SetRenderPath(RenderPath* renderPath);
     void SetRenderPass(unsigned passindex);
 
-	/// Pipelines
+	// Pipelines
     PipelineInfo* RegisterPipelineInfo(unsigned renderPassKey, ShaderVariation* vs, ShaderVariation* ps, unsigned states, VertexBuffer** buffers);
     PipelineInfo* RegisterPipelineInfo(unsigned renderPassKey, ShaderVariation* vs, ShaderVariation* ps, unsigned states, unsigned numVertexTables, const PODVector<VertexElement>* vertexTables);
-
     void ResetToDefaultPipelineStates();
     void SetPipelineState(unsigned& pipelineStates, PipelineState state, unsigned value);
     bool SetPipeline(unsigned renderPassKey, ShaderVariation* vs, ShaderVariation* ps, unsigned pipelineStates, VertexBuffer** vertexBuffers);
-    void SetViewport(const IntRect& rect, unsigned index);
-    /// Getters
+
+	// Viewports
+	void SetViewportInfos();
+	void SetViewport(int viewport, const IntRect& rect);
+
+	/// Getters
     static PipelineInfo* GetPipelineInfo() { return pipelineInfo_; }
     static unsigned GetUBOPaddedSize(unsigned size);
     static VkFormat GetSwapChainFormat() { return swapChainInfo_.format; }
@@ -424,6 +447,7 @@ private:
     bool CreateWindowSurface(SDL_Window* window);
 
     void CleanUpVulkan();
+	void CleanUpRenderAttachments();
     void CleanUpRenderPasses();
     void CleanUpPipelines();
     void CleanUpSwapChain();
@@ -431,11 +455,12 @@ private:
     bool CreateSwapChain(int width=0, int height=0, bool* srgb=0, bool* vsync=0, bool* triplebuffer=0);
     void UpdateSwapChain(int width=0, int height=0, bool* srgb=0, bool* vsync=0, bool* triplebuffer=0);
 
-    void CreateImageAttachment(int slot, int frame, RenderAttachment& attachment, unsigned width, unsigned height);
+    void CreateImageAttachment(int slot, RenderAttachment& attachment, unsigned width, unsigned height);
     void DestroyAttachment(RenderAttachment& attachment);
 
-    bool CreateRenderPasses(RenderPathInfo& renderPathInfo);
-    bool CreateRenderPathAttachments(RenderPathInfo& renderPathInfo);
+
+    bool CreateRenderPasses(RenderPathData& renderPathInfo);
+    bool CreateRenderAttachments();
     bool CreateRenderPaths();
 
     void CreatePipelines();
@@ -480,14 +505,14 @@ private:
     bool vertexBuffersDirty_;
     bool indexBufferDirty_;
     bool pipelineDirty_;
-    bool viewportDirty_;
     bool scissorDirty_;
+    bool viewportChanged_;
 
     /// Vertex Buffers
     PODVector<VkBuffer> vertexBuffers_;
     PODVector<VkDeviceSize> vertexOffsets_;
 
-    /// Presentation
+    /// SwapChain
     Vector<FrameData> frames_;
     FrameData* frame_;
     unsigned numFrames_;
@@ -496,20 +521,26 @@ private:
     VkExtent2D swapChainExtent_;
     VkSwapchainKHR swapChain_;
 
-    /// Render Passes
-    HashMap<unsigned, RenderPathInfo > renderPathInfos_;
-    HashMap<unsigned, RenderPassInfo > renderPassInfos_;
-    RenderPathInfo* renderPathInfo_;
-    int renderPassIndex_;
+	// RenderTargets : Data dependent on viewport size
+	Vector<RenderAttachment > renderAttachments_;  // index by Slot * ViewSize
+
+	/// Viewports
+	int viewportIndex_;
+	VkViewport viewport_, screenViewport_;
+	Vector<IntVector2> viewportSizes_;
+	Vector<ViewportRect> viewportInfos_;
+    VkRect2D screenScissor_, frameScissor_;
     Texture2D* viewportTexture_;
-    unsigned viewportIndex_;
-    bool viewportChanged_;
+
+    /// Render Passes
+    HashMap<unsigned, RenderPathData > renderPathDatas_;
+    HashMap<unsigned, RenderPassInfo > renderPassInfos_;
+    RenderPathData* renderPathData_;
+    RenderPassInfo* renderPassInfo_;
+    int renderPassIndex_, subpassIndex_;
 
     /// Pipelines
     PipelineBuilder pipelineBuilder_;
-    IntRect viewportRects_[MAX_SHADER_VIEWPORTS];
-    VkViewport viewport_;
-    VkRect2D screenScissor_, frameScissor_;
     VkPipelineCache pipelineCache_;
     unsigned pipelineStates_;
     unsigned defaultPipelineStates_;
@@ -523,7 +554,6 @@ private:
 //    HashMap<StringHash, Vector<PipelineInfo* > > psPipelineInfos_;
 
     /// Semaphore Pools
-    //Vector<VkSemaphore> semaphorePool_;
     VkSemaphore presentComplete_;
     VkSemaphore renderComplete_;
 

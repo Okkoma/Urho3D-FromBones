@@ -220,7 +220,7 @@ public:
     /// Set depth-stencil surface.
     void SetDepthStencil(Texture2D* texture);
     /// Set viewport.
-    void SetViewport(const IntRect& rect, unsigned index=0);
+    void SetViewport(const IntRect& rect, int index=-1);
     /// Set blending and alpha-to-coverage modes. Alpha-to-coverage is not supported on Direct3D9.
     void SetBlendMode(BlendMode mode, bool alphaToCoverage = false);
     /// Set color write on/off.
