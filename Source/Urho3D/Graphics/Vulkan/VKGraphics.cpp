@@ -2598,23 +2598,24 @@ void Graphics::PrepareDraw()
 
         // Begin the render pass.
         VkRenderPassBeginInfo renderPassBI{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
-        renderPassBI.renderPass        = renderPassInfo->renderPass_;
+        renderPassBI.renderPass = renderPassInfo->renderPass_;
 
 		if (frame.viewportIndex_ != -1 && impl_->viewportInfos_.Size() > 1)
         {
-            const ViewportRect& viewportRect = impl_->viewportInfos_[frame.viewportIndex_];
-		    const unsigned fbindex = viewportRect.viewSizeIndex_ * impl_->renderPassInfos_.Size() + renderPassInfo->id_;
-
-			renderPassBI.framebuffer        = frame.framebuffers_[fbindex];
-			renderPassBI.renderArea.offset  = impl_->screenScissor_.offset;
-			renderPassBI.renderArea.extent  = viewportRect.rect_.extent;
+			renderPassBI.renderArea.offset = impl_->screenScissor_.offset;
+			renderPassBI.renderArea.extent = impl_->viewportInfos_[frame.viewportIndex_].rect_.extent;
         }
         else
         {
-            renderPassBI.framebuffer        = frame.framebuffers_[renderPassInfo->id_];
-            renderPassBI.renderArea.offset  = { 0, 0 };
-			renderPassBI.renderArea.extent  = impl_->swapChainExtent_;
+            renderPassBI.renderArea.offset = { 0, 0 };
+			renderPassBI.renderArea.extent = impl_->swapChainExtent_;
         }
+
+        unsigned fbindex = renderPassInfo->id_;
+        if (frame.viewportIndex_ != -1 && renderPassInfo->type_ == PASS_VIEW)
+            fbindex += impl_->viewportInfos_[frame.viewportIndex_].viewSizeIndex_ * impl_->renderPassInfos_.Size();
+
+        renderPassBI.framebuffer = frame.framebuffers_[fbindex];
 
     #ifdef ACTIVE_FRAMELOGDEBUG
         URHO3D_LOGDEBUGF("PrepareDraw ... Begin New Render passindex=%d viewportindex=%d viewport=%F,%F,%F,%F renderArea=%d,%d,%u,%u ...",

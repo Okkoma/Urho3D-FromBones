@@ -126,6 +126,7 @@ enum RenderPassType
 {
     PASS_CLEAR = 0,
     PASS_VIEW,
+    PASS_COPY,
     PASS_PRESENT
 };
 
@@ -373,6 +374,7 @@ public:
     static const unsigned ClearPass_1C;
     static const unsigned RenderPass_1C_1DS_1;
     static const unsigned RenderPass_1C_1DS_2;
+    static const unsigned CopyPass_1C;
     static const unsigned PresentPass_1C;
 
     /// Setters

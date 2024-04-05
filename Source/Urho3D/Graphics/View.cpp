@@ -695,7 +695,7 @@ void View::Render()
     // (backbuffer should contain proper depth already)
 
 #ifdef URHO3D_VULKAN
-    graphics_->GetImpl()->SetRenderPass(Technique::presentationPassIndex);
+    graphics_->GetImpl()->SetRenderPass(Technique::copyPassIndex);
     if (graphics_->GetImpl()->GetCurrentViewportTexture())
     {
 //        URHO3D_LOGDEBUGF("Blit to viewRect=%s", viewRect_.ToString().CString());

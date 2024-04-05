@@ -187,6 +187,7 @@ const char* RenderPassTypeStr[] =
 {
     "PASS_CLEAR",
     "PASS_VIEW",
+    "PASS_COPY",
     "PASS_PRESENT"
 };
 
@@ -1088,7 +1089,7 @@ void PipelineBuilder::CreatePipeline(PipelineInfo* info)
     pipelineInfo.pColorBlendState    = &colorBlendState_;
     pipelineInfo.layout              = info->pipelineLayout_;
     pipelineInfo.renderPass          = renderPassInfo->renderPass_;
-    pipelineInfo.subpass             = renderPassInfo->type_ == PASS_PRESENT ? 0 : 1;
+    pipelineInfo.subpass             = renderPassInfo->type_ == PASS_VIEW ? 1 : 0;
     pipelineInfo.basePipelineHandle  = VK_NULL_HANDLE;
 
     VkResult result = vkCreateGraphicsPipelines(impl_->device_, impl_->pipelineCache_, 1, &pipelineInfo, pAllocator_, &info->pipeline_);
@@ -2315,6 +2316,7 @@ unsigned GetKey(RenderPath* renderpath)
 const unsigned GraphicsImpl::ClearPass_1C        = StringHash("CLEAR_1C").Value();
 const unsigned GraphicsImpl::RenderPass_1C_1DS_1 = StringHash("RENDER_1C_1DS_1").Value();
 const unsigned GraphicsImpl::RenderPass_1C_1DS_2 = StringHash("RENDER_1C_1DS_2").Value();
+const unsigned GraphicsImpl::CopyPass_1C         = StringHash("COPY_1C").Value();
 const unsigned GraphicsImpl::PresentPass_1C      = StringHash("PRESENT_1C").Value();
 
 void GraphicsImpl::AddRenderPassInfo(const String& attachmentconfig)
@@ -2347,7 +2349,7 @@ void GraphicsImpl::SetRenderPath(RenderPath* renderPath)
         // This is an hardcorded vulkan version of "ForwardUrho2D.Xml"
         renderPathData = &renderPathDatas_[key];
         renderPathData->renderPath_ = renderPath;
-        renderPathData->passInfos_.Resize(4);
+        renderPathData->passInfos_.Resize(5);
 
         int pass = 0;
         // Render Pass 0 : clear swap image
@@ -2363,7 +2365,7 @@ void GraphicsImpl::SetRenderPath(RenderPath* renderPath)
             renderPassInfo.subpasses_.Resize(1);
             renderPassInfo.subpasses_[0].colors_.Resize(1);
             renderPassInfo.subpasses_[0].colors_[0].attachment = 0;
-            renderPassInfo.subpasses_[0].colors_[0].layout     = VK_IMAGE_LAYOUT_UNDEFINED;
+            renderPassInfo.subpasses_[0].colors_[0].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
             renderPathData->renderPathCommandIndexToRenderPassIndexes_[Technique::GetPassIndex("clear")] = Pair<unsigned,unsigned>(pass, 0);
         }
@@ -2384,7 +2386,7 @@ void GraphicsImpl::SetRenderPath(RenderPath* renderPath)
             // clear subpass
             renderPassInfo.subpasses_[0].colors_.Resize(1);
             renderPassInfo.subpasses_[0].colors_[0].attachment = 0;
-            renderPassInfo.subpasses_[0].colors_[0].layout     = VK_IMAGE_LAYOUT_UNDEFINED;
+            renderPassInfo.subpasses_[0].colors_[0].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             renderPassInfo.subpasses_[0].depths_.Resize(1);
             renderPassInfo.subpasses_[0].depths_[0].attachment = 1;
             renderPassInfo.subpasses_[0].depths_[0].layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -2415,7 +2417,7 @@ void GraphicsImpl::SetRenderPath(RenderPath* renderPath)
             // clear subpass
             renderPassInfo.subpasses_[0].colors_.Resize(1);
             renderPassInfo.subpasses_[0].colors_[0].attachment = 0;
-            renderPassInfo.subpasses_[0].colors_[0].layout     = VK_IMAGE_LAYOUT_UNDEFINED;
+            renderPassInfo.subpasses_[0].colors_[0].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             // refract subpass
             renderPassInfo.subpasses_[1].colors_.Resize(1);
             renderPassInfo.subpasses_[1].colors_[0].attachment = 0;
@@ -2427,7 +2429,25 @@ void GraphicsImpl::SetRenderPath(RenderPath* renderPath)
             renderPathData->renderPathCommandIndexToRenderPassIndexes_[Technique::GetPassIndex("water")] = Pair<unsigned,unsigned>(pass, 1);
         }
         pass++;
-        // Render Pass 3 : Copy each RenderTarget's view on each viewport and draw UI
+        // Render Pass 3 : Copy each RenderTarget's view
+        {
+            RenderPassInfo& renderPassInfo = renderPassInfos_[CopyPass_1C];
+            renderPathData->passInfos_[pass] = &renderPassInfo;
+
+            renderPassInfo.type_ = PASS_COPY;
+            renderPassInfo.key_  = CopyPass_1C;
+            renderPassInfo.attachments_.Resize(1);
+            renderPassInfo.attachments_[0].slot_  = RENDERSLOT_PRESENT;
+            renderPassInfo.attachments_[0].clear_ = false;
+            renderPassInfo.subpasses_.Resize(1);
+            renderPassInfo.subpasses_[0].colors_.Resize(1);
+            renderPassInfo.subpasses_[0].colors_[0].attachment = 0;
+            renderPassInfo.subpasses_[0].colors_[0].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+            renderPathData->renderPathCommandIndexToRenderPassIndexes_[Technique::GetPassIndex("copy")] = Pair<unsigned,unsigned>(pass, 0);
+        }
+        pass++;
+        // Render Pass 4 : draw UI and Present
         {
             RenderPassInfo& renderPassInfo = renderPassInfos_[PresentPass_1C];
             renderPathData->passInfos_[pass] = &renderPassInfo;
@@ -2699,13 +2719,21 @@ bool GraphicsImpl::CreateRenderPasses(RenderPathData& renderPathData)
             // Color Attachment
             if (attachmentInfo.slot_ < RENDERSLOT_DEPTH)
             {
-                desc.format        = swapChainInfo_.format;
-                desc.initialLayout = attachmentInfo.clear_ ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                desc.finalLayout   = attachmentInfo.slot_ == RENDERSLOT_PRESENT && renderPassInfo.type_ == PASS_PRESENT ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                desc.format     = swapChainInfo_.format;
                 if (attachmentInfo.clear_)
+                {
+                    desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
                     renderPassInfo.clearValues_[i].color = {0.f, 0.f, 0.f, 1.f};
+                }
                 else
-                    desc.initialLayout = desc.finalLayout;
+                    desc.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+                if (renderPassInfo.type_ == PASS_CLEAR || renderPassInfo.type_ == PASS_COPY)
+                    desc.finalLayout   = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                else if (renderPassInfo.type_ == PASS_PRESENT)
+                    desc.finalLayout   = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                else
+                    desc.finalLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             }
             // Depth Attachment
             else
@@ -2916,7 +2944,7 @@ void GraphicsImpl::SetViewport(int index, const IntRect& rect)
         viewport_ = screenViewport_;
         screenScissor_ = { 0, 0, swapChainExtent_.width, swapChainExtent_.height };
     }
-    else if (!renderPassInfo_ || (renderPassInfo_ && renderPassInfo_->type_ == PASS_PRESENT))
+    else if (!renderPassInfo_ || (renderPassInfo_ && renderPassInfo_->type_ >= PASS_COPY))
     {
         screenScissor_ = viewportInfos_[index].rect_;
         viewport_ = { (float)screenScissor_.offset.x, (float)screenScissor_.offset.y, (float)screenScissor_.extent.width, (float)screenScissor_.extent.height };

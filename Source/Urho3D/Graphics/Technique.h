@@ -119,7 +119,7 @@ public:
 
     /// Return pixel shader defines.
     const String& GetPixelShaderDefines() const { return pixelShaderDefines_; }
-    
+
     /// Return vertex shader define excludes.
     const String& GetVertexShaderDefineExcludes() const { return vertexShaderDefineExcludes_; }
 
@@ -272,6 +272,7 @@ public:
     static unsigned shadowPassIndex;
 #ifdef URHO3D_VULKAN
     static unsigned clearPassIndex;
+    static unsigned copyPassIndex;
     static unsigned presentationPassIndex;
 #endif
 

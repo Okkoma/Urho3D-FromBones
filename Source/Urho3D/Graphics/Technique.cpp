@@ -238,6 +238,7 @@ unsigned Technique::litAlphaPassIndex = 0;
 unsigned Technique::shadowPassIndex = 0;
 #ifdef URHO3D_VULKAN
 unsigned Technique::clearPassIndex = 0;
+unsigned Technique::copyPassIndex  = 0;
 unsigned Technique::presentationPassIndex = 0;
 #endif
 
@@ -548,7 +549,8 @@ unsigned Technique::GetPassIndex(const String& passName)
         shadowPassIndex       = passIndices["shadow"]   = 7;
     #ifdef URHO3D_VULKAN
         clearPassIndex        = passIndices["clear"]    = 8;
-        presentationPassIndex = passIndices["present"]  = 9;
+        copyPassIndex         = passIndices["copy"]     = 9;
+        presentationPassIndex = passIndices["present"]  = 10;
     #endif
     }
 
