@@ -36,23 +36,6 @@
 namespace Urho3D
 {
 
-const VkFilter VulkanFilterMode[] =
-{
-    VK_FILTER_NEAREST,
-    VK_FILTER_LINEAR,
-    VK_FILTER_LINEAR,
-    VK_FILTER_LINEAR,
-    VK_FILTER_NEAREST,
-};
-
-const VkSamplerAddressMode VulkanAddressMode[] =
-{
-    VK_SAMPLER_ADDRESS_MODE_REPEAT,
-    VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
-    VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-    VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER
-};
-
 void Texture::SetSRGB(bool enable)
 {
 #ifndef DISABLE_SRGB
@@ -130,43 +113,11 @@ void Texture::UpdateParameters()
     if ((!parametersDirty_ && sampler_) || !object_.buffer_)
         return;
 
-    vkDestroySampler(graphics_->GetImpl()->GetDevice(), (VkSampler)sampler_, nullptr);
+    sampler_ = graphics_->GetImpl()->GetSampler(filterMode_, IntVector3(addressMode_[0], addressMode_[1], addressMode_[2]), anisotropy_);
 
-    // Create Sampler
-    VkSamplerCreateInfo samplerInfo{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
-//    samplerInfo.magFilter               = VK_FILTER_NEAREST;
-//    samplerInfo.minFilter               = VK_FILTER_NEAREST;
-//    samplerInfo.mipmapMode              = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-//    samplerInfo.magFilter               = VK_FILTER_LINEAR;
-//    samplerInfo.minFilter               = VK_FILTER_LINEAR;
-//    samplerInfo.mipmapMode              = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	samplerInfo.magFilter               = VulkanFilterMode[filterMode_ != FILTER_DEFAULT ? filterMode_ : graphics_->GetDefaultTextureFilterMode()];
-    samplerInfo.minFilter               = samplerInfo.magFilter;
-    samplerInfo.mipmapMode              = samplerInfo.minFilter == VK_FILTER_NEAREST ? VK_SAMPLER_MIPMAP_MODE_NEAREST : VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    samplerInfo.mipLodBias              = 0.f;
-    samplerInfo.minLod                  = 0.f;
-    samplerInfo.maxLod                  = VK_LOD_CLAMP_NONE; // no lod clamping for use with immuablesampler : use always a maximal mip levels //static_cast<float>(levels_);
-    samplerInfo.addressModeU            = VulkanAddressMode[addressMode_[0]];
-    samplerInfo.addressModeV            = VulkanAddressMode[addressMode_[1]];
-    samplerInfo.addressModeW            = VulkanAddressMode[addressMode_[2]];
-    samplerInfo.anisotropyEnable        = anisotropy_ ? VK_TRUE : VK_FALSE;
-    samplerInfo.maxAnisotropy           = Min(anisotropy_ ? anisotropy_ : graphics_->GetDefaultTextureAnisotropy(), graphics_->GetImpl()->GetPhysicalDeviceInfo().properties_.limits.maxSamplerAnisotropy);
-    samplerInfo.borderColor             = VK_BORDER_COLOR_INT_TRANSPARENT_BLACK;//VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    samplerInfo.unnormalizedCoordinates = VK_FALSE;
-    samplerInfo.compareEnable           = VK_FALSE;
-    samplerInfo.compareOp               = VK_COMPARE_OP_LESS_OR_EQUAL;//VK_COMPARE_OP_ALWAYS;
-
-    VkResult result = vkCreateSampler(graphics_->GetImpl()->GetDevice(), &samplerInfo, nullptr, (VkSampler*)&sampler_);
-    if (result != VK_SUCCESS)
-    {
-        URHO3D_LOGERRORF("Can't create texture sampler for shader use");
-        return;
-    }
-
-    URHO3D_LOGDEBUGF("Texture - UpdateParameters : name=%s imageview=%u sampler=%u addressMode=(%u,%u,%u) anisotropy=%u mag=%u min=%u mipmap=%u",
+    URHO3D_LOGDEBUGF("Texture - UpdateParameters : name=%s imageview=%u sampler=%u addressMode=(%u,%u,%u) anisotropy=%u",
                      GetName().CString(), GetShaderResourceView(), GetSampler(),
-                     addressMode_[0], addressMode_[1], addressMode_[2], anisotropy_,
-                     samplerInfo.magFilter, samplerInfo.minFilter, samplerInfo.mipmapMode);
+                     addressMode_[0], addressMode_[1], addressMode_[2], anisotropy_);
 
     parametersDirty_ = false;
 }

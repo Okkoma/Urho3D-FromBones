@@ -140,6 +140,23 @@ static const VkStencilOp VulkanStencilOp[] =
     VK_STENCIL_OP_DECREMENT_AND_CLAMP, // OP_DECR
 };
 
+const VkFilter VulkanFilterMode[] =
+{
+    VK_FILTER_NEAREST,
+    VK_FILTER_LINEAR,
+    VK_FILTER_LINEAR,
+    VK_FILTER_LINEAR,
+    VK_FILTER_NEAREST,
+};
+
+const VkSamplerAddressMode VulkanAddressMode[] =
+{
+    VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
+    VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+    VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER
+};
+
 //const unsigned VulkanStencilModeValues[][4] =
 //{
 //    { VK_COMPARE_OP_ALWAYS, VK_STENCIL_OP_REPLACE, VK_STENCIL_OP_KEEP, VK_STENCIL_OP_KEEP },
@@ -190,6 +207,14 @@ const char* RenderPassTypeStr[] =
     "PASS_COPY",
     "PASS_PRESENT"
 };
+
+const char* GetRenderPassTypeName(unsigned type)
+{
+    if (type == PASS_CLEAR) return "PASS_CLEAR";
+    else if (type == PASS_VIEW) return "PASS_VIEW";
+    else if (type == PASS_COPY) return "PASS_COPY";
+    else return "PASS_PRESENT";
+}
 
 const char* RenderSlotTypeStr[] =
 {
@@ -1159,13 +1184,7 @@ GraphicsImpl::GraphicsImpl() :
     pipelineStates_ = defaultPipelineStates_;
     stencilValue_ = 0;
 
-    // Add built-in renderPathInfos
-    AddRenderPassInfo("CLEAR_1C");
-    AddRenderPassInfo("RENDER_1C_1DS_1");
-    AddRenderPassInfo("RENDER_1C_1DS_2");
-    AddRenderPassInfo("PRESENT_1C");
-
-    SetRenderPath(0);
+    SetRenderPath(0, true);
 
 	AddInstanceExtension(VK_KHR_SURFACE_EXTENSION_NAME);
 	AddInstanceExtension(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
@@ -1798,6 +1817,7 @@ void GraphicsImpl::CleanUpVulkan()
     CleanUpSwapChain();
     CleanUpRenderPasses();
     CleanUpPipelines();
+    CleanUpSamplers();
 
 #ifdef URHO3D_VMA
     if (allocator_ != VK_NULL_HANDLE)
@@ -2185,6 +2205,16 @@ void GraphicsImpl::CleanUpPipelines()
     }
 }
 
+void GraphicsImpl::CleanUpSamplers()
+{
+    const VkAllocationCallbacks* pAllocator = nullptr;
+
+    for (HashMap<unsigned, VkSampler>::Iterator it = samplers_.Begin(); it != samplers_.End(); ++it)
+    {
+        vkDestroySampler(device_, it->second_, pAllocator);
+    }
+}
+
 void GraphicsImpl::CleanUpRenderAttachments()
 {
     // TODO : memoryAllocator
@@ -2313,11 +2343,11 @@ unsigned GetKey(RenderPath* renderpath)
 }
 
 // built-in renderpathinfos
-const unsigned GraphicsImpl::ClearPass_1C        = StringHash("CLEAR_1C").Value();
-const unsigned GraphicsImpl::RenderPass_1C_1DS_1 = StringHash("RENDER_1C_1DS_1").Value();
-const unsigned GraphicsImpl::RenderPass_1C_1DS_2 = StringHash("RENDER_1C_1DS_2").Value();
-const unsigned GraphicsImpl::CopyPass_1C         = StringHash("COPY_1C").Value();
-const unsigned GraphicsImpl::PresentPass_1C      = StringHash("PRESENT_1C").Value();
+const unsigned GraphicsImpl::ClearPass_1C      = StringHash("CLEAR_1C").Value();
+const unsigned GraphicsImpl::RenderPass_1C_1DS = StringHash("RENDER_1C_1DS").Value();
+const unsigned GraphicsImpl::RenderPass_2C_1DS = StringHash("RENDER_2C_1DS").Value();
+const unsigned GraphicsImpl::CopyPass_1C       = StringHash("COPY_1C").Value();
+const unsigned GraphicsImpl::PresentPass_1C    = StringHash("PRESENT_1C").Value();
 
 void GraphicsImpl::AddRenderPassInfo(const String& attachmentconfig)
 {
@@ -2332,9 +2362,17 @@ void GraphicsImpl::AddRenderPassInfo(const String& attachmentconfig)
 }
 
 // TEST ONLY
-void GraphicsImpl::SetRenderPath(RenderPath* renderPath)
+void GraphicsImpl::SetRenderPath(RenderPath* renderPath, bool viewpassWithSubpasses)
 {
     URHO3D_LOGDEBUGF("GraphicsImpl() - SetRenderPath ...");
+
+    // Add built-in renderPathInfos
+    AddRenderPassInfo("CLEAR_1C");
+    if (!viewpassWithSubpasses)
+        AddRenderPassInfo("RENDER_1C_1DS");
+    AddRenderPassInfo("RENDER_2C_1DS");
+    AddRenderPassInfo("COPY_1C");
+    AddRenderPassInfo("PRESENT_1C");
 
     RenderPathData* renderPathData = 0;
 
@@ -2349,119 +2387,179 @@ void GraphicsImpl::SetRenderPath(RenderPath* renderPath)
         // This is an hardcorded vulkan version of "ForwardUrho2D.Xml"
         renderPathData = &renderPathDatas_[key];
         renderPathData->renderPath_ = renderPath;
-        renderPathData->passInfos_.Resize(5);
+        renderPathData->passInfos_.Resize(viewpassWithSubpasses ? 4 : 5);
 
         int pass = 0;
-        // Render Pass 0 : clear swap image
+        // Clear Pass : clear swap image
         {
             RenderPassInfo& renderPassInfo = renderPassInfos_[ClearPass_1C];
             renderPathData->passInfos_[pass] = &renderPassInfo;
-
+            // Pass Attachments
             renderPassInfo.type_ = PASS_CLEAR;
             renderPassInfo.key_  = ClearPass_1C;
             renderPassInfo.attachments_.Resize(1);
             renderPassInfo.attachments_[0].slot_  = RENDERSLOT_PRESENT;
             renderPassInfo.attachments_[0].clear_ = true;
+            // SubPass Descriptions
             renderPassInfo.subpasses_.Resize(1);
             renderPassInfo.subpasses_[0].colors_.Resize(1);
             renderPassInfo.subpasses_[0].colors_[0].attachment = 0;
             renderPassInfo.subpasses_[0].colors_[0].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
             renderPathData->renderPathCommandIndexToRenderPassIndexes_[Technique::GetPassIndex("clear")] = Pair<unsigned,unsigned>(pass, 0);
         }
         pass++;
-        // Render Pass 1 : Alpha
+        if (viewpassWithSubpasses)
+        // View Pass (subpass version): View Render Passes => Alpha, Water, Front
         {
-            RenderPassInfo& renderPassInfo = renderPassInfos_[RenderPass_1C_1DS_1];
+            RenderPassInfo& renderPassInfo = renderPassInfos_[RenderPass_2C_1DS];
             renderPathData->passInfos_[pass] = &renderPassInfo;
-
+            // Pass Attachments
             renderPassInfo.type_ = PASS_VIEW;
-            renderPassInfo.key_  = RenderPass_1C_1DS_1;
-            renderPassInfo.attachments_.Resize(2);
+            renderPassInfo.key_  = RenderPass_2C_1DS;
+            renderPassInfo.attachments_.Resize(3);
             renderPassInfo.attachments_[0].slot_  = RENDERSLOT_TARGET1;
             renderPassInfo.attachments_[0].clear_ = true;
-            renderPassInfo.attachments_[1].slot_  = RENDERSLOT_DEPTH;
+            renderPassInfo.attachments_[1].slot_  = RENDERSLOT_TARGET2;
             renderPassInfo.attachments_[1].clear_ = true;
-            renderPassInfo.subpasses_.Resize(2);
-            // clear subpass
-            renderPassInfo.subpasses_[0].colors_.Resize(1);
+            renderPassInfo.attachments_[2].slot_  = RENDERSLOT_DEPTH;
+            renderPassInfo.attachments_[2].clear_ = true;
+            // SubPass Descriptions
+            renderPassInfo.subpasses_.Resize(4);
+            // clear subpass : clear target1, target2 and depth
+            renderPassInfo.subpasses_[0].colors_.Resize(2);
             renderPassInfo.subpasses_[0].colors_[0].attachment = 0;
-            renderPassInfo.subpasses_[0].colors_[0].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            renderPassInfo.subpasses_[0].colors_[0].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; // layout corresponds to the final attachment layout in this subpass
+            renderPassInfo.subpasses_[0].colors_[1].attachment = 1;
+            renderPassInfo.subpasses_[0].colors_[1].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             renderPassInfo.subpasses_[0].depths_.Resize(1);
-            renderPassInfo.subpasses_[0].depths_[0].attachment = 1;
+            renderPassInfo.subpasses_[0].depths_[0].attachment = 2;
             renderPassInfo.subpasses_[0].depths_[0].layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            // alpha subpass
-            renderPassInfo.subpasses_[1].colors_.Resize(1);
+            // alpha subpass : write to target1 and target2
+            renderPassInfo.subpasses_[1].colors_.Resize(2);
             renderPassInfo.subpasses_[1].colors_[0].attachment = 0;
-            renderPassInfo.subpasses_[1].colors_[0].layout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            renderPassInfo.subpasses_[1].colors_[0].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            renderPassInfo.subpasses_[1].colors_[1].attachment = 1;
+            renderPassInfo.subpasses_[1].colors_[1].layout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // this rendertarget is accessible for the shader in the next subpass "water"
             renderPassInfo.subpasses_[1].depths_.Resize(1);
-            renderPassInfo.subpasses_[1].depths_[0].attachment = 1;
+            renderPassInfo.subpasses_[1].depths_[0].attachment = 2;
             renderPassInfo.subpasses_[1].depths_[0].layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
             renderPathData->renderPathCommandIndexToRenderPassIndexes_[Technique::GetPassIndex("alpha")] = Pair<unsigned,unsigned>(pass, 1);
+            // refract subpass : read target2 and write to target1
+            renderPassInfo.subpasses_[2].colors_.Resize(1);
+            renderPassInfo.subpasses_[2].colors_[0].attachment = 0;
+            renderPassInfo.subpasses_[2].colors_[0].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            renderPassInfo.subpasses_[2].depths_.Resize(1);
+            renderPassInfo.subpasses_[2].depths_[0].attachment = 2;
+            renderPassInfo.subpasses_[2].depths_[0].layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            renderPathData->renderPathCommandIndexToRenderPassIndexes_[Technique::GetPassIndex("water")] = Pair<unsigned,unsigned>(pass, 2);
+            // front subpass : write target1
+            renderPassInfo.subpasses_[3].colors_.Resize(1);
+            renderPassInfo.subpasses_[3].colors_[0].attachment = 0;
+            renderPassInfo.subpasses_[3].colors_[0].layout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            renderPassInfo.subpasses_[3].depths_.Resize(1);
+            renderPassInfo.subpasses_[3].depths_[0].attachment = 2;
+            renderPassInfo.subpasses_[3].depths_[0].layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            renderPathData->renderPathCommandIndexToRenderPassIndexes_[Technique::GetPassIndex("front")] = Pair<unsigned,unsigned>(pass, 3);
         }
-        pass++;
-        // Render Pass 2 : Refraction to Dialog
+        else
         {
-            RenderPassInfo& renderPassInfo = renderPassInfos_[RenderPass_1C_1DS_2];
-            renderPathData->passInfos_[pass] = &renderPassInfo;
+            // Alpha Pass :
+            {
+                RenderPassInfo& renderPassInfo = renderPassInfos_[RenderPass_2C_1DS];
+                renderPathData->passInfos_[pass] = &renderPassInfo;
+                // Pass Attachments
+                renderPassInfo.type_ = PASS_VIEW;
+                renderPassInfo.key_  = RenderPass_2C_1DS;
+                renderPassInfo.attachments_.Resize(3);
+                renderPassInfo.attachments_[0].slot_  = RENDERSLOT_TARGET1;
+                renderPassInfo.attachments_[0].clear_ = true;
+                renderPassInfo.attachments_[1].slot_  = RENDERSLOT_TARGET2;
+                renderPassInfo.attachments_[1].clear_ = true;
+                renderPassInfo.attachments_[2].slot_  = RENDERSLOT_DEPTH;
+                renderPassInfo.attachments_[2].clear_ = true;
+                // SubPass Descriptions
+                renderPassInfo.subpasses_.Resize(2);
+                // clear subpass
+                renderPassInfo.subpasses_[0].colors_.Resize(2);
+                renderPassInfo.subpasses_[0].colors_[0].attachment = 0;
+                renderPassInfo.subpasses_[0].colors_[0].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                renderPassInfo.subpasses_[0].colors_[1].attachment = 1;
+                renderPassInfo.subpasses_[0].colors_[1].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                renderPassInfo.subpasses_[0].depths_.Resize(1);
+                renderPassInfo.subpasses_[0].depths_[0].attachment = 2;
+                renderPassInfo.subpasses_[0].depths_[0].layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                // alpha subpass
+                renderPassInfo.subpasses_[1].colors_.Resize(2);
+                renderPassInfo.subpasses_[1].colors_[0].attachment = 0;
+                renderPassInfo.subpasses_[1].colors_[0].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                renderPassInfo.subpasses_[1].colors_[1].attachment = 1;
+                renderPassInfo.subpasses_[1].colors_[1].layout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                renderPassInfo.subpasses_[1].depths_.Resize(1);
+                renderPassInfo.subpasses_[1].depths_[0].attachment = 2;
+                renderPassInfo.subpasses_[1].depths_[0].layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                renderPathData->renderPathCommandIndexToRenderPassIndexes_[Technique::GetPassIndex("alpha")] = Pair<unsigned,unsigned>(pass, 1);
+            }
+            pass++;
+            // Refraction Pass :
+            {
+                RenderPassInfo& renderPassInfo = renderPassInfos_[RenderPass_1C_1DS];
+                renderPathData->passInfos_[pass] = &renderPassInfo;
+                // Pass Attachments
+                renderPassInfo.type_ = PASS_VIEW;
+                renderPassInfo.key_  = RenderPass_1C_1DS;
+                renderPassInfo.attachments_.Resize(2);
+                renderPassInfo.attachments_[0].slot_  = RENDERSLOT_TARGET1;
+                renderPassInfo.attachments_[0].clear_ = false;
+                renderPassInfo.attachments_[1].slot_  = RENDERSLOT_DEPTH;
+                renderPassInfo.attachments_[1].clear_ = false;
+                // SubPass Descriptions
+                renderPassInfo.subpasses_.Resize(2);
+                // refract subpass
+                // NOTE : allow the first subpass to be empty : TODO check validation layer
+                renderPassInfo.subpasses_[1].colors_.Resize(1);
+                renderPassInfo.subpasses_[1].colors_[0].attachment = 0;
+                renderPassInfo.subpasses_[1].colors_[0].layout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                renderPassInfo.subpasses_[1].depths_.Resize(1);
+                renderPassInfo.subpasses_[1].depths_[0].attachment = 1;
+                renderPassInfo.subpasses_[1].depths_[0].layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-            renderPassInfo.type_ = PASS_VIEW;
-            renderPassInfo.key_  = RenderPass_1C_1DS_2;
-            renderPassInfo.attachments_.Resize(2);
-            renderPassInfo.attachments_[0].slot_  = RENDERSLOT_TARGET2;
-            renderPassInfo.attachments_[0].clear_ = true;
-            renderPassInfo.attachments_[1].slot_  = RENDERSLOT_DEPTH;
-            renderPassInfo.attachments_[1].clear_ = false;
-            renderPassInfo.subpasses_.Resize(2);
-            // clear subpass
-            renderPassInfo.subpasses_[0].colors_.Resize(1);
-            renderPassInfo.subpasses_[0].colors_[0].attachment = 0;
-            renderPassInfo.subpasses_[0].colors_[0].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            // refract subpass
-            renderPassInfo.subpasses_[1].colors_.Resize(1);
-            renderPassInfo.subpasses_[1].colors_[0].attachment = 0;
-            renderPassInfo.subpasses_[1].colors_[0].layout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            renderPassInfo.subpasses_[1].depths_.Resize(1);
-            renderPassInfo.subpasses_[1].depths_[0].attachment = 1;
-            renderPassInfo.subpasses_[1].depths_[0].layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-            renderPathData->renderPathCommandIndexToRenderPassIndexes_[Technique::GetPassIndex("water")] = Pair<unsigned,unsigned>(pass, 1);
+                renderPathData->renderPathCommandIndexToRenderPassIndexes_[Technique::GetPassIndex("water")] = Pair<unsigned,unsigned>(pass, 1);
+            }
         }
         pass++;
-        // Render Pass 3 : Copy each RenderTarget's view
+        // Copy Pass : Copy RenderTarget to SwapChain Image (frame)
         {
             RenderPassInfo& renderPassInfo = renderPassInfos_[CopyPass_1C];
             renderPathData->passInfos_[pass] = &renderPassInfo;
-
+            // Pass Attachments
             renderPassInfo.type_ = PASS_COPY;
             renderPassInfo.key_  = CopyPass_1C;
             renderPassInfo.attachments_.Resize(1);
             renderPassInfo.attachments_[0].slot_  = RENDERSLOT_PRESENT;
             renderPassInfo.attachments_[0].clear_ = false;
+            // SubPass Descriptions
             renderPassInfo.subpasses_.Resize(1);
             renderPassInfo.subpasses_[0].colors_.Resize(1);
             renderPassInfo.subpasses_[0].colors_[0].attachment = 0;
             renderPassInfo.subpasses_[0].colors_[0].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
             renderPathData->renderPathCommandIndexToRenderPassIndexes_[Technique::GetPassIndex("copy")] = Pair<unsigned,unsigned>(pass, 0);
         }
         pass++;
-        // Render Pass 4 : draw UI and Present
+        // Present Pass : draw UI and Present
         {
             RenderPassInfo& renderPassInfo = renderPassInfos_[PresentPass_1C];
             renderPathData->passInfos_[pass] = &renderPassInfo;
-
+            // Pass Attachments
             renderPassInfo.type_ = PASS_PRESENT;
             renderPassInfo.key_  = PresentPass_1C;
             renderPassInfo.attachments_.Resize(1);
             renderPassInfo.attachments_[0].slot_  = RENDERSLOT_PRESENT;
             renderPassInfo.attachments_[0].clear_ = false;
+            // SubPass Descriptions
             renderPassInfo.subpasses_.Resize(1);
             renderPassInfo.subpasses_[0].colors_.Resize(1);
             renderPassInfo.subpasses_[0].colors_[0].attachment = 0;
             renderPassInfo.subpasses_[0].colors_[0].layout     = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
             renderPathData->renderPathCommandIndexToRenderPassIndexes_[Technique::GetPassIndex("present")] = Pair<unsigned,unsigned>(pass, 0);
         }
     }
@@ -2472,6 +2570,50 @@ void GraphicsImpl::SetRenderPath(RenderPath* renderPath)
     }
 
     renderPathData_ = renderPathData;
+}
+
+void GraphicsImpl::UpdateViewportTexture(unsigned renderpassindex, unsigned subpassindex)
+{
+    viewportTexture_ = 0;
+
+    if (!frame_ || !renderpassindex)
+        return;
+
+    const int viewSizeIndex = viewportIndex_ != -1 ? viewportInfos_[viewportIndex_].viewSizeIndex_ : 0;
+
+    int slot = -1;
+
+    if (renderpassindex != renderPassIndex_)
+    {
+        // take the rendertarget texture generated at the previous rendered pass.
+        const Vector<RenderPassAttachmentInfo>& attachments = renderPathData_->passInfos_[renderPassIndex_]->attachments_;
+        for (unsigned i = 0; i < attachments.Size(); i++)
+        {
+            if (attachments[i].slot_ > RENDERSLOT_PRESENT && attachments[i].slot_ < RENDERSLOT_DEPTH)
+            {
+                slot = attachments[i].slot_;
+                break;
+            }
+        }
+    }
+    else if (subpassindex)
+    {
+        // take the rendertarget texture generated at the previous rendered subpass of the pass "renderpassindex"
+        RenderPassInfo* renderPassInfo = renderPathData_->passInfos_[renderpassindex];
+        const Vector<RenderPassAttachmentInfo>& attachments = renderPassInfo->attachments_;
+        const Vector<VkAttachmentReference>& attachmentrefs = renderPassInfo->subpasses_[subpassindex-1].colors_;
+        for (unsigned i = 0; i < attachmentrefs.Size(); i++)
+        {
+            if (attachmentrefs[i].layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+            {
+                slot = attachments[attachmentrefs[i].attachment].slot_;
+                break;
+            }
+        }
+    }
+
+    if (slot != -1)
+        viewportTexture_ = renderAttachments_[viewSizeIndex * MAX_RENDERSLOTS + slot].texture_;
 }
 
 void GraphicsImpl::SetRenderPass(unsigned commandpassindex)
@@ -2493,28 +2635,16 @@ void GraphicsImpl::SetRenderPass(unsigned commandpassindex)
 #endif
             if (renderPassIndex_ != renderpassIndex || subpassIndex_ != subpassIndex)
             {
-                viewportTexture_ = 0;
+                UpdateViewportTexture(renderpassIndex, subpassIndex);
 
-                // TODO : we need to change the viewporttexture between subpasses too.
-                // example : subpass "refract" needs texture rendered in the previous subpass "alpha".
-                if (frame_ && renderpassIndex > 0)
+                if (renderPassIndex_ != renderpassIndex)
                 {
-                    // take the rendertarget texture generated at the previous pass.
-                    const int viewSizeIndex = viewportIndex_ != -1 ? viewportInfos_[viewportIndex_].viewSizeIndex_ : 0;
-                    const Vector<RenderPassAttachmentInfo>& attachments = renderPathData_->passInfos_[renderPassIndex_]->attachments_;
-                    for (unsigned i = 0; i < attachments.Size(); i++)
-                    {
-                        if (attachments[i].slot_ > RENDERSLOT_PRESENT && attachments[i].slot_ < RENDERSLOT_DEPTH)
-                        {
-                            viewportTexture_ = renderAttachments_[viewSizeIndex * MAX_RENDERSLOTS + attachments[i].slot_].texture_;
-                            break;
-                        }
-                    }
+                    renderPassIndex_ = renderpassIndex;
+                    renderPassInfo_  = renderPathData_->passInfos_[renderPassIndex_];
                 }
 
-                renderPassIndex_ = renderpassIndex;
-                subpassIndex_    = subpassIndex;
-                renderPassInfo_  = renderPathData_->passInfos_[renderPassIndex_];
+                if (subpassIndex_ != subpassIndex)
+                    subpassIndex_ = subpassIndex;
             }
         }
     }
@@ -2621,6 +2751,9 @@ void GraphicsImpl::CreateImageAttachment(int slot, RenderAttachment& attachment,
             URHO3D_LOGERRORF("Can't create image view !");
             return;
         }
+
+        // get or create sampler
+        attachment.sampler_ = GetSampler(FILTER_BILINEAR, IntVector3(ADDRESS_CLAMP, ADDRESS_CLAMP, ADDRESS_CLAMP), false);
     }
 
     if (attachment.slot_ < RENDERSLOT_DEPTH)
@@ -2728,7 +2861,7 @@ bool GraphicsImpl::CreateRenderPasses(RenderPathData& renderPathData)
                 else
                     desc.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-                if (renderPassInfo.type_ == PASS_CLEAR || renderPassInfo.type_ == PASS_COPY)
+                if (renderPassInfo.type_ & (PASS_CLEAR|PASS_COPY))
                     desc.finalLayout   = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
                 else if (renderPassInfo.type_ == PASS_PRESENT)
                     desc.finalLayout   = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
@@ -2811,7 +2944,7 @@ bool GraphicsImpl::CreateRenderPasses(RenderPathData& renderPathData)
         }
 
         URHO3D_LOGDEBUGF("GraphicsImpl() - Create Render Passes for renderPathData=%u .. passindex=%u passid=%d passkey=%d passtype=%s(%d) numsubpasses=%u ... OK !",
-            &renderPathData, passindex, renderPassInfo.id_, renderPassInfo.key_, RenderPassTypeStr[renderPassInfo.type_], renderPassInfo.type_, renderPassInfo.subpasses_.Size());
+            &renderPathData, passindex, renderPassInfo.id_, renderPassInfo.key_, GetRenderPassTypeName(renderPassInfo.type_), renderPassInfo.type_, renderPassInfo.subpasses_.Size());
     }
 
     return true;
@@ -2944,7 +3077,7 @@ void GraphicsImpl::SetViewport(int index, const IntRect& rect)
         viewport_ = screenViewport_;
         screenScissor_ = { 0, 0, swapChainExtent_.width, swapChainExtent_.height };
     }
-    else if (!renderPassInfo_ || (renderPassInfo_ && renderPassInfo_->type_ >= PASS_COPY))
+    else if (!renderPassInfo_ || (renderPassInfo_ && (renderPassInfo_->type_ & (PASS_COPY|PASS_PRESENT))))
     {
         screenScissor_ = viewportInfos_[index].rect_;
         viewport_ = { (float)screenScissor_.offset.x, (float)screenScissor_.offset.y, (float)screenScissor_.extent.width, (float)screenScissor_.extent.height };
@@ -3347,6 +3480,70 @@ VkPipeline GraphicsImpl::GetPipeline(const StringHash& key) const
 {
     HashMap<StringHash, PipelineInfo>::ConstIterator it = pipelinesInfos_.Find(key);
     return it != pipelinesInfos_.End() ? it->second_.pipeline_ : VK_NULL_HANDLE;
+}
+
+VkSampler GraphicsImpl::CreateSampler(TextureFilterMode filter, const IntVector3& adressMode, bool anisotropy)
+{
+    VkSampler sampler;
+
+    VkSamplerCreateInfo samplerInfo{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+//    samplerInfo.magFilter               = VK_FILTER_NEAREST;
+//    samplerInfo.minFilter               = VK_FILTER_NEAREST;
+//    samplerInfo.mipmapMode              = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+//    samplerInfo.magFilter               = VK_FILTER_LINEAR;
+//    samplerInfo.minFilter               = VK_FILTER_LINEAR;
+//    samplerInfo.mipmapMode              = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	samplerInfo.magFilter               = VulkanFilterMode[filter != FILTER_DEFAULT ? filter : graphics_->GetDefaultTextureFilterMode()];
+    samplerInfo.minFilter               = samplerInfo.magFilter;
+    samplerInfo.mipmapMode              = samplerInfo.minFilter == VK_FILTER_NEAREST ? VK_SAMPLER_MIPMAP_MODE_NEAREST : VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.mipLodBias              = 0.f;
+    samplerInfo.minLod                  = 0.f;
+    samplerInfo.maxLod                  = VK_LOD_CLAMP_NONE; // no lod clamping for use with immuablesampler : use always a maximal mip levels //static_cast<float>(levels_);
+    samplerInfo.addressModeU            = VulkanAddressMode[adressMode.x_];
+    samplerInfo.addressModeV            = VulkanAddressMode[adressMode.y_];
+    samplerInfo.addressModeW            = VulkanAddressMode[adressMode.z_];
+    samplerInfo.anisotropyEnable        = anisotropy ? VK_TRUE : VK_FALSE;
+    samplerInfo.maxAnisotropy           = Min(anisotropy ? anisotropy : graphics_->GetDefaultTextureAnisotropy(), GetPhysicalDeviceInfo().properties_.limits.maxSamplerAnisotropy);
+    samplerInfo.borderColor             = VK_BORDER_COLOR_INT_TRANSPARENT_BLACK;//VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable           = VK_FALSE;
+    samplerInfo.compareOp               = VK_COMPARE_OP_LESS_OR_EQUAL;//VK_COMPARE_OP_ALWAYS;
+
+    VkResult result = vkCreateSampler(device_, &samplerInfo, nullptr, &sampler);
+    if (result != VK_SUCCESS)
+    {
+        URHO3D_LOGERRORF("Can't create texture sampler for shader use");
+        return 0;
+    }
+    return sampler;
+}
+
+VkSampler GraphicsImpl::GetSampler(unsigned parametersKey)
+{
+    HashMap<unsigned, VkSampler>::Iterator it = samplers_.Find(parametersKey);
+    if (it != samplers_.End())
+        return it->second_;
+
+    TextureFilterMode filter = (TextureFilterMode)(parametersKey >> 12);
+    IntVector3 adressMode((parametersKey & 0xF) >> 1, (parametersKey & 0xFF) >> 4, (parametersKey & 0xFFF) >> 8);
+    bool anisotropy = (parametersKey & 0x1);
+
+    VkSampler sampler = CreateSampler(filter, adressMode, anisotropy);
+    samplers_[parametersKey] = sampler;
+    return sampler;
+}
+
+VkSampler GraphicsImpl::GetSampler(TextureFilterMode filter, const IntVector3& adressMode, bool anisotropy)
+{
+    unsigned parametersKey = (filter << 12) + (adressMode.z_ << 8) + (adressMode.y_ << 4) + (adressMode.x_ << 1) + anisotropy;
+
+    HashMap<unsigned, VkSampler>::Iterator it = samplers_.Find(parametersKey);
+    if (it != samplers_.End())
+        return it->second_;
+
+    VkSampler sampler = CreateSampler(filter, adressMode, anisotropy);
+    samplers_[parametersKey] = sampler;
+    return sampler;
 }
 
 int GraphicsImpl::GetMaxCompatibleDescriptorSets(PipelineInfo* p1, PipelineInfo* p2) const

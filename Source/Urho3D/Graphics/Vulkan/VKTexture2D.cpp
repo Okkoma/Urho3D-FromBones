@@ -100,9 +100,6 @@ void Texture2D::Release()
 
     if (graphics_)
     {
-        if (sampler_)
-            vkDestroySampler(graphics_->GetImpl()->GetDevice(), (VkSampler)sampler_, nullptr);
-
         if (imageView_)
             vkDestroyImageView(graphics_->GetImpl()->GetDevice(), (VkImageView)imageView_, nullptr);
 

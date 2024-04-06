@@ -1896,8 +1896,8 @@ bool View::SetTextures(RenderPathCommand& command)
         #ifdef URHO3D_VULKAN
             Texture2D* texture = graphics_->GetImpl()->GetCurrentViewportTexture();
             graphics_->SetTexture(i, texture);
-            URHO3D_LOGDEBUGF("View() - SetTextures ... pass=%s texturename[%d]=%s texture=%u(%u)",
-                             command.pass_.CString(), i, command.textureNames_[i].CString(), texture, currentViewportTexture_);
+//            URHO3D_LOGDEBUGF("View() - SetTextures ... pass=%s texturename[%d]=%s texture=%u(%u)",
+//                             command.pass_.CString(), i, command.textureNames_[i].CString(), texture, currentViewportTexture_);
         #else
             graphics_->SetTexture(i, currentViewportTexture_);
         #endif

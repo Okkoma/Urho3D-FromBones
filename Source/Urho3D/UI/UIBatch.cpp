@@ -96,38 +96,27 @@ void UIBatch::Initialize(Graphics* graphics)
 
     if (noTextureVS && noTexturePS)
     {
-        graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_1, noTextureVS, noTexturePS, states[BLEND_REPLACE], 1, &UIBatch::vertexElements_);
-        graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_2, noTextureVS, noTexturePS, states[BLEND_REPLACE], 1, &UIBatch::vertexElements_);
-
-        graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_1, noTextureVS, noTexturePS, states[BLEND_ALPHA], 1, &UIBatch::vertexElements_);
-        graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_2, noTextureVS, noTexturePS, states[BLEND_ALPHA], 1, &UIBatch::vertexElements_);
+        graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, noTextureVS, noTexturePS, states[BLEND_REPLACE], 1, &UIBatch::vertexElements_);
+        graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, noTextureVS, noTexturePS, states[BLEND_ALPHA], 1, &UIBatch::vertexElements_);
     }
 
     if (diffTextureVS)
     {
         if (diffTexturePS)
         {
-            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_1, diffTextureVS, diffTexturePS, states[BLEND_REPLACE], 1, &UIBatch::vertexElements_);
-            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_2, diffTextureVS, diffTexturePS, states[BLEND_REPLACE], 1, &UIBatch::vertexElements_);
-            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_1, diffTextureVS, diffTexturePS, states[BLEND_ALPHA], 1, &UIBatch::vertexElements_);
-            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_2, diffTextureVS, diffTexturePS, states[BLEND_ALPHA], 1, &UIBatch::vertexElements_);
+            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, diffTextureVS, diffTexturePS, states[BLEND_REPLACE], 1, &UIBatch::vertexElements_);
+            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, diffTextureVS, diffTexturePS, states[BLEND_ALPHA], 1, &UIBatch::vertexElements_);
         }
         if (diffMaskTexturePS)
         {
-            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_1, diffTextureVS, diffMaskTexturePS, states[BLEND_ALPHA], 1, &UIBatch::vertexElements_);
-            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_1, diffTextureVS, diffMaskTexturePS, states[BLEND_REPLACE], 1, &UIBatch::vertexElements_);
-            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_1, diffTextureVS, diffMaskTexturePS, states[BLEND_ADD], 1, &UIBatch::vertexElements_);
-            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_1, diffTextureVS, diffMaskTexturePS, states[BLEND_ADDALPHA], 1, &UIBatch::vertexElements_);
-
-            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_2, diffTextureVS, diffMaskTexturePS, states[BLEND_ALPHA], 1, &UIBatch::vertexElements_);
-            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_2, diffTextureVS, diffMaskTexturePS, states[BLEND_REPLACE], 1, &UIBatch::vertexElements_);
-            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_2, diffTextureVS, diffMaskTexturePS, states[BLEND_ADD], 1, &UIBatch::vertexElements_);
-            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_2, diffTextureVS, diffMaskTexturePS, states[BLEND_ADDALPHA], 1, &UIBatch::vertexElements_);
+            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, diffTextureVS, diffMaskTexturePS, states[BLEND_ALPHA], 1, &UIBatch::vertexElements_);
+            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, diffTextureVS, diffMaskTexturePS, states[BLEND_REPLACE], 1, &UIBatch::vertexElements_);
+            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, diffTextureVS, diffMaskTexturePS, states[BLEND_ADD], 1, &UIBatch::vertexElements_);
+            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, diffTextureVS, diffMaskTexturePS, states[BLEND_ADDALPHA], 1, &UIBatch::vertexElements_);
         }
         if (alphaTexturePS)
         {
-            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_1, diffTextureVS, alphaTexturePS, states[BLEND_ALPHA], 1, &UIBatch::vertexElements_);
-            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_1C_1DS_2, diffTextureVS, alphaTexturePS, states[BLEND_ALPHA], 1, &UIBatch::vertexElements_);
+            graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, diffTextureVS, alphaTexturePS, states[BLEND_ALPHA], 1, &UIBatch::vertexElements_);
         }
     }
 #endif

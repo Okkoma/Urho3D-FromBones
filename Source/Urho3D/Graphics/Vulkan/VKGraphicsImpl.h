@@ -122,12 +122,12 @@ struct ViewportRect
 	VkRect2D rect_;
 };
 
-enum RenderPassType
+enum RenderPassTypeFlag
 {
-    PASS_CLEAR = 0,
-    PASS_VIEW,
-    PASS_COPY,
-    PASS_PRESENT
+    PASS_CLEAR   = 0x1,
+    PASS_VIEW    = 0x2,
+    PASS_COPY    = 0x4,
+    PASS_PRESENT = 0x8
 };
 
 enum RenderSlotType
@@ -372,8 +372,8 @@ public:
     static const unsigned DefaultRenderPassNoClear;
 
     static const unsigned ClearPass_1C;
-    static const unsigned RenderPass_1C_1DS_1;
-    static const unsigned RenderPass_1C_1DS_2;
+    static const unsigned RenderPass_1C_1DS;
+    static const unsigned RenderPass_2C_1DS;
     static const unsigned CopyPass_1C;
     static const unsigned PresentPass_1C;
 
@@ -385,7 +385,7 @@ public:
 
 	// RenderPaths
     void AddRenderPassInfo(const String& attachmentconfig);
-    void SetRenderPath(RenderPath* renderPath);
+    void SetRenderPath(RenderPath* renderPath, bool viewpassWithSubpasses=false);
     void SetRenderPass(unsigned passindex);
 
 	// Pipelines
@@ -438,6 +438,9 @@ public:
     PipelineInfo* GetPipelineInfo(const StringHash& key) const;
     VkPipeline GetPipeline(const StringHash& key) const;
 
+    VkSampler GetSampler(unsigned parametersKey);
+    VkSampler GetSampler(TextureFilterMode filter, const IntVector3& adressMode, bool anisotropy);
+
     int GetMaxCompatibleDescriptorSets(PipelineInfo* p1, PipelineInfo* p2) const;
 
     /// Dump
@@ -452,18 +455,21 @@ private:
 	void CleanUpRenderAttachments();
     void CleanUpRenderPasses();
     void CleanUpPipelines();
+    void CleanUpSamplers();
     void CleanUpSwapChain();
 
     bool CreateSwapChain(int width=0, int height=0, bool* srgb=0, bool* vsync=0, bool* triplebuffer=0);
     void UpdateSwapChain(int width=0, int height=0, bool* srgb=0, bool* vsync=0, bool* triplebuffer=0);
 
+    VkSampler CreateSampler(TextureFilterMode filter, const IntVector3& adressMode, bool anisotropy);
     void CreateImageAttachment(int slot, RenderAttachment& attachment, unsigned width, unsigned height);
     void DestroyAttachment(RenderAttachment& attachment);
-
 
     bool CreateRenderPasses(RenderPathData& renderPathInfo);
     bool CreateRenderAttachments();
     bool CreateRenderPaths();
+
+    void UpdateViewportTexture(unsigned renderpassindex, unsigned subpassindex);
 
     void CreatePipelines();
     VkPipeline CreatePipeline(PipelineInfo* info);
@@ -550,10 +556,9 @@ private:
     HashMap<StringHash, PipelineInfo > pipelinesInfos_;
     // indexed by vs,ps,states,stencilvalue
     HashMap<unsigned, HashMap<StringHash, HashMap<StringHash, HashMap<unsigned, Vector<PipelineInfo*> > > > > pipelineInfoTable_;
-    /// Test : New pipeline storage and hash
-//    Vector<PipelineInfo> pipelinesInfos_;
-//    HashMap<StringHash, Vector<PipelineInfo* > > vsPipelineInfos_;
-//    HashMap<StringHash, Vector<PipelineInfo* > > psPipelineInfos_;
+
+    /// Samplers
+    HashMap<unsigned, VkSampler> samplers_;
 
     /// Semaphore Pools
     VkSemaphore presentComplete_;

@@ -2558,19 +2558,28 @@ void Graphics::PrepareDraw()
     FrameData& frame = *impl_->frame_;
 
 #ifdef ACTIVE_FRAMELOGDEBUG
-    URHO3D_LOGDEBUGF("PrepareDraw ... frame=%u ... pipelineDirty=%s textureDirty=%s frameRenderPassIndex=%d implRenderPassIndex=%d",
+    URHO3D_LOGDEBUGF("PrepareDraw ... frame=%u ... pipelineDirty=%s textureDirty=%s frameRenderPassIndex=(%d,%d) implRenderPassIndex=(%d,%d)",
                      impl_->GetFrameIndex(), impl_->pipelineDirty_ ? "true":"false",
                      frame.textureDirty_ && textures_[0] ? (!textures_[0]->GetName().Empty() ? textures_[0]->GetName().CString() : "noname") : "false",
-                     frame.renderPassIndex_, impl_->renderPassIndex_);
+                     frame.renderPassIndex_, frame.subpassIndex_, impl_->renderPassIndex_, impl_->subpassIndex_);
 #endif
 
     // End of the current renderpass.
     if (frame.renderPassBegun_ && frame.renderPassIndex_ != -1 &&
 		(frame.renderPassIndex_ != impl_->renderPassIndex_ || frame.viewportIndex_ != impl_->viewportIndex_))
     {
+        // Execute all remaining subpasses to ensure the correct transition of the attachment layouts
+        const unsigned remaingSubpasses = impl_->renderPathData_->passInfos_[frame.renderPassIndex_]->subpasses_.Size() - 1;
     #ifdef ACTIVE_FRAMELOGDEBUG
-        URHO3D_LOGDEBUG("PrepareDraw ... Render Pass End !");
+        URHO3D_LOGDEBUGF("PrepareDraw ... Render Pass End : subpassindex=%d remain=%d", frame.subpassIndex_, remaingSubpasses);
     #endif
+
+        while (frame.subpassIndex_ < remaingSubpasses)
+        {
+            frame.subpassIndex_++;
+            vkCmdNextSubpass(frame.commandBuffer_, VK_SUBPASS_CONTENTS_INLINE);
+        }
+
         vkCmdEndRenderPass(frame.commandBuffer_);
         frame.renderPassBegun_ = false;
     }
@@ -2600,15 +2609,15 @@ void Graphics::PrepareDraw()
         VkRenderPassBeginInfo renderPassBI{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
         renderPassBI.renderPass = renderPassInfo->renderPass_;
 
-		if (frame.viewportIndex_ != -1 && impl_->viewportInfos_.Size() > 1)
-        {
-			renderPassBI.renderArea.offset = impl_->screenScissor_.offset;
-			renderPassBI.renderArea.extent = impl_->viewportInfos_[frame.viewportIndex_].rect_.extent;
-        }
-        else
+		if (frame.viewportIndex_ == -1 || (renderPassInfo->type_ & (PASS_CLEAR|PASS_PRESENT)))
         {
             renderPassBI.renderArea.offset = { 0, 0 };
 			renderPassBI.renderArea.extent = impl_->swapChainExtent_;
+        }
+        else
+        {
+			renderPassBI.renderArea.offset = impl_->screenScissor_.offset;
+			renderPassBI.renderArea.extent = impl_->viewportInfos_[frame.viewportIndex_].rect_.extent;
         }
 
         unsigned fbindex = renderPassInfo->id_;
@@ -2638,8 +2647,11 @@ void Graphics::PrepareDraw()
     // that's execute all previous subpasses (like "clear subpass")
     if (frame.renderPassBegun_ && frame.subpassIndex_ != impl_->subpassIndex_)
     {
-        while (frame.subpassIndex_++ < impl_->subpassIndex_)
+        while (frame.subpassIndex_ < impl_->subpassIndex_)
+        {
+            frame.subpassIndex_++;
             vkCmdNextSubpass(frame.commandBuffer_, VK_SUBPASS_CONTENTS_INLINE);
+        }
     }
 
     // Set the Pipeline if dirty (shaders changed or/and states changed)
@@ -2775,10 +2787,6 @@ void Graphics::PrepareDraw()
 
                     numInputsUpdate++;
 
-                #ifdef ACTIVE_FRAMELOGDEBUG
-                    URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u write=%u SPGroup=%u size=%u descInd=%u update buffer=%u !",
-                                    shaderStage == VS ? "VS":"PS", set, binding.id_, descriptorWritesCount+1, binding.unitStart_, sizePerObject, alloc.index_, buffer);
-                #endif
                     descriptorWritesCount++;
                 }
                 // Sampler
