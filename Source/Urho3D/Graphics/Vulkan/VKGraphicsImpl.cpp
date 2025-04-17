@@ -2527,8 +2527,10 @@ void GraphicsImpl::SetRenderPass(unsigned commandpassindex)
             {
                 renderPassIndex_ = renderPassIndex;
                 // take the viewport texture generated at the previous pass.
-                viewportTexture_ = renderPassIndex > 0 && renderPathInfo_->renderPassInfos_[renderPassIndex-1]->viewportTexture_
-                                        ? renderPathInfo_->renderPassInfos_[renderPassIndex-1]->viewportTexture_ : 0;
+                if (renderPassIndex > 0)
+                    viewportTexture_ = renderPathInfo_->renderPassInfos_[renderPassIndex-1]->viewportTexture_;
+                else
+                    viewportTexture_ = nullptr;
             }
         }
     }

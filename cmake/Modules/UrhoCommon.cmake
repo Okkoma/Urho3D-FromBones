@@ -580,7 +580,7 @@ endif ()
 # Define preprocessor macros (for building the Urho3D library) based on the configured build options
 foreach (OPT URHO3D_ANGELSCRIPT URHO3D_DATABASE URHO3D_FILEWATCHER URHO3D_IK URHO3D_LOGGING URHO3D_LUA
              URHO3D_MINIDUMPS URHO3D_NAVIGATION URHO3D_NETWORK URHO3D_PHYSICS URHO3D_PROFILING
-             URHO3D_TRACY_PROFILING URHO3D_THREADING URHO3D_URHO2D URHO3D_WEBP URHO3D_WIN32_CONSOLE)
+             URHO3D_TRACY_PROFILING URHO3D_THREADING URHO3D_URHO2D URHO3D_WEBP URHO3D_WIN32_CONSOLE
         	 URHO3D_VMA URHO3D_VOLK URHO3D_VULKAN_VALIDATION URHO3D_SPIRV)
     if (${OPT})
         add_definitions (-D${OPT})
@@ -1014,6 +1014,14 @@ macro (define_dependency_libs TARGET)
             endif ()
             if (RPI)
                 list (APPEND ABSOLUTE_PATH_LIBS ${VIDEOCORE_LIBRARIES})
+            endif ()
+            if (WAYLAND_CLIENT)
+                if (NOT WAYLAND_CLIENT MATCHES client)
+                    unset (WAYLAND_CLIENT)
+                    unset (WAYLAND_CLIENT CACHE)
+                    find_package (Wayland)
+                endif ()
+                list (APPEND ABSOLUTE_PATH_LIBS ${WAYLAND_CLIENT})
             endif ()
         endif ()
     endif ()
