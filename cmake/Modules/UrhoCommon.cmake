@@ -1,5 +1,6 @@
 #
 # Copyright (c) 2008-2022 the Urho3D project.
+# Copyright (c) 2022-2024 the U3D project.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -20,10 +21,45 @@
 # THE SOFTWARE.
 #
 
+set (URHOCOMMON_INUSE TRUE)
+
+# This ensures compatibility with older versions of Urho3D's CMake files.
+# Define new Urho3D variables with default values if they are not already set.
+# If you are using "Urho3D.cmake" in your user project, these variables should 
+# already be configured automatically.
+if (NOT URHO3D_ROOT_DIR)
+    # For the main Urho3D build, ensure compatibility when using with older versions of Urho3D's CMake files.
+    if (CMAKE_PROJECT_NAME STREQUAL Urho3D) 
+        set (URHO3D_ROOT_DIR     ${CMAKE_SOURCE_DIR})
+        set (URHO3D_SOURCE_DIR   ${CMAKE_SOURCE_DIR}/Source)
+        set (URHO3D_BUILD_DIR    ${CMAKE_BINARY_DIR})
+        set (URHO3D_CMAKE_MODULE ${CMAKE_SOURCE_DIR}/cmake/Modules)
+    # If this is a user project (not an Urho3D main or external project),
+    # the "Urho3D.cmake" file will handle the variable configuration.
+    elseif (NOT CMAKE_PROJECT_NAME MATCHES ^Urho3D-ExternalProject-)
+        if (EXISTS ${CMAKE_SOURCE_DIR}/cmake/Urho3D.cmake)
+            include (${CMAKE_SOURCE_DIR}/cmake/Urho3D.cmake)
+            if (NOT URHO3D_HOME AND NOT ANDROID)
+                return ()
+            endif ()
+        endif ()
+    endif ()
+endif ()
+
 # Save the initial values of CC and CXX environment variables
-if (NOT CMAKE_CROSSCOMPILING)
+# only need on top level project
+# TODO : upgrade to cmake 3.22 and use PROJECT_IS_TOP_LEVEL
+if (NOT CMAKE_CROSSCOMPILING AND CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     set (SAVED_CC $ENV{CC} CACHE INTERNAL "Initial value for CC")
     set (SAVED_CXX $ENV{CXX} CACHE INTERNAL "Initial value for CXX")
+endif ()
+
+# Define CMake Module path, if not already done
+if (URHO3D_CMAKE_MODULE)
+    list (REMOVE_ITEM CMAKE_MODULE_PATH ${URHO3D_CMAKE_MODULE})
+    list (PREPEND CMAKE_MODULE_PATH ${URHO3D_CMAKE_MODULE})
+elseif (NOT CMAKE_MODULE_PATH)
+    set (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
 endif ()
 
 # Limit the supported build configurations
@@ -52,136 +88,165 @@ elseif (CMAKE_GENERATOR MATCHES Visual)
 endif ()
 
 # Rightfully we could have performed this inside a CMake/iOS toolchain file but we don't have one nor need for one for now
-if (IOS)
-    set (CMAKE_CROSSCOMPILING TRUE)
-    set (CMAKE_XCODE_EFFECTIVE_PLATFORMS -iphoneos -iphonesimulator)
-    set (CMAKE_OSX_SYSROOT iphoneos)    # Set Base SDK to "Latest iOS"
-    # This is a CMake hack in order to make standard CMake check modules that use try_compile() internally work on iOS platform
-    # The injected "flags" are not compiler flags, they are actually CMake variables meant for another CMake subprocess that builds the source file being passed in the try_compile() command
-    # CAVEAT: these injected "flags" must always be kept at the end of the string variable, i.e. when adding more compiler flags later on then those new flags must be prepended in front of these flags instead
-    set (CMAKE_REQUIRED_FLAGS ";-DSmileyHack=byYaoWT;-DCMAKE_MACOSX_BUNDLE=1;-DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED=0;-DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY=")
-    if (NOT IOS_SYSROOT)
-        execute_process (COMMAND xcodebuild -version -sdk ${CMAKE_OSX_SYSROOT} Path OUTPUT_VARIABLE IOS_SYSROOT OUTPUT_STRIP_TRAILING_WHITESPACE)   # Obtain iOS sysroot path
-        set (IOS_SYSROOT ${IOS_SYSROOT} CACHE INTERNAL "Path to iOS system root")
-    endif ()
-    set (CMAKE_FIND_ROOT_PATH ${IOS_SYSROOT})
-    set (IPHONEOS_DEPLOYMENT_TARGET "" CACHE STRING "Specify iOS deployment target (iOS platform only); default to latest installed iOS SDK if not specified, the minimum supported target is 3.0 due to constraint from SDL library")
-    if (DEPLOYMENT_TARGET_SAVED AND NOT ${IPHONEOS_DEPLOYMENT_TARGET}: STREQUAL DEPLOYMENT_TARGET_SAVED)
-        string (REPLACE : "" DEPLOYMENT_TARGET_SAVED ${DEPLOYMENT_TARGET_SAVED})
-        set (IPHONEOS_DEPLOYMENT_TARGET "${DEPLOYMENT_TARGET_SAVED}" CACHE STRING "Specify iOS deployment target (iOS platform only); default to latest installed iOS SDK if not specified, the minimum supported target is 3.0 due to constraint from SDL library" FORCE)
-        message (FATAL_ERROR "IPHONEOS_DEPLOYMENT_TARGET cannot be changed after the initial configuration/generation. "
-            "Auto reverting to its initial value. If you wish to change it then the build tree would have to be regenerated from scratch.")
-    endif ()
-    set (CMAKE_XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET ${IPHONEOS_DEPLOYMENT_TARGET})
-    set (DEPLOYMENT_TARGET_SAVED ${IPHONEOS_DEPLOYMENT_TARGET}: CACHE INTERNAL "Last known deployment target")    # with sentinel so it does not appear empty even when the default target is used
-    set (CMAKE_XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES)
-    # Workaround what appears to be a bug in CMake/Xcode generator, ensure the CMAKE_OSX_DEPLOYMENT_TARGET is set to empty for iOS build
-    set (CMAKE_OSX_DEPLOYMENT_TARGET)
-    unset (CMAKE_OSX_DEPLOYMENT_TARGET CACHE)
-elseif (TVOS)
-    set (CMAKE_CROSSCOMPILING TRUE)
-    set (CMAKE_XCODE_EFFECTIVE_PLATFORMS -appletvos -appletvsimulator)
-    set (CMAKE_OSX_SYSROOT appletvos)    # Set Base SDK to "Latest tvOS"
-    set (CMAKE_REQUIRED_FLAGS ";-DSmileyHack=byYaoWT;-DCMAKE_MACOSX_BUNDLE=1;-DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED=0;-DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY=")
-    if (NOT TVOS_SYSROOT)
-        execute_process (COMMAND xcodebuild -version -sdk ${CMAKE_OSX_SYSROOT} Path OUTPUT_VARIABLE TVOS_SYSROOT OUTPUT_STRIP_TRAILING_WHITESPACE)   # Obtain tvOS sysroot path
-        set (TVOS_SYSROOT ${TVOS_SYSROOT} CACHE INTERNAL "Path to tvOS system root")
-    endif ()
-    set (CMAKE_FIND_ROOT_PATH ${TVOS_SYSROOT})
-    set (APPLETVOS_DEPLOYMENT_TARGET "" CACHE STRING "Specify AppleTV OS deployment target (tvOS platform only); default to latest installed tvOS SDK if not specified, the minimum supported target is 9.0")
-    set (CMAKE_XCODE_ATTRIBUTE_APPLETVOS_DEPLOYMENT_TARGET ${APPLETVOS_DEPLOYMENT_TARGET})
-    set (CMAKE_XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES)
-    # Just in case it has similar bug for tvOS build
-    set (CMAKE_OSX_DEPLOYMENT_TARGET)
-    unset (CMAKE_OSX_DEPLOYMENT_TARGET CACHE)
-elseif (XCODE)
-    set (CMAKE_OSX_SYSROOT macosx)    # Set Base SDK to "Latest OS X"
-    if (CMAKE_OSX_DEPLOYMENT_TARGET)
-        if (CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.9)
-            message (FATAL_ERROR "The minimum supported CMAKE_OSX_DEPLOYMENT_TARGET is 10.9.")
+if (APPLE)
+    if (IOS)
+        set (CMAKE_CROSSCOMPILING TRUE)
+        set (CMAKE_XCODE_EFFECTIVE_PLATFORMS -iphoneos -iphonesimulator)
+        set (CMAKE_OSX_SYSROOT iphoneos)    # Set Base SDK to "Latest iOS"
+        if (DEFINED ENV{CI})
+            set (CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED 0)
+            set (CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "")
         endif ()
-    else ()
-        # If not set, set to current running build system OS version by default
-        execute_process (COMMAND sw_vers -productVersion OUTPUT_VARIABLE CURRENT_OSX_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
-        string (REGEX REPLACE ^\([^.]+\\.[^.]+\).* \\1 CMAKE_OSX_DEPLOYMENT_TARGET ${CURRENT_OSX_VERSION})
-        set (CMAKE_OSX_DEPLOYMENT_TARGET ${CMAKE_OSX_DEPLOYMENT_TARGET} CACHE STRING "Specify macOS deployment target (macOS platform only); default to current running macOS if not specified, the minimum supported target is 10.9")
+        # This is a CMake hack in order to make standard CMake check modules that use try_compile() internally work on iOS platform
+        # The injected "flags" are not compiler flags, they are actually CMake variables meant for another CMake subprocess that builds the source file being passed in the try_compile() command
+        # CAVEAT: these injected "flags" must always be kept at the end of the string variable, i.e. when adding more compiler flags later on then those new flags must be prepended in front of these flags instead
+        set (CMAKE_REQUIRED_FLAGS ";-DSmileyHack=byYaoWT;-DCMAKE_MACOSX_BUNDLE=1;-DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED=0;-DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY=")
+        if (NOT IOS_SYSROOT)
+            execute_process (COMMAND xcodebuild -version -sdk ${CMAKE_OSX_SYSROOT} Path OUTPUT_VARIABLE IOS_SYSROOT OUTPUT_STRIP_TRAILING_WHITESPACE)   # Obtain iOS sysroot path
+            set (IOS_SYSROOT ${IOS_SYSROOT} CACHE INTERNAL "Path to iOS system root")
+        endif ()
+        set (CMAKE_FIND_ROOT_PATH ${IOS_SYSROOT})
+        set (IPHONEOS_DEPLOYMENT_TARGET "" CACHE STRING "Specify iOS deployment target (iOS platform only); default to latest installed iOS SDK if not specified, the minimum supported target is 3.0 due to constraint from SDL library")
+        if (DEPLOYMENT_TARGET_SAVED AND NOT ${IPHONEOS_DEPLOYMENT_TARGET}: STREQUAL DEPLOYMENT_TARGET_SAVED)
+            string (REPLACE : "" DEPLOYMENT_TARGET_SAVED ${DEPLOYMENT_TARGET_SAVED})
+                set (IPHONEOS_DEPLOYMENT_TARGET "${DEPLOYMENT_TARGET_SAVED}" CACHE STRING "Specify iOS deployment target (iOS platform only), default to latest installed iOS SDK if not specified, the minimum supported target is 3.0 due to constraint from SDL library" FORCE)
+            message (FATAL_ERROR "IPHONEOS_DEPLOYMENT_TARGET cannot be changed after the initial configuration/generation. "
+                "Auto reverting to its initial value. If you wish to change it then the build tree would have to be regenerated from scratch.")
+        endif ()
+        set (CMAKE_XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET ${IPHONEOS_DEPLOYMENT_TARGET})
+        set (DEPLOYMENT_TARGET_SAVED ${IPHONEOS_DEPLOYMENT_TARGET}: CACHE INTERNAL "Last known deployment target")    # with sentinel so it does not appear empty even when the default target is used
+        set (CMAKE_XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES)
+        # Workaround what appears to be a bug in CMake/Xcode generator, ensure the CMAKE_OSX_DEPLOYMENT_TARGET is set to empty for iOS build
+        set (CMAKE_OSX_DEPLOYMENT_TARGET)
+        unset (CMAKE_OSX_DEPLOYMENT_TARGET CACHE)
+    elseif (TVOS)
+        set (CMAKE_CROSSCOMPILING TRUE)
+        set (CMAKE_XCODE_EFFECTIVE_PLATFORMS -appletvos -appletvsimulator)
+        set (CMAKE_OSX_SYSROOT appletvos)    # Set Base SDK to "Latest tvOS"
+        if (DEFINED ENV{CI})
+            set (CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED 0)
+            set (CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "")
+        endif ()
+        set (CMAKE_REQUIRED_FLAGS ";-DSmileyHack=byYaoWT;-DCMAKE_MACOSX_BUNDLE=1;-DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED=0;-DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY=")
+        if (NOT TVOS_SYSROOT)
+            execute_process (COMMAND xcodebuild -version -sdk ${CMAKE_OSX_SYSROOT} Path OUTPUT_VARIABLE TVOS_SYSROOT OUTPUT_STRIP_TRAILING_WHITESPACE)   # Obtain tvOS sysroot path
+            set (TVOS_SYSROOT ${TVOS_SYSROOT} CACHE INTERNAL "Path to tvOS system root")
+        endif ()
+        set (CMAKE_FIND_ROOT_PATH ${TVOS_SYSROOT})
+            set (APPLETVOS_DEPLOYMENT_TARGET "" CACHE STRING "Specify AppleTV OS deployment target (tvOS platform only), default to latest installed tvOS SDK if not specified, the minimum supported target is 9.0")
+        set (CMAKE_XCODE_ATTRIBUTE_APPLETVOS_DEPLOYMENT_TARGET ${APPLETVOS_DEPLOYMENT_TARGET})
+        set (CMAKE_XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES)
+        # Just in case it has similar bug for tvOS build
+        set (CMAKE_OSX_DEPLOYMENT_TARGET)
+        unset (CMAKE_OSX_DEPLOYMENT_TARGET CACHE)
+    elseif (XCODE)
+        set (CMAKE_OSX_SYSROOT macosx)    # Set Base SDK to "Latest OS X"
+        if (CMAKE_OSX_DEPLOYMENT_TARGET)
+            if (CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.9)
+                message (FATAL_ERROR "The minimum supported CMAKE_OSX_DEPLOYMENT_TARGET is 10.9.")
+            endif ()
+        else ()
+            # If not set, set to current running build system OS version by default
+            execute_process (COMMAND sw_vers -productVersion OUTPUT_VARIABLE CURRENT_OSX_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
+            string (REGEX REPLACE ^\([^.]+\\.[^.]+\).* \\1 CMAKE_OSX_DEPLOYMENT_TARGET ${CURRENT_OSX_VERSION})
+                set (CMAKE_OSX_DEPLOYMENT_TARGET ${CMAKE_OSX_DEPLOYMENT_TARGET} CACHE STRING "Specify macOS deployment target (macOS platform only), default to current running macOS if not specified, the minimum supported target is 10.9")
+        endif ()
+        if (DEPLOYMENT_TARGET_SAVED AND NOT CMAKE_OSX_DEPLOYMENT_TARGET STREQUAL DEPLOYMENT_TARGET_SAVED)
+                set (CMAKE_OSX_DEPLOYMENT_TARGET ${DEPLOYMENT_TARGET_SAVED} CACHE STRING "Specify macOS deployment target (macOS platform only), default to current running macOS if not specified, the minimum supported target is 10.9" FORCE)
+            message (FATAL_ERROR "CMAKE_OSX_DEPLOYMENT_TARGET cannot be changed after the initial configuration/generation. "
+                "Auto reverting to its initial value. If you wish to change it then the build tree would have to be regenerated from scratch.")
+        endif ()
+        set (DEPLOYMENT_TARGET_SAVED ${CMAKE_OSX_DEPLOYMENT_TARGET} CACHE INTERNAL "Last known deployment target")
     endif ()
-    if (DEPLOYMENT_TARGET_SAVED AND NOT CMAKE_OSX_DEPLOYMENT_TARGET STREQUAL DEPLOYMENT_TARGET_SAVED)
-        set (CMAKE_OSX_DEPLOYMENT_TARGET ${DEPLOYMENT_TARGET_SAVED} CACHE STRING "Specify macOS deployment target (macOS platform only); default to current running macOS if not specified, the minimum supported target is 10.9" FORCE)
-        message (FATAL_ERROR "CMAKE_OSX_DEPLOYMENT_TARGET cannot be changed after the initial configuration/generation. "
-            "Auto reverting to its initial value. If you wish to change it then the build tree would have to be regenerated from scratch.")
-    endif ()
-    set (DEPLOYMENT_TARGET_SAVED ${CMAKE_OSX_DEPLOYMENT_TARGET} CACHE INTERNAL "Last known deployment target")
 endif ()
 
 include (CheckHost)
 include (CheckCompilerToolchain)
 
-# For RPI Cross Compile
-if (CMAKE_SYSTEM_NAME STREQUAL Linux AND RPI_PREFIX)
-    # Raspberry Pi4 Broadcom GLES
-    if ("${RPI_ABI}" MATCHES armv8)
-	    set(RPI4 TRUE)
-	    set(RPI FALSE)
-	    message ("-- Detecting RPI4 armv8 32 bit")
-    # Check Raspberry Pi Broadcom VideoCore IV firmware	    
-    else ()
-		find_package (VideoCore QUIET)
-		if (BCMVIDEOCORE_FOUND)
-			set(RPI TRUE)
-			set(RPI4 FALSE)
-		endif()
-	endif()
-endif()
+# Force Macos x86_64
+if (APPLE AND NOT IOS AND NOT TVOS)
+    set (CMAKE_OSX_ARCHITECTURES x86_64)
+    if (ARM)
+        set (ARM 0)
+        unset (ARM CACHE)
+        set (NEON 0)
+        unset (NEON CACHE)
+        set (HAVE_NEON 0)
+        message ("-- Force Apple Architecture x86_64 - inactive ARM and NEON !")
+    endif ()
+endif ()
 
 # Extra linker flags for linking against indirect dependencies (linking shared lib with dependencies)
-if (RPI_PREFIX)
-    if (RPI4)
-	    set (INDIRECT_DEPS_EXE_LINKER_FLAGS "${INDIRECT_DEPS_EXE_LINKER_FLAGS} -Wl,-rpath-link,\"${CMAKE_SYSROOT}/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}\":\"${CMAKE_SYSROOT}/lib/${CMAKE_LIBRARY_ARCHITECTURE}\"")
-	elseif (RPI)
-		# Extra linker flags for Raspbian because it installs VideoCore libraries in the "/opt/vc/lib" directory (no harm in doing so for other distros)
-		set (INDIRECT_DEPS_EXE_LINKER_FLAGS "${INDIRECT_DEPS_EXE_LINKER_FLAGS} -Wl,-rpath-link,\"${CMAKE_SYSROOT}/opt/vc/lib\"")      # CMAKE_SYSROOT is empty when not cross-compiling
-    endif ()
-elseif (APPLE AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0.0)
-    set (INDIRECT_DEPS_EXE_LINKER_FLAGS "${INDIRECT_DEPS_EXE_LINKER_FLAGS} -Wl,-no_weak_imports")
+if (RPI AND NOT RPI_ABI STREQUAL RPI4)
+    # Extra linker flags for legacy Raspbian because it installs VideoCore libraries in the "/opt/vc/lib" directory (no harm in doing so for other distros)
+    set (INDIRECT_DEPS_EXE_LINKER_FLAGS "${INDIRECT_DEPS_EXE_LINKER_FLAGS} -Wl,-rpath-link,\"${CMAKE_SYSROOT}/opt/vc/lib\"")      # CMAKE_SYSROOT is empty when not cross-compiling
 endif ()
-if (ARM AND CMAKE_SYSTEM_NAME STREQUAL Linux AND CMAKE_CROSSCOMPILING)
-    # Cannot do this in the toolchain file because CMAKE_LIBRARY_ARCHITECTURE is not yet defined when CMake is processing toolchain file
-    set (INDIRECT_DEPS_EXE_LINKER_FLAGS "${INDIRECT_DEPS_EXE_LINKER_FLAGS} -Wl,-rpath-link,\"${CMAKE_SYSROOT}/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}\":\"${CMAKE_SYSROOT}/lib/${CMAKE_LIBRARY_ARCHITECTURE}\"")
+if (ARM AND CMAKE_SYSTEM_NAME STREQUAL Linux AND CMAKE_CROSSCOMPILING AND CMAKE_LIBRARY_ARCHITECTURE)
+    # Check if the "cross" linker has already the library search path patched, see '129_multiarch_libpath.patch'
+    execute_process (COMMAND ${CMAKE_LINKER} --verbose COMMAND grep -i search OUTPUT_VARIABLE LD_SEARCH_PATHS)  # We only support *nix system for cross-compiling
+    if (NOT LD_SEARCH_PATHS MATCHES /lib/${CMAKE_LIBRARY_ARCHITECTURE})
+        # If not yet patched then the linker needs the following in order to link correctly
+        set (INDIRECT_DEPS_EXE_LINKER_FLAGS "${INDIRECT_DEPS_EXE_LINKER_FLAGS} -Wl,-rpath-link,\"${CMAKE_SYSROOT}/usr/local/lib/${CMAKE_LIBRARY_ARCHITECTURE}\":\"${CMAKE_SYSROOT}/lib/${CMAKE_LIBRARY_ARCHITECTURE}\":\"${CMAKE_SYSROOT}/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}\"")
+    endif ()
 endif ()
 set (CMAKE_REQUIRED_FLAGS "${INDIRECT_DEPS_EXE_LINKER_FLAGS} ${CMAKE_REQUIRED_FLAGS}")
 set (CMAKE_EXE_LINKER_FLAGS "${INDIRECT_DEPS_EXE_LINKER_FLAGS} ${CMAKE_EXE_LINKER_FLAGS}")
 
 # Define all supported build options
 include (CMakeDependentOption)
-option (URHO3D_C++11 "Enable C++11 standard" FALSE)
 cmake_dependent_option (IOS "Setup build for iOS platform" FALSE "XCODE" FALSE)
 cmake_dependent_option (TVOS "Setup build for tvOS platform" FALSE "XCODE" FALSE)
-cmake_dependent_option (URHO3D_64BIT "Enable 64-bit build, the default is set based on the native ABI of the chosen compiler toolchain" "${NATIVE_64BIT}" "NOT MSVC AND NOT ANDROID AND NOT (ARM AND NOT IOS) AND NOT WEB AND NOT POWERPC" "${NATIVE_64BIT}")     # Intentionally only enable the option for iOS but not for tvOS as the latter is 64-bit only
-option (URHO3D_ANGELSCRIPT "Enable AngelScript scripting support" TRUE)
-cmake_dependent_option (URHO3D_FORCE_AS_MAX_PORTABILITY "Use generic calling convention for AngelScript on any platform" FALSE "URHO3D_ANGELSCRIPT" FALSE)
-option (URHO3D_IK "Enable inverse kinematics support" FALSE)
-option (URHO3D_LUA "Enable additional Lua scripting support" FALSE)
-option (URHO3D_NAVIGATION "Enable navigation support" FALSE)
-cmake_dependent_option (URHO3D_NETWORK "Enable networking support" TRUE "NOT WEB" FALSE)
-option (URHO3D_PHYSICS "Enable physics support" FALSE)
-option (URHO3D_URHO2D "Enable 2D graphics and physics support" TRUE)
-option (URHO3D_WEBP "Enable WebP support" FALSE)
+# Intentionally only enable the option for iOS but not for tvOS as the latter is 64-bit only
+cmake_dependent_option (URHO3D_64BIT "Enable 64-bit build, the default is set based on the native ABI of the chosen compiler toolchain" 
+                        "${NATIVE_64BIT}" "NOT MSVC AND NOT ANDROID AND NOT (ARM AND NOT IOS) AND NOT WEB AND NOT POWERPC" "${NATIVE_64BIT}")
+set (URHO3D_LIB_TYPE STATIC CACHE STRING "Specify Urho3D library type, possible values are STATIC (default); SHARED or MODULE(Web Only)")
+cmake_dependent_option (URHO3D_PACKAGING "Enable resources packaging support" FALSE "NOT WEB" TRUE)
 if (ARM AND NOT ANDROID AND NOT RPI AND NOT APPLE)
     set (ARM_ABI_FLAGS "" CACHE STRING "Specify ABI compiler flags (ARM on Linux platform only); e.g. Orange-Pi Mini 2 could use '-mcpu=cortex-a7 -mfpu=neon-vfpv4'")
 endif ()
-if (((RPI OR RPI4) AND "${RPI_ABI}" MATCHES NEON) OR (ARM AND (APPLE OR URHO3D_64BIT OR "${ARM_ABI_FLAGS}" MATCHES neon)))    # Stringify in case RPI_ABI/ARM_ABI_FLAGS is not set explicitly
+if (RPI OR (ARM AND (APPLE OR URHO3D_64BIT OR "${ARM_ABI_FLAGS}" MATCHES neon)))    # Stringify in case ARM_ABI_FLAGS is not set explicitly
     # TODO: remove this logic when the compiler flags are set in each toolchain file, such that the CheckCompilerToolchain can perform the check automatically
     set (NEON 1)
 endif ()
+# For Raspberry Pi, find Broadcom VideoCore IV firmware
+if (RPI)
+    # TODO: this logic is earmarked to be moved into SDL's CMakeLists.txt when refactoring the library dependency handling
+    find_package (VideoCore REQUIRED)
+    include_directories (SYSTEM ${VIDEOCORE_INCLUDE_DIRS})
+    link_directories (${VIDEOCORE_LIBRARY_DIRS})
+endif ()
 
-if (CMAKE_PROJECT_NAME STREQUAL Urho3D)
-    set (URHO3D_LIB_TYPE STATIC CACHE STRING "Specify Urho3D library type, possible values are STATIC (default), SHARED, and MODULE; the last value is available for Emscripten only")
-    # Non-Windows platforms always use OpenGL, the URHO3D_OPENGL variable will always be forced to TRUE, i.e. it is not an option at all
-    # Windows platform has URHO3D_OPENGL as an option, MSVC compiler default to FALSE (i.e. prefers Direct3D) while MinGW compiler default to TRUE
-    if (MINGW)
-        set (DEFAULT_OPENGL TRUE)
+if (EXISTS ${URHO3D_ROOT_DIR}/Source/Urho3D/AngelScript)
+    set (ANGELSCRIPT_AVAILABLE TRUE)
+endif ()
+if (EXISTS ${URHO3D_ROOT_DIR}/Source/Urho3D/LuaScript)
+    set (LUASCRIPT_AVAILABLE TRUE)
+endif ()
+if (EXISTS ${URHO3D_ROOT_DIR}/Source/Clang-Tools)
+    set (CLANG-TOOLS_AVAILABLE TRUE)
+endif ()
+
+# Define all supported options for urho3d building
+if (IS_URHO3D)
+    # default Urho3D Install prefix : prefix appended to CMAKE_INSTALL_PREFIX, useful if urho3d is used as submodule in another project and if the urho3d installation is required
+    if (NOT DEFINED URHO3D_INSTALL_PREFIX)
+        if (URHO3D_AS_SUBMODULE)
+            set (URHO3D_INSTALL_PREFIX "urho3d" CACHE STRING "Urho3D install prefix added to cmake install prefix path")
+        else ()
+            set (URHO3D_INSTALL_PREFIX "" CACHE STRING "Urho3D install prefix added to cmake install prefix path")
+        endif ()
     endif ()
+    # add option for Urho3D as a submodule : allow skip install
+    if (URHO3D_AS_SUBMODULE)
+        option (URHO3D_SKIP_INSTALL "Disable Sdk Installation" TRUE)
+    endif ()
+    option (URHO3D_IK "Enable inverse kinematics support" TRUE)
+    option (URHO3D_NAVIGATION "Enable navigation support" TRUE)
+    cmake_dependent_option (URHO3D_NETWORK "Enable networking support" TRUE "NOT WEB" FALSE)
+    option (URHO3D_PHYSICS "Enable physics support" TRUE)
+    option (URHO3D_PHYSICS2D "Enable 2D physics support" TRUE)
+    option (URHO3D_URHO2D "Enable 2D graphics support" TRUE)
+    option (URHO3D_WEBP "Enable WebP support" TRUE)
 
     option (URHO3D_VULKAN "Use Vulkan" FALSE)
     cmake_dependent_option (URHO3D_VOLK   "Use Volk with Vulkan" TRUE "URHO3D_VULKAN" FALSE)
@@ -189,38 +254,61 @@ if (CMAKE_PROJECT_NAME STREQUAL Urho3D)
     cmake_dependent_option (URHO3D_SPIRV  "Enable SpirV-Cross library" FALSE "URHO3D_VULKAN" FALSE)
     cmake_dependent_option (URHO3D_VULKAN_VALIDATION "Use Khronos Vulkan Validation layers" FALSE "URHO3D_VULKAN" FALSE)
 
+    # Non-Windows platforms always use OpenGL, the URHO3D_OPENGL variable will always be forced to TRUE, i.e. it is not an option at all
+    # Windows platform has URHO3D_OPENGL as an option, MSVC compiler default to FALSE (i.e. prefers Direct3D) while MinGW compiler default to TRUE
+    if (MINGW)
+        set (DEFAULT_OPENGL TRUE)
+    endif ()
     cmake_dependent_option (URHO3D_OPENGL "Use OpenGL instead of Direct3D (Windows platform only)" "${DEFAULT_OPENGL}" WIN32 TRUE)
     # On Windows platform Direct3D11 can be optionally chosen
     # Using Direct3D11 on non-MSVC compiler may require copying and renaming Microsoft official libraries (.lib to .a), else link failures or non-functioning graphics may result
     cmake_dependent_option (URHO3D_D3D11 "Use Direct3D11 instead of Direct3D9 (Windows platform only); overrides URHO3D_OPENGL option" FALSE "WIN32" FALSE)
-    if (MINGW AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9.1)
-        if (NOT DEFINED URHO3D_SSE)     # Only give the warning once during initial configuration
-            # Certain MinGW versions fail to compile SSE code. This is the initial guess for known "bad" version range, and can be tightened later
-            message (WARNING "Disabling SSE by default due to MinGW version. It is recommended to upgrade to MinGW with GCC >= 4.9.1. "
-                "You can also try to re-enable SSE with CMake option -DURHO3D_SSE=1, but this may result in compile errors.")
+    if (X86 OR E2K OR WEB)
+        # TODO: Rename URHO3D_SSE to URHO3D_SIMD
+        if (MINGW AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9.1)
+            if (NOT DEFINED URHO3D_SSE)     # Only give the warning once during initial configuration
+                # Certain MinGW versions fail to compile SSE code. This is the initial guess for known "bad" version range, and can be tightened later
+                message (WARNING "Disabling SSE by default due to MinGW version. It is recommended to upgrade to MinGW with GCC >= 4.9.1. "
+                    "You can also try to re-enable SSE with CMake option -DURHO3D_SSE=1, but this may result in compile errors.")
+            endif ()
+            set (URHO3D_DEFAULT_SIMD FALSE)
+        else ()
+            set (URHO3D_DEFAULT_SIMD ${HAVE_SSE})
         endif ()
-    endif ()
-    if (X86 OR WEB)
         # It is not possible to turn SSE off on 64-bit MSVC and it appears it is also not able to do so safely on 64-bit GCC
-        cmake_dependent_option (URHO3D_SSE "Enable SSE/SSE2 instruction set (32-bit Web and Intel platforms only, including Android on Intel Atom); default to true on Intel and false on Web platform; the effective SSE level could be higher, see also URHO3D_DEPLOYMENT_TARGET and CMAKE_OSX_DEPLOYMENT_TARGET build options" "${HAVE_SSE2}" "NOT URHO3D_64BIT" TRUE)
+        cmake_dependent_option (URHO3D_SSE "Enable SIMD instruction set (32-bit Web and Intel platforms only, including Android on Intel Atom), default to true on Intel and false on Web platform, the effective SSE level could be higher, see also URHO3D_DEPLOYMENT_TARGET and CMAKE_OSX_DEPLOYMENT_TARGET build options" "${URHO3D_DEFAULT_SIMD}" "NOT URHO3D_64BIT" TRUE)
     endif ()
-    cmake_dependent_option (URHO3D_3DNOW "Enable 3DNow! instruction set (Linux platform only); should only be used for older CPU with (legacy) 3DNow! support" "${HAVE_3DNOW}" "X86 AND CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT URHO3D_SSE" FALSE)
-    cmake_dependent_option (URHO3D_MMX "Enable MMX instruction set (32-bit Linux platform only); the MMX is effectively enabled when 3DNow! or SSE is enabled; should only be used for older CPU with MMX support" "${HAVE_MMX}" "X86 AND CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT URHO3D_64BIT AND NOT URHO3D_SSE AND NOT URHO3D_3DNOW" FALSE)
+    cmake_dependent_option (URHO3D_HASH_DEBUG "Enable StringHash reversing and hash collision detection at the expense of memory and performance penalty" FALSE "NOT CMAKE_BUILD_TYPE STREQUAL Release" FALSE)
+    cmake_dependent_option (URHO3D_3DNOW "Enable 3DNow! instruction set (Linux platform only), should only be used for older CPU with (legacy) 3DNow! support" "${HAVE_3DNOW}" "X86 OR E2K AND CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT URHO3D_SSE" FALSE)
+    cmake_dependent_option (URHO3D_MMX "Enable MMX instruction set (32-bit Linux platform only), the MMX is effectively enabled when 3DNow! or SSE is enabled, should only be used for older CPU with MMX support" "${HAVE_MMX}" "X86 OR E2K AND CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT URHO3D_64BIT AND NOT URHO3D_SSE AND NOT URHO3D_3DNOW" FALSE)
     # For completeness sake - this option is intentionally not documented as we do not officially support PowerPC (yet)
     cmake_dependent_option (URHO3D_ALTIVEC "Enable AltiVec instruction set (PowerPC only)" "${HAVE_ALTIVEC}" POWERPC FALSE)
-    cmake_dependent_option (URHO3D_LUAJIT "Enable Lua scripting support using LuaJIT (check LuaJIT's CMakeLists.txt for more options)" TRUE "NOT WEB AND NOT APPLE" FALSE)
-    cmake_dependent_option (URHO3D_LUAJIT_AMALG "Enable LuaJIT amalgamated build (LuaJIT only); default to true when LuaJIT is enabled" TRUE URHO3D_LUAJIT FALSE)
-    cmake_dependent_option (URHO3D_SAFE_LUA "Enable Lua C++ wrapper safety checks (Lua/LuaJIT only)" FALSE URHO3D_LUA FALSE)
-    if (NOT CMAKE_BUILD_TYPE STREQUAL Release AND NOT CMAKE_CONFIGURATION_TYPES)
-        set (DEFAULT_LUA_RAW TRUE)
+    if (ANGELSCRIPT_AVAILABLE)
+        option (URHO3D_ANGELSCRIPT "Enable AngelScript scripting support" TRUE)
+        cmake_dependent_option (URHO3D_FORCE_AS_MAX_PORTABILITY "Use generic calling convention for AngelScript on any platform" FALSE "URHO3D_ANGELSCRIPT" FALSE)
     endif ()
-    cmake_dependent_option (URHO3D_LUA_RAW_SCRIPT_LOADER "Prefer loading raw script files from the file system before falling back on Urho3D resource cache. Useful for debugging (e.g. breakpoints), but less performant (Lua/LuaJIT only)" "${DEFAULT_LUA_RAW}" URHO3D_LUA FALSE)
+    if (LUASCRIPT_AVAILABLE)
+        option (URHO3D_LUA "Enable additional Lua scripting support" TRUE)
+        cmake_dependent_option (URHO3D_LUAJIT "Enable Lua scripting support using LuaJIT (check LuaJIT's CMakeLists.txt for more options)" TRUE "NOT WEB AND NOT APPLE" FALSE)
+        cmake_dependent_option (URHO3D_LUAJIT_AMALG "Enable LuaJIT amalgamated build (LuaJIT only), default to true when LuaJIT is enabled" TRUE URHO3D_LUAJIT FALSE)
+        cmake_dependent_option (URHO3D_SAFE_LUA "Enable Lua C++ wrapper safety checks (Lua/LuaJIT only)" FALSE URHO3D_LUA FALSE)
+        if (NOT CMAKE_BUILD_TYPE STREQUAL Release AND NOT CMAKE_CONFIGURATION_TYPES)
+            set (DEFAULT_LUA_RAW TRUE)
+        endif ()
+        cmake_dependent_option (URHO3D_LUA_RAW_SCRIPT_LOADER "Prefer loading raw script files from the file system before falling back on Urho3D resource cache. Useful for debugging (e.g. breakpoints), but less performant (Lua/LuaJIT only)" "${DEFAULT_LUA_RAW}" URHO3D_LUA FALSE)
+        if (((URHO3D_LUA AND NOT URHO3D_LUAJIT) OR URHO3D_DATABASE_SQLITE) AND NOT ANDROID AND NOT IOS AND NOT TVOS AND NOT WEB AND NOT WIN32)
+            # Find GNU Readline development library for Lua interpreter and SQLite's isql
+            find_package (Readline)
+        endif ()
+    endif ()
     option (URHO3D_PLAYER "Build Urho3D script player" TRUE)
     option (URHO3D_SAMPLES "Build sample applications" TRUE)
-    option (URHO3D_UPDATE_SOURCE_TREE "Enable commands to copy back some of the generated build artifacts from build tree to source tree to facilitate devs to push them as part of a commit (for library devs with push right only)")
-    option (URHO3D_BINDINGS "Enable API binding generation support for script subystems")
-    cmake_dependent_option (URHO3D_CLANG_TOOLS "Build Clang tools (native on host system only)" FALSE "NOT CMAKE_CROSSCOMPILING" FALSE)
-    mark_as_advanced (URHO3D_UPDATE_SOURCE_TREE URHO3D_BINDINGS URHO3D_CLANG_TOOLS)
+    if (CLANG-TOOLS_AVAILABLE)
+        option (URHO3D_UPDATE_SOURCE_TREE "Enable commands to copy back some of the generated build artifacts from build tree to source tree to facilitate devs to push them as part of a commit (for library devs with push right only)")
+        option (URHO3D_BINDINGS "Enable API binding generation support for script subsystems")
+        cmake_dependent_option (URHO3D_CLANG_TOOLS "Build Clang tools (native on host system only)" FALSE "NOT CMAKE_CROSSCOMPILING" FALSE)
+        mark_as_advanced (URHO3D_UPDATE_SOURCE_TREE URHO3D_BINDINGS URHO3D_CLANG_TOOLS)
+    endif ()
     cmake_dependent_option (URHO3D_TOOLS "Build tools (native, RPI, and ARM on Linux only)" TRUE "NOT IOS AND NOT TVOS AND NOT ANDROID AND NOT WEB" FALSE)
     cmake_dependent_option (URHO3D_EXTRAS "Build extras (native, RPI, and ARM on Linux only)" FALSE "NOT IOS AND NOT TVOS AND NOT ANDROID AND NOT WEB" FALSE)
     option (URHO3D_DOCS "Generate documentation as part of normal build")
@@ -233,10 +321,6 @@ if (CMAKE_PROJECT_NAME STREQUAL Urho3D)
     option (URHO3D_TESTING "Enable testing support")
     # By default this option is off (i.e. we use the MSVC dynamic runtime), this can be switched on if using Urho3D as a STATIC library
     cmake_dependent_option (URHO3D_STATIC_RUNTIME "Use static C/C++ runtime libraries and eliminate the need for runtime DLLs installation (VS only)" FALSE "MSVC" FALSE)
-    if (((URHO3D_LUA AND NOT URHO3D_LUAJIT) OR URHO3D_DATABASE_SQLITE) AND NOT ANDROID AND NOT IOS AND NOT TVOS AND NOT WEB AND NOT WIN32)
-        # Find GNU Readline development library for Lua interpreter and SQLite's isql
-        find_package (Readline)
-    endif ()
     if (CPACK_SYSTEM_NAME STREQUAL Linux)
         cmake_dependent_option (URHO3D_USE_LIB64_RPM "Enable 64-bit RPM CPack generator using /usr/lib64 and disable all other generators (Debian-based host only)" FALSE "URHO3D_64BIT AND NOT HAS_LIB64" FALSE)
         cmake_dependent_option (URHO3D_USE_LIB_DEB "Enable 64-bit DEB CPack generator using /usr/lib and disable all other generators (Redhat-based host only)" FALSE "URHO3D_64BIT AND HAS_LIB64" FALSE)
@@ -245,14 +329,27 @@ if (CMAKE_PROJECT_NAME STREQUAL Urho3D)
     if (NOT CMAKE_HOST_WIN32)
         set_property (GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS ${URHO3D_64BIT})
     endif ()
-else ()
-    set (URHO3D_LIB_TYPE "" CACHE STRING "Specify Urho3D library type, possible values are STATIC (default) and SHARED (not available for Emscripten)")
-    set (URHO3D_HOME "" CACHE PATH "Path to Urho3D build tree or SDK installation location (downstream project only)")
-    if (URHO3D_PCH OR URHO3D_UPDATE_SOURCE_TREE OR URHO3D_TOOLS)
-        # Just reference it to suppress "unused variable" CMake warning on downstream projects using this CMake module
+    # Enable profiling by default. If disabled, autoprofileblocks become no-ops and the Profiler subsystem is not instantiated.
+    option (URHO3D_PROFILING "Enable default profiling support" TRUE)
+    # Extended "Tracy Profiler" based profiling. Disabled by default.
+    option (URHO3D_TRACY_PROFILING "Enable extended profiling support using Tracy Profiler, overrides URHO3D_PROFILING option" FALSE)
+    # Enable logging by default. If disabled, LOGXXXX macros become no-ops and the Log subsystem is not instantiated.
+    option (URHO3D_LOGGING "Enable logging support" TRUE)
+    # Enable threading by default, except for Emscripten because its thread support is yet experimental
+    if (NOT WEB)
+        set (THREADING_DEFAULT TRUE)
     endif ()
+    option (URHO3D_THREADING "Enable thread support, on Web platform default to 0, on other platforms default to 1" ${THREADING_DEFAULT})
+    # Structured exception handling and minidumps on MSVC only
+    cmake_dependent_option (URHO3D_MINIDUMPS "Enable minidumps on crash (VS only)" TRUE "MSVC" FALSE)
+    # By default Windows platform setups main executable as Windows application with WinMain() as entry point
+    cmake_dependent_option (URHO3D_WIN32_CONSOLE "Use console main() instead of WinMain() as entry point when setting up Windows executable targets (Windows platform only)" FALSE "WIN32" FALSE)
+    cmake_dependent_option (URHO3D_MACOSX_BUNDLE "Use MACOSX_BUNDLE when setting up macOS executable targets (Xcode/macOS platform only)" FALSE "XCODE AND NOT ARM" FALSE)
+else ()
+    # Add Urho3d options for external and user projects
+    set (URHO3D_HOME "${URHO3D_HOME}" CACHE PATH "Path to Urho3D build tree or SDK installation location (downstream project only)")
     if (CMAKE_PROJECT_NAME MATCHES ^Urho3D-ExternalProject-)
-        set (URHO3D_SSE ${HAVE_SSE2})
+        set (URHO3D_SSE ${HAVE_SSE})
     else ()
         # All Urho3D downstream projects require Urho3D library, so find Urho3D library here now
         find_package (Urho3D REQUIRED)
@@ -260,18 +357,6 @@ else ()
     endif ()
 endif ()
 
-cmake_dependent_option (URHO3D_PACKAGING "Enable resources packaging support" FALSE "NOT WEB" TRUE)
-# Enable profiling by default. If disabled, autoprofileblocks become no-ops and the Profiler subsystem is not instantiated.
-option (URHO3D_PROFILING "Enable default profiling support" TRUE)
-# Extended "Tracy Profiler" based profiling. Disabled by default.
-option (URHO3D_TRACY_PROFILING "Enable extended profiling support using Tracy Profiler; overrides URHO3D_PROFILING option" FALSE)
-# Enable logging by default. If disabled, LOGXXXX macros become no-ops and the Log subsystem is not instantiated.
-option (URHO3D_LOGGING "Enable logging support" TRUE)
-# Enable threading by default, except for Emscripten because its thread support is yet experimental
-if (NOT WEB)
-    set (THREADING_DEFAULT TRUE)
-endif ()
-option (URHO3D_THREADING "Enable thread support, on Web platform default to 0, on other platforms default to 1" ${THREADING_DEFAULT})
 if (URHO3D_TESTING)
     if (WEB)
         set (DEFAULT_TIMEOUT 10)
@@ -288,11 +373,7 @@ else ()
         unset (EMSCRIPTEN_EMRUN_BROWSER CACHE)
     endif ()
 endif ()
-# Structured exception handling and minidumps on MSVC only
-cmake_dependent_option (URHO3D_MINIDUMPS "Enable minidumps on crash (VS only)" TRUE "MSVC" FALSE)
-# By default Windows platform setups main executable as Windows application with WinMain() as entry point
-cmake_dependent_option (URHO3D_WIN32_CONSOLE "Use console main() instead of WinMain() as entry point when setting up Windows executable targets (Windows platform only)" FALSE "WIN32" FALSE)
-cmake_dependent_option (URHO3D_MACOSX_BUNDLE "Use MACOSX_BUNDLE when setting up macOS executable targets (Xcode/macOS platform only)" FALSE "XCODE AND NOT ARM" FALSE)
+
 if (CMAKE_CROSSCOMPILING AND NOT ANDROID AND NOT APPLE)
     set (URHO3D_SCP_TO_TARGET "" CACHE STRING "Use scp to transfer executables to target system (RPI and generic ARM cross-compiling build only), SSH digital key must be setup first for this to work, typical value has a pattern of usr@tgt:remote-loc")
 else ()
@@ -309,19 +390,29 @@ if (MINGW AND CMAKE_CROSSCOMPILING)
         endforeach ()
     endforeach ()
 endif ()
-if (RPI OR RPI4)
+if (RPI)
     if (NOT RPI_SUPPORTED_ABIS)
-        set (RPI_SUPPORTED_ABIS armeabi-v6 armv8)
+        set (RPI_SUPPORTED_ABIS RPI0 RPI1)
         if (CMAKE_CROSSCOMPILING)
             # We have no way to know for sure so just give all the available options to user
-            list (APPEND RPI_SUPPORTED_ABIS armeabi-v7a "armeabi-v7a with NEON" "armeabi-v7a with VFPV4")
+            list (APPEND RPI_SUPPORTED_ABIS RPI2 RPI3 RPI4)
         else ()
             # If not cross-compiling then we should be on the host system (device) itself, so below command is safe to be executed
             execute_process (COMMAND uname -m OUTPUT_VARIABLE HOST_MACHINE ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
             if (HOST_MACHINE MATCHES ^armv7)
-                list (APPEND RPI_SUPPORTED_ABIS armeabi-v7a "armeabi-v7a with NEON" "armeabi-v7a with VFPV4")
+                list (APPEND RPI_SUPPORTED_ABIS RPI2)
                 if (NOT RPI_ABI)
-                    set (RPI_ABI armeabi-v7a)   # Set default to this specific target device
+                    set (RPI_ABI RPI2)   # Set default to this specific target device
+                endif ()
+            endif ()
+            if (HOST_MACHINE MATCHES ^armv8)
+                list (APPEND RPI_SUPPORTED_ABIS RPI3 RPI4)
+                if (NOT RPI_ABI)
+                    if (NATIVE_64BIT)
+                        set (RPI_ABI RPI4)
+                    else ()
+                        set (RPI_ABI RPI3)
+                    endif ()
                 endif ()
             endif ()
         endif ()
@@ -341,29 +432,47 @@ if (RPI OR RPI4)
             message (FATAL_ERROR "Specified RPI_ABI = \"${RPI_ABI}\" is not supported${MSG_STR}. Supported values are: \"${PRINTABLE_RPI_SUPPORTED_ABIS}\".")
         endif ()
     else ()
-        set (RPI_ABI armeabi-v6)
+        if (NATIVE_64BIT)
+            set (RPI_ABI RPI4)
+        else ()
+            set (RPI_ABI RPI1)
+        endif ()
     endif ()
-    set (RPI_ABI ${RPI_ABI} CACHE STRING "Specify target ABI (RPI platform only), possible values are armeabi-v6 (default for RPI 1), armeabi-v7a (default for RPI 2), armeabi-v7a with NEON, and armeabi-v7a with VFPV4" FORCE)
+    set (RPI_ABI ${RPI_ABI} CACHE STRING "Specify target ABI (RPI platform only), possible values are RPI0, RPI1, RPI2, RPI3, RPI4" FORCE)
 endif ()
+
 if (EMSCRIPTEN)     # CMAKE_CROSSCOMPILING is always true for Emscripten
-    set (EMSCRIPTEN_ROOT_PATH "" CACHE PATH "Root path to Emscripten cross-compiler tools (Emscripten only)")
-    set (EMSCRIPTEN_SYSROOT "" CACHE PATH "Path to Emscripten system root (Emscripten only)")
+    set (EMSCRIPTEN_ROOT_PATH "${EMSCRIPTEN_ROOT_PATH}" CACHE PATH "Root path to Emscripten cross-compiler tools (Emscripten only)")
+    set (EMSCRIPTEN_SYSROOT "${EMSCRIPTEN_SYSROOT}" CACHE PATH "Path to Emscripten system root (Emscripten only)")
     option (EMSCRIPTEN_AUTO_SHELL "Auto adding a default HTML shell-file when it is not explicitly specified (Emscripten only)" TRUE)
     option (EMSCRIPTEN_ALLOW_MEMORY_GROWTH "Enable memory growing based on application demand, default to true as there should be little or no overhead (Emscripten only)" TRUE)
     math (EXPR EMSCRIPTEN_TOTAL_MEMORY "128 * 1024 * 1024")
-    set (EMSCRIPTEN_TOTAL_MEMORY ${EMSCRIPTEN_TOTAL_MEMORY} CACHE STRING "Specify the total size of memory to be used (Emscripten only); default to 128 MB, must be in multiple of 64 KB")
-    option (EMSCRIPTEN_SHARE_DATA "Enable sharing data file support (Emscripten only)")
-else ()
+    set (EMSCRIPTEN_TOTAL_MEMORY ${EMSCRIPTEN_TOTAL_MEMORY} CACHE STRING "Specify the total size of memory to be used (Emscripten only), default to 128 MB, must be in multiple of 64 KB")
+    option (EMSCRIPTEN_SHARE_DATA "Enable sharing data file support (Emscripten only)" FALSE)
+endif ()
+
+# Constrain the build option values in cmake-gui, if applicable
+if (NOT WEB)
     set (SHARED SHARED)
 endif ()
-# Constrain the build option values in cmake-gui, if applicable
+if (WEB AND EMSCRIPTEN)
+    # TODO: do we need to build as module ?
+    set (SHARED MODULE)
+    set (SDL_THREADS ${URHO3D_THREADING})
+    set (URHO3D_PACKAGING TRUE)  
+    # add file_packager used to generate common shared data files (EMSCRIPTEN_SHARE_DATA=1 required)
+    if (NOT EMPACKAGER AND EXISTS ${EMSCRIPTEN_ROOT_PATH}/tools/file_packager)
+        set (EMPACKAGER ${EMSCRIPTEN_ROOT_PATH}/tools/file_packager)
+    endif ()
+endif ()
 set_property (CACHE URHO3D_LIB_TYPE PROPERTY STRINGS STATIC ${SHARED})
 if (NOT CMAKE_CONFIGURATION_TYPES)
     set_property (CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS ${URHO3D_BUILD_CONFIGURATIONS})
 endif ()
-if (RPI OR RPI4)
+if (RPI)
     set_property (CACHE RPI_ABI PROPERTY STRINGS ${RPI_SUPPORTED_ABIS})
 endif ()
+
 # Handle mutually exclusive options and implied options
 if (URHO3D_VULKAN)
     set (URHO3D_D3D11 0)
@@ -389,14 +498,6 @@ endif ()
 if (URHO3D_DATABASE_SQLITE OR URHO3D_DATABASE_ODBC)
     set (URHO3D_DATABASE 1)
 endif ()
-if (URHO3D_LUAJIT)
-    set (JIT JIT)
-    set (URHO3D_LUA 1)
-endif ()
-if (EMSCRIPTEN)
-    set (URHO3D_LIB_TYPE STATIC)
-    unset (URHO3D_LIB_TYPE CACHE)
-endif ()
 if (URHO3D_TRACY_PROFILING)
     set (URHO3D_PROFILING 0)
     unset (URHO3D_PROFILING CACHE)
@@ -414,28 +515,32 @@ if (URHO3D_CLANG_TOOLS OR URHO3D_BINDINGS)
     endif ()
 endif ()
 if (URHO3D_CLANG_TOOLS)
-    # Require C++11 standard and no precompiled-header
-    set (URHO3D_C++11 1)
     set (URHO3D_PCH 0)
     set (URHO3D_LIB_TYPE SHARED)
     # Set build options that would maximise the AST of Urho3D library
-    foreach (OPT
-            URHO3D_ANGELSCRIPT
-            URHO3D_DATABASE_SQLITE
-            URHO3D_FILEWATCHER
-            URHO3D_IK
-            URHO3D_LOGGING
-            URHO3D_LUA
-            URHO3D_NAVIGATION
-            URHO3D_NETWORK
-            URHO3D_PHYSICS
-            URHO3D_PROFILING
-            URHO3D_URHO2D)
+    foreach (OPT URHO3D_ANGELSCRIPT URHO3D_DATABASE_SQLITE URHO3D_FILEWATCHER URHO3D_IK
+                 URHO3D_LOGGING URHO3D_LUA URHO3D_NAVIGATION URHO3D_NETWORK URHO3D_PHYSICS
+                 URHO3D_PROFILING URHO3D_URHO2D)
         set (${OPT} 1)
     endforeach ()
     foreach (OPT URHO3D_TESTING URHO3D_LUAJIT URHO3D_DATABASE_ODBC URHO3D_TRACY_PROFILING)
         set (${OPT} 0)
     endforeach ()
+endif ()
+
+if (NOT LUASCRIPT_AVAILABLE)
+    foreach (OPT URHO3D_LUA URHO3D_LUAJIT URHO3D_LUAJIT_AMALG URHO3D_SAFE_LUA DEFAULT_LUA_RAW)
+        unset (${OPT})        
+        unset (${OPT} CACHE)
+    endforeach ()
+endif ()
+
+if (URHO3D_LUAJIT)
+    set (JIT JIT)
+    set (URHO3D_LUA 1)
+else ()
+    # Unset correctly JIT, otherwise LUA_JIT would be falsely used by CLANGTOOLS)
+    unset (JIT)
 endif ()
 
 # Coverity scan does not support PCH
@@ -472,39 +577,11 @@ else ()
     add_definitions (-DPUGIXML_EXPORTS)    
 endif ()
 
-# Force C++11 standard (required by the generic bindings generation) if using AngelScript on Web and 64-bit ARM platforms
-if (URHO3D_ANGELSCRIPT AND (EMSCRIPTEN OR (ARM AND URHO3D_64BIT)) AND NOT ANDROID)
-    set (URHO3D_C++11 1)
-endif ()
-
-# Force C++11 standard (required by nanodbc library) if using ODBC
-if (URHO3D_DATABASE_ODBC)
-    find_package (ODBC REQUIRED)
-    set (URHO3D_C++11 1)
-endif ()
-
 # Define preprocessor macros (for building the Urho3D library) based on the configured build options
-foreach (OPT
-        URHO3D_ANGELSCRIPT
-        URHO3D_DATABASE
-        URHO3D_FILEWATCHER
-        URHO3D_IK
-        URHO3D_LOGGING
-        URHO3D_LUA
-        URHO3D_MINIDUMPS
-        URHO3D_NAVIGATION
-        URHO3D_NETWORK
-        URHO3D_PHYSICS
-        URHO3D_PROFILING
-        URHO3D_TRACY_PROFILING
-        URHO3D_THREADING
-        URHO3D_VMA
-        URHO3D_VOLK
-        URHO3D_VULKAN_VALIDATION
-        URHO3D_SPIRV
-        URHO3D_URHO2D
-        URHO3D_WEBP
-        URHO3D_WIN32_CONSOLE)
+foreach (OPT URHO3D_ANGELSCRIPT URHO3D_DATABASE URHO3D_FILEWATCHER URHO3D_IK URHO3D_LOGGING URHO3D_LUA
+             URHO3D_MINIDUMPS URHO3D_NAVIGATION URHO3D_NETWORK URHO3D_PHYSICS URHO3D_PROFILING
+             URHO3D_TRACY_PROFILING URHO3D_THREADING URHO3D_URHO2D URHO3D_WEBP URHO3D_WIN32_CONSOLE)
+        	 URHO3D_VMA URHO3D_VOLK URHO3D_VULKAN_VALIDATION URHO3D_SPIRV)
     if (${OPT})
         add_definitions (-D${OPT})
         message ("-- adding definition ${OPT}")
@@ -529,65 +606,43 @@ if (WIN32 AND NOT CMAKE_PROJECT_NAME MATCHES ^Urho3D-ExternalProject-)
     endif ()
 endif ()
 
+# Force C++11 standard
+set (URHO3D_C++11 1)
+
 # Platform and compiler specific options
+set (CMAKE_CXX_STANDARD 11)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
 set (CMAKE_CXX_EXTENSIONS OFF)
-if (URHO3D_C++11)
-	set (CMAKE_CXX_STANDARD 11)
-    add_definitions (-DURHO3D_CXX11)   # Note the define is NOT 'URHO3D_C++11'!
-    if (CMAKE_CXX_COMPILER_ID MATCHES GNU)
-        # Use gnu++11/gnu++0x instead of c++11/c++0x as the latter does not work as expected when cross compiling
-        if (VERIFIED_SUPPORTED_STANDARD)
-            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=${VERIFIED_SUPPORTED_STANDARD}")
-        else ()
-            foreach (STANDARD gnu++11 gnu++0x)  # Fallback to gnu++0x on older GCC version
-                execute_process (COMMAND ${CMAKE_COMMAND} -E echo COMMAND ${CMAKE_CXX_COMPILER} -std=${STANDARD} -E - RESULT_VARIABLE GCC_EXIT_CODE OUTPUT_QUIET ERROR_QUIET)
-                if (GCC_EXIT_CODE EQUAL 0)
-                    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=${STANDARD}")
-                    set (VERIFIED_SUPPORTED_STANDARD ${STANDARD} CACHE INTERNAL "GNU extension of C++11 standard that is verified to be supported by the chosen compiler")
-                    break ()
-                endif ()
-            endforeach ()
-            if (NOT GCC_EXIT_CODE EQUAL 0)
-                message (FATAL_ERROR "Your GCC version ${CMAKE_CXX_COMPILER_VERSION} is too old to enable C++11 standard")
-            endif ()
-        endif ()
-    elseif (CMAKE_CXX_COMPILER_ID MATCHES Clang)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-    elseif (MSVC80)
-        message (FATAL_ERROR "Your MSVC version is too told to enable C++11 standard")
-    endif ()
-else ()
-	set (CMAKE_CXX_STANDARD 98)
+if (EMSCRIPTEN)     # It appears CMake does not detect C++standard for EMCC correctly, so do it the old way still
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 endif ()
-
 if (APPLE)
     if (IOS)
         # iOS-specific setup
         add_definitions (-DIOS)
         if (URHO3D_64BIT)
-            set (CMAKE_OSX_ARCHITECTURES $(ARCHS_STANDARD))
+            set (CMAKE_OSX_ARCHITECTURES $(ARCHS_STANDARD) CACHE STRING "OSX Architectures to build for. Default $(ARCHS_STANDARD)")
         else ()
             message (WARNING "URHO3D_64BIT=0 for iOS is a deprecated option and should not be used as we are phasing out 32-bit only mode")
-            set (CMAKE_OSX_ARCHITECTURES $(ARCHS_STANDARD_32_BIT))
+            set (CMAKE_OSX_ARCHITECTURES $(ARCHS_STANDARD_32_BIT) CACHE STRING "OSX Architectures to build for. Default $(ARCHS_STANDARD_32_BIT)")
         endif ()
     elseif (TVOS)
         # tvOS-specific setup
         add_definitions (-DTVOS)
-        set (CMAKE_OSX_ARCHITECTURES $(ARCHS_STANDARD))
+        set (CMAKE_OSX_ARCHITECTURES $(ARCHS_STANDARD) CACHE STRING "OSX Architectures to build for. Default $(ARCHS_STANDARD)")
     else ()
         if (XCODE)
             # macOS-specific setup
             if (URHO3D_64BIT)
                 if (URHO3D_UNIVERSAL)
                     message (WARNING "URHO3D_UNIVERSAL=1 for macOS is a deprecated option and should not be used as we are phasing out macOS universal binary mode")
-                    set (CMAKE_OSX_ARCHITECTURES $(ARCHS_STANDARD_32_64_BIT))
+                    set (CMAKE_OSX_ARCHITECTURES $(ARCHS_STANDARD_32_64_BIT) CACHE STRING "OSX Architectures to build for. Default $(ARCHS_STANDARD_32_64_BIT)")
                 else ()
-                    set (CMAKE_OSX_ARCHITECTURES $(ARCHS_STANDARD))
+                    set (CMAKE_OSX_ARCHITECTURES $(ARCHS_STANDARD) CACHE STRING "OSX Architectures to build for. Default $(ARCHS_STANDARD)")
                 endif ()
             else ()
                 message (WARNING "URHO3D_64BIT=0 for macOS is a deprecated option and should not be used as we are phasing out 32-bit only mode")
-                set (CMAKE_OSX_ARCHITECTURES $(ARCHS_STANDARD_32_BIT))
+                set (CMAKE_OSX_ARCHITECTURES $(ARCHS_STANDARD_32_BIT) CACHE STRING "OSX Architectures to build for. Default $(ARCHS_STANDARD_32_BIT)")
             endif ()
         endif ()
     endif ()
@@ -617,14 +672,8 @@ if (MSVC)
     set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${DEBUG_RUNTIME}")
     set (CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} ${RELEASE_RUNTIME} /fp:fast /Zi /GS- /D _SECURE_SCL=0")
     set (CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
-    # In Visual Studio, SSE2 flag is redundant if already compiling as 64bit; it is already the default for VS2012 (onward) on 32bit
-    # Instead, we must turn SSE/SSE2 off explicitly if user really intends to turn it off
-    if (URHO3D_SSE)
-        if (NOT URHO3D_64BIT AND MSVC_VERSION LESS 1700)
-            set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /arch:SSE2")
-            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:SSE2")
-        endif ()
-    else ()
+    # Visual Studio 2012 onward enables the SSE2 by default, however, we must set the flag to IA32 if user intention is to turn the SIMD off
+    if (NOT URHO3D_SSE)
         set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /arch:IA32")
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:IA32")
     endif ()
@@ -644,28 +693,22 @@ else ()
                 set (ARM_CFLAGS "${ARM_CFLAGS} -mfloat-abi=hard -Wno-psabi")
             endif ()
             # The configuration is done here instead of in CMake toolchain file because we also support native build which does not use toolchain file at all
-            # RPI4 specific
-            if (RPI4)
-	            add_definitions (-DRPI4)
-            	# RPI4 armv8 32bit specific
-                if (RPI_ABI MATCHES ^armv8)
-					set (ARM_CFLAGS "${ARM_CFLAGS} -mcpu=cortex-a72 -mfpu=neon-vfpv4")                
-                    message ("-- RPI4 ARM_CFLAGS=${ARM_CFLAGS}")
-				endif()          
-            # RPI-specific setup
-            elseif (RPI)
-	            add_definitions (-DRPI)
-                if (RPI_ABI MATCHES ^armeabi-v7a)
-                    set (ARM_CFLAGS "${ARM_CFLAGS} -mcpu=cortex-a7")
-                    if (RPI_ABI MATCHES NEON)
-                        set (ARM_CFLAGS "${ARM_CFLAGS} -mfpu=neon-vfpv4")
-                    elseif (RPI_ABI MATCHES VFPV4)
-                        set (ARM_CFLAGS "${ARM_CFLAGS} -mfpu=vfpv4")
-                    else ()
-                        set (ARM_CFLAGS "${ARM_CFLAGS} -mfpu=vfpv4-d16")
-                    endif ()
-               	else ()
+            if (RPI)
+                # RPI-specific setup
+                add_definitions (-DRPI)
+                if (RPI_ABI MATCHES ^RPI0|1)
                     set (ARM_CFLAGS "${ARM_CFLAGS} -mcpu=arm1176jzf-s -mfpu=vfp")
+                else ()
+                    if (RPI_ABI STREQUAL RPI2)
+                        set (ARM_CFLAGS "${ARM_CFLAGS} -mcpu=cortex-a7")
+                    elseif (RPI_ABI STREQUAL RPI3)
+                        set (ARM_CFLAGS "${ARM_CFLAGS} -mcpu=cortex-a53")
+                    elseif (RPI_ABI STREQUAL RPI4)
+                        set (ARM_CFLAGS "${ARM_CFLAGS} -mcpu=cortex-a72")
+                    endif ()
+                    if (NOT URHO3D_64BIT)   # Enable NEON by default but only need to do it explicitly on ARM (32-bit) arch
+                        set (ARM_CFLAGS "${ARM_CFLAGS} -mfpu=neon-vfpv4")
+                    endif ()
                 endif ()
             else ()
                 # Generic ARM-specific setup
@@ -685,6 +728,10 @@ else ()
             set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ARM_CFLAGS}")
             set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ARM_CFLAGS}")
         else ()
+            if (NOT XCODE AND NOT WEB AND NOT E2K)
+                set (CMAKE_C_FLAGS "-mtune=generic ${CMAKE_C_FLAGS}")
+                set (CMAKE_CXX_FLAGS "-mtune=generic ${CMAKE_CXX_FLAGS}")
+            endif ()
             if (URHO3D_SSE AND NOT XCODE AND NOT WEB)
                 # This may influence the effective SSE level when URHO3D_SSE is on as well
                 set (URHO3D_DEPLOYMENT_TARGET native CACHE STRING "Specify the minimum CPU type on which the target binaries are to be deployed (non-ARM platform only), see GCC/Clang's -march option for possible values; Use 'generic' for targeting a wide range of generic processors")
@@ -693,12 +740,13 @@ else ()
                     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${URHO3D_DEPLOYMENT_TARGET}")
                 endif ()
             endif ()
-            set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffast-math")
-            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffast-math")
             # We don't add these flags directly here for Xcode because we support Mach-O universal binary build
             # The compiler flags will be added later conditionally when the effective arch is i386 during build time (using XCODE_ATTRIBUTE target property)
             if (NOT XCODE)
-                if (NOT URHO3D_64BIT)
+                if (URHO3D_64BIT)
+                    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse3")
+                    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3")
+                else ()
                     # Not the compiler native ABI, this could only happen on multilib-capable compilers
                     if (NATIVE_64BIT)
                         set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32")
@@ -707,12 +755,19 @@ else ()
                     # The effective SSE level could be higher, see also URHO3D_DEPLOYMENT_TARGET and CMAKE_OSX_DEPLOYMENT_TARGET build options
                     # The -mfpmath=sse is not set in global scope but it may be set in local scope when building LuaJIT sub-library for x86 arch
                     if (URHO3D_SSE)
-                        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse -msse2")
-                        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse -msse2")
+                        if (HAVE_SSE3)
+                            set (SIMD_FLAG -msse3)
+                        elseif (HAVE_SSE2)
+                            set (SIMD_FLAG -msse2)
+                        else ()
+                            set (SIMD_FLAG -msse)
+                        endif ()
+                        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SIMD_FLAG}")
+                        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SIMD_FLAG}")
                     endif ()
                 endif ()
                 if (NOT URHO3D_SSE)
-                    if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
+                    if (CMAKE_CXX_COMPILER_ID MATCHES Clang AND NOT URHO3D_64BIT)
                         # Clang enables SSE support for i386 ABI by default, so use the '-mno-sse' compiler flag to nullify that and make it consistent with GCC
                         set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mno-sse")
                         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mno-sse")
@@ -736,20 +791,20 @@ else ()
         if (WEB)
             if (EMSCRIPTEN)
                 # Emscripten-specific setup
-                set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-warn-absolute-paths -Wno-unknown-warning-option --bind")
-                set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-warn-absolute-paths -Wno-unknown-warning-option --bind")
+                set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-warn-absolute-paths -Wno-unknown-warning-option")
+                set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-warn-absolute-paths -Wno-unknown-warning-option")
 
                 if (URHO3D_THREADING)
                     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s USE_PTHREADS=1")
                     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s USE_PTHREADS=1")
                 endif ()
-                # Since version 1.37.25 emcc reduces default runtime exports, but we need "Pointer_stringify" so it needs to be explicitly declared now
-                # (See https://github.com/kripken/emscripten/commit/3bc1f9f08b9f420680124af703c787244468cedc for more detail)
                 # Since version 1.37.28 emcc reduces default runtime exports, but we need "FS" so it needs to be explicitly requested now
                 # (See https://github.com/kripken/emscripten/commit/f2191c1223e8261bf45f4e27d2ba4d2e9d8b3341 for more detail)
                 # Since version 1.39.5 emcc disables deprecated find event target behavior by default; we revert the flag for now until the support is removed
                 # (See https://github.com/emscripten-core/emscripten/commit/948af470be12559367e7629f31cf7c841fbeb2a9#diff-291d81f9d42b322a89881b6d91f7a122 for more detail)
-                set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s EXTRA_EXPORTED_RUNTIME_METHODS=\"['Pointer_stringify']\" -s FORCE_FILESYSTEM=1 -s DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR=0")
+                # replace deprecated EXTRA_EXPORTED_RUNTIME_METHODS by EXPORTED_RUNTIME_METHODS
+                # remove deprecated Pointer_stringify as exported method
+                set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s FORCE_FILESYSTEM=1 -s DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR=0 --bind")
                 set (CMAKE_C_FLAGS_RELEASE "-Oz -DNDEBUG")
                 set (CMAKE_CXX_FLAGS_RELEASE "-Oz -DNDEBUG")
                 # Remove variables to make the -O3 regalloc easier
@@ -882,47 +937,61 @@ macro (create_symlink SOURCE DESTINATION)
         else ()
             set (ABS_DESTINATION ${CMAKE_BINARY_DIR}/${DESTINATION})
         endif ()
+    endif ()    
+    if (ARG_FALLBACK_TO_COPY)
+        set (ARG_FALLBACK_TO_COPY COPY_ON_ERROR)
     endif ()
-    if (CMAKE_HOST_WIN32)
-        if (IS_DIRECTORY ${ABS_SOURCE})
-            set (SLASH_D /D)
-        else ()
-            unset (SLASH_D)
-        endif ()
-        if (HAS_MKLINK)
-            if (NOT EXISTS ${ABS_DESTINATION})
-                # Have to use string-REPLACE as file-TO_NATIVE_PATH does not work as expected with MinGW on "backward slash" host system
-                string (REPLACE / \\ BACKWARD_ABS_DESTINATION ${ABS_DESTINATION})
-                string (REPLACE / \\ BACKWARD_ABS_SOURCE ${ABS_SOURCE})
-                execute_process (COMMAND cmd /C mklink ${SLASH_D} ${BACKWARD_ABS_DESTINATION} ${BACKWARD_ABS_SOURCE} OUTPUT_QUIET ERROR_QUIET)
-            endif ()
-        elseif (ARG_FALLBACK_TO_COPY)
-            if (SLASH_D)
-                set (COMMAND COMMAND ${CMAKE_COMMAND} -E copy_directory ${ABS_SOURCE} ${ABS_DESTINATION})
-            else ()
-                set (COMMAND COMMAND ${CMAKE_COMMAND} -E copy_if_different ${ABS_SOURCE} ${ABS_DESTINATION})
-            endif ()
-            # Fallback to copy only one time
-            execute_process (${COMMAND})
-            if (TARGET ${TARGET_NAME})
-                # Fallback to copy every time the target is built
-                add_custom_command (TARGET ${TARGET_NAME} POST_BUILD ${COMMAND})
-            endif ()
-        else ()
-            message (WARNING "Unable to create symbolic link on this host system, you may need to manually copy file/dir from \"${SOURCE}\" to \"${DESTINATION}\"")
-        endif ()
-    else ()
-        get_filename_component (DIRECTORY ${ABS_DESTINATION} DIRECTORY)
-        file (RELATIVE_PATH REL_SOURCE ${DIRECTORY} ${ABS_SOURCE})
-        execute_process (COMMAND ${CMAKE_COMMAND} -E create_symlink ${REL_SOURCE} ${ABS_DESTINATION})
+    file (CREATE_LINK ${ABS_SOURCE} ${ABS_DESTINATION} RESULT error ${ARG_FALLBACK_TO_COPY} SYMBOLIC)
+    if (error)
+        message (WARNING "Unable to create symbolic link on this host system, you may need to manually copy file/dir from \"${SOURCE}\" to \"${DESTINATION}\"")
+        message (WARNING "${error}")
     endif ()
 endmacro ()
+
+# Function for replacing a broken symlink
+function(check_and_replace_by_symlink TESTPATH TARGET)
+    get_filename_component (linkname ${TARGET} NAME)
+    set(fullLinkName "${TESTPATH}/${linkname}")
+    if (EXISTS ${fullLinkName} AND NOT IS_SYMLINK ${fullLinkName} AND NOT IS_DIRECTORY ${fullLinkName})
+        file (CREATE_LINK ${TARGET} ${fullLinkName} SYMBOLIC)
+    endif ()
+endfunction()
 
 # Macro for adding additional make clean files
 macro (add_make_clean_files)
     get_directory_property (ADDITIONAL_MAKE_CLEAN_FILES ADDITIONAL_MAKE_CLEAN_FILES)
     set_directory_properties (PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "${ADDITIONAL_MAKE_CLEAN_FILES};${ARGN}")
 endmacro ()
+
+# Helper function to retrieve the appropriate project name based on the scoped target 
+# in the build tree. This function determines whether the current project or subproject 
+# is part of Urho3D or if it should return the top-level project name.
+function (get_project_name project_name)
+    unset (${name} PARENT_SCOPE)
+    if (IS_URHO3D)
+        set (${project_name} "Urho3D" PARENT_SCOPE)
+    else ()
+        set (${project_name} "${CMAKE_PROJECT_NAME}" PARENT_SCOPE)
+    endif ()    
+endfunction ()
+# same purpose but for the root_dir
+function (get_project_root_dir root_dir)
+    unset (${root_dir} PARENT_SCOPE)
+    if (IS_URHO3D)
+        set (${root_dir} "${URHO3D_ROOT_DIR}" PARENT_SCOPE)
+    else ()
+        set (${root_dir} "${CMAKE_SOURCE_DIR}" PARENT_SCOPE)
+    endif ()
+endfunction ()
+# same purpose but for the binary_dir
+function (get_project_binary_dir binary_dir)
+    unset (${binary_dir} PARENT_SCOPE)
+    if (IS_URHO3D)
+        set (${binary_dir} "${URHO3D_BUILD_DIR}" PARENT_SCOPE)
+    else ()
+        set (${binary_dir} "${CMAKE_BINARY_DIR}" PARENT_SCOPE)
+    endif ()
+endfunction ()
 
 # *** THIS IS A DEPRECATED MACRO ***
 # Macro for defining external library dependencies
@@ -949,8 +1018,8 @@ macro (define_dependency_libs TARGET)
         endif ()
     endif ()
 
-    # ThirdParty/kNet & ThirdParty/Civetweb external dependency
-    if (${TARGET} MATCHES Civetweb|kNet|Urho3D)
+    # ThirdParty/Civetweb external dependency
+    if (${TARGET} MATCHES Civetweb|Urho3D)
         if (WIN32)
             list (APPEND LIBS ws2_32)
         endif ()
@@ -997,37 +1066,43 @@ macro (define_dependency_libs TARGET)
                 list (APPEND LIBS dbghelp)
             endif ()
         elseif (APPLE)
-            if (ARM)
-                list (APPEND LIBS "-framework AudioToolbox" "-framework AVFoundation" "-framework CoreAudio" "-framework CoreGraphics" "-framework CoreMotion" "-framework Foundation" "-framework GameController" "-framework OpenGLES" "-framework QuartzCore" "-framework UIKit")
+            if (IOS OR TVOS)
+                set (FRAMEWORKS AudioToolbox AVFoundation CoreAudio CoreBluetooth CoreGraphics CoreHaptics Foundation GameController Metal OpenGLES QuartzCore UIKit)
+                if (IOS)
+                    set (FRAMEWORKS ${FRAMEWORKS} CoreMotion)
+                endif ()
             else ()
-                list (APPEND LIBS "-framework AudioToolbox" "-framework Carbon" "-framework Cocoa" "-framework CoreFoundation" "-framework SystemConfiguration" "-framework CoreAudio" "-framework CoreServices" "-framework CoreVideo" "-framework ForceFeedback" "-framework IOKit" "-framework OpenGL")
+                set (FRAMEWORKS AudioToolbox Carbon Cocoa CoreFoundation SystemConfiguration CoreAudio CoreBluetooth CoreServices CoreVideo CoreHaptics GameController ForceFeedback IOKit OpenGL) 
             endif ()
+            foreach (FRAMEWORK ${FRAMEWORKS})
+                list (APPEND LIBS "-framework ${FRAMEWORK}")
+            endforeach ()
         endif ()
 
         # Graphics
         if (URHO3D_VULKAN)
-        	if (NOT URHO3D_VOLK)
-		        if (APPLE)
-		            # TODO
-		        elseif (WIN32)
-		            list (APPEND LIBS vulkan-1.lib)
-		        else ()
-		            list (APPEND LIBS vulkan)
-		        endif ()      
-            endif ()  
-        elseif (URHO3D_OPENGL)
+			if (NOT URHO3D_VOLK)
+				if (APPLE)
+					# TODO
+				elseif (WIN32)
+					list (APPEND LIBS vulkan-1.lib)
+				else ()
+					list (APPEND LIBS vulkan)
+				endif ()
+			endif ()
+		elseif (URHO3D_OPENGL)
             if (APPLE)
                 # Do nothing
             elseif (WIN32)
                 list (APPEND LIBS opengl32)
-            elseif (RPI4) 
-            	# message ("-- RP4 adding libs EGL GLESv2 GL")
-            	# list (APPEND LIBS EGL GLESv2 GL) 
-            	message ("-- RP4 adding libs GL")
-            	list (APPEND LIBS GL)              	            
             elseif (RPI)
-	            message ("-- RPI adding libs brcmEGL brcmGLESv2")
-               	list (APPEND LIBS brcmEGL brcmGLESv2)
+				if (RPI_ABI STREQUAL RPI4)
+					# list (APPEND LIBS EGL GLESv2 GL) 
+					list (APPEND LIBS GL)   
+				else ()
+					#list (APPEND LIBS brcmGLESv2)
+					list (APPEND LIBS brcmEGL brcmGLESv2)
+				endif ()
             elseif (ANDROID OR ARM)
                 list (APPEND LIBS GLESv1_CM GLESv2)
             else ()
@@ -1055,7 +1130,6 @@ macro (define_dependency_libs TARGET)
                 list (APPEND ABSOLUTE_PATH_LIBS ${URHO3D_LIBRARIES})
             endif ()
         endif ()
-       
     endif ()
 endmacro ()
 
@@ -1122,7 +1196,8 @@ macro (define_resource_dirs)
     endif ()
     # If not explicitly specified then use the Urho3D project structure convention
     if (NOT ARG_GLOB_PATTERNS)
-        set (ARG_GLOB_PATTERNS ${CMAKE_SOURCE_DIR}/bin/*Data)
+        get_project_root_dir (root_dir)
+        set (ARG_GLOB_PATTERNS "${root_dir}/bin/*Data")
     endif ()
     file (GLOB GLOB_RESULTS ${ARG_GLOB_PATTERNS})
     unset (GLOB_DIRS)
@@ -1163,30 +1238,27 @@ macro (define_resource_dirs)
             endif ()
         endforeach ()
         set_property (SOURCE ${RESOURCE_PAKS} PROPERTY GENERATED TRUE)
-        if (WEB)
-            if (EMSCRIPTEN)
-                # Set the custom EMCC_OPTION property to preload the generated shared data file
-                if (EMSCRIPTEN_SHARE_DATA)
-                    set (SHARED_RESOURCE_JS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_PROJECT_NAME}.js)
-                    list (APPEND SOURCE_FILES ${SHARED_RESOURCE_JS} ${SHARED_RESOURCE_JS}.data)
-                    # DEST_BUNDLE_DIR may be empty when macro caller does not wish to install anything
-                    if (DEST_BUNDLE_DIR)
-                        install (FILES ${SHARED_RESOURCE_JS} ${SHARED_RESOURCE_JS}.data DESTINATION ${DEST_BUNDLE_DIR})
-                    endif ()
-                    # Define a custom command for generating a shared data file
-                    if (RESOURCE_PAKS)
-                        # When sharing a single data file, all main targets are assumed to use a same set of resource paks
-                        foreach (FILE ${RESOURCE_PAKS})
-                            get_filename_component (NAME ${FILE} NAME)
-                            list (APPEND PAK_NAMES ${NAME})
-                        endforeach ()
-                        add_custom_command (OUTPUT ${SHARED_RESOURCE_JS} ${SHARED_RESOURCE_JS}.data
-                            COMMAND ${EMPACKAGER} ${SHARED_RESOURCE_JS}.data --preload ${PAK_NAMES} --js-output=${SHARED_RESOURCE_JS} --use-preload-cache
-                            DEPENDS RESOURCE_CHECK ${RESOURCE_PAKS}
-                            WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-                            COMMENT "Generating shared data file")
-                    endif ()
-                endif ()
+
+        # Set generating a shared data file for the main targets in the same build tree
+        # When sharing a single data file, all main targets are assumed to use a same set of resource paks
+        # pak-loader.js replaced by the js file generated with EMPACKAGER
+        if (WEB AND EMSCRIPTEN AND EMSCRIPTEN_SHARE_DATA AND EMPACKAGER)
+            get_project_name (projectname)
+            set (SHAREDPAKS_FILENAME ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${projectname}-paks)
+            list (APPEND SOURCE_FILES ${SHAREDPAKS_FILENAME}.js ${SHAREDPAKS_FILENAME}.data)
+            # Define a custom command for generating a single shared data file
+            foreach (FILE ${RESOURCE_PAKS})
+                get_filename_component (NAME ${FILE} NAME)
+                list (APPEND PAK_NAMES ${NAME})
+            endforeach ()
+            add_custom_command (OUTPUT ${SHAREDPAKS_FILENAME}.js ${SHAREDPAKS_FILENAME}.data
+                                COMMAND ${EMPACKAGER} ${SHAREDPAKS_FILENAME}.data --preload ${PAK_NAMES} --js-output=${SHAREDPAKS_FILENAME}.js --use-preload-cache
+                                DEPENDS RESOURCE_CHECK ${RESOURCE_PAKS}
+                                WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+                                COMMENT "Generating shared data file ${SHAREDPAKS_FILENAME}.data for ${projectname} PAKs ${PAK_NAMES}")
+            # DEST_BUNDLE_DIR may be empty when macro caller does not wish to install anything
+            if (DEST_BUNDLE_DIR)
+                install (FILES ${SHAREDPAKS_FILENAME}.js ${SHAREDPAKS_FILENAME}.data DESTINATION ${DEST_BUNDLE_DIR})
             endif ()
         endif ()
     endif ()
@@ -1216,19 +1288,33 @@ macro (add_html_shell)
     check_source_files ("Could not call add_html_shell() macro before define_source_files() macro.")
     if (EMSCRIPTEN)
         if (NOT ${ARGN} STREQUAL "")
+            # Prefer the user-defined shell
             set (HTML_SHELL ${ARGN})
+        elseif (EXISTS ${CMAKE_SOURCE_DIR}/bin/shell.html)
+            # Fallback to the shell present in the project source
+            set (HTML_SHELL ${CMAKE_SOURCE_DIR}/bin/shell.html)
+        elseif (DEFINED URHO3D_ROOT_DIR AND EXISTS ${URHO3D_ROOT_DIR}/bin/shell.html)
+            # Then to the Urho3D shell (full window/screen with no console output)
+            set (HTML_SHELL ${URHO3D_ROOT_DIR}/bin/shell.html)
+        elseif (EXISTS ${EMSCRIPTEN_ROOT_PATH}/src/shell.html)
+            # Finally create a shell from the emscripten one that embeds the Urho project logo
+            message (WARNING "Deprecated: Could not find '\${URHO3D_HOME}/bin/shell.html'.
+                              Falling back to '${EMSCRIPTEN_ROOT_PATH}/src/shell.html'.
+                              This behavior will be removed in a future release.")
+            file (READ ${EMSCRIPTEN_ROOT_PATH}/src/shell.html HTML_SHELL)
+            # Stringify to preserve semicolons
+            string (REPLACE "<!doctype html>" "<!-- This is a generated file. DO NOT EDIT!-->\n\n<!doctype html>" HTML_SHELL "${HTML_SHELL}")     
+            string (REPLACE "<body>" "<body>\n<script>document.body.innerHTML=document.body.innerHTML.replace(/^#!.*\\n/, '');</script>\n<a href=\"https://urho3d.io\" title=\"Urho3D Homepage\"><img src=\"https://urho3d.io/assets/images/logo.png\" alt=\"link to https://urho3d.io\" height=\"80\" width=\"160\" /></a>\n" HTML_SHELL "${HTML_SHELL}")
+            file (WRITE ${CMAKE_BINARY_DIR}/Source/shell.html "${HTML_SHELL}")
+            set (HTML_SHELL ${CMAKE_BINARY_DIR}/Source/shell.html)
         else ()
-            # Create Urho3D custom HTML shell that also embeds our own project logo
-            if (NOT EXISTS ${CMAKE_SOURCE_DIR}/bin/shell.html)
-                file (READ ${EMSCRIPTEN_ROOT_PATH}/src/shell.html HTML_SHELL)
-                string (REPLACE "<!doctype html>" "<!-- This is a generated file. DO NOT EDIT!-->\n\n<!doctype html>" HTML_SHELL "${HTML_SHELL}")     # Stringify to preserve semicolons
-                string (REPLACE "<body>" "<body>\n<script>document.body.innerHTML=document.body.innerHTML.replace(/^#!.*\\n/, '');</script>\n<a href=\"https://urho3d.io\" title=\"Urho3D Homepage\"><img src=\"https://urho3d.io/assets/images/logo.png\" alt=\"link to https://urho3d.io\" height=\"80\" width=\"160\" /></a>\n" HTML_SHELL "${HTML_SHELL}")
-                file (WRITE ${CMAKE_BINARY_DIR}/Source/shell.html "${HTML_SHELL}")
-                set (HTML_SHELL ${CMAKE_BINARY_DIR}/Source/shell.html)
-            else ()
-                set (HTML_SHELL ${CMAKE_SOURCE_DIR}/bin/shell.html)
-            endif ()
+            message (ERROR "Deducing HTML_SHELL failed. \n
+                            Please add \${CMAKE_SOURCE_DIR}/bin/shell.html 
+                            or update Urho so it provides \${URHO3D_ROOT_DIR}/bin/shell.html")
         endif ()
+        if (NOT EXISTS "${HTML_SHELL}")
+            message (ERROR "Could not find html shell '${HTML_SHELL}'")
+        endif()
         list (APPEND SOURCE_FILES ${HTML_SHELL})
         set_source_files_properties (${HTML_SHELL} PROPERTIES EMCC_OPTION shell-file)
     endif ()
@@ -1417,7 +1503,7 @@ macro (find_Urho3D_tool VAR NAME)
     find_program (${VAR} ${NAME} HINTS ${ARG_HINTS} PATHS ${ARG_PATHS} PATH_SUFFIXES ${ARG_PATH_SUFFIXES} DOC ${ARG_DOC} NO_DEFAULT_PATH)
     mark_as_advanced (${VAR})  # Hide it from cmake-gui in non-advanced mode
     if (NOT ${VAR})
-        set (${VAR} ${CMAKE_BINARY_DIR}/bin/tool/${NAME})
+        set (${VAR} ${URHO3D_BUILD_DIR}/bin/tool/${NAME})
         if (ARG_MSG_MODE AND NOT CMAKE_PROJECT_NAME STREQUAL Urho3D)
             message (${ARG_MSG_MODE}
                 "Could not find ${VAR} tool in the Urho3D build tree or Urho3D SDK. Your project may not build successfully without this tool. "
@@ -1439,96 +1525,124 @@ endmacro ()
 #  ACCUMULATE <value> - Accumulate the header files into the specified CMake variable, implies USE_FILE_SYMLINK when input list is a directory
 macro (install_header_files)
     # Need to check if the destination variable is defined first because this macro could be called by downstream project that does not wish to install anything
-    if (DEST_INCLUDE_DIR)
-        # Parse the arguments for the underlying install command for the SDK
-        cmake_parse_arguments (ARG "FILES_MATCHING;USE_FILE_SYMLINK;BUILD_TREE_ONLY" "BASE;DESTINATION;ACCUMULATE" "FILES;DIRECTORY;PATTERN" ${ARGN})
-        unset (INSTALL_MATCHING)
-        if (ARG_FILES)
-            set (INSTALL_TYPE FILES)
-            set (INSTALL_SOURCES ${ARG_FILES})
-        elseif (ARG_DIRECTORY)
-            set (INSTALL_TYPE DIRECTORY)
-            set (INSTALL_SOURCES ${ARG_DIRECTORY})
-            if (ARG_FILES_MATCHING)
-                set (INSTALL_MATCHING FILES_MATCHING)
-                # Our macro supports PATTERN <list> but CMake's install command does not, so convert the list to: PATTERN <value1> PATTERN <value2> ...
-                foreach (PATTERN ${ARG_PATTERN})
-                    list (APPEND INSTALL_MATCHING PATTERN ${PATTERN})
-                endforeach ()
-            endif ()
-        else ()
-            message (FATAL_ERROR "Couldn't setup install command because the install type is not specified.")
-        endif ()
-        if (NOT ARG_DESTINATION)
-            message (FATAL_ERROR "Couldn't setup install command because the install destination is not specified.")
-        endif ()
-        if (NOT ARG_BUILD_TREE_ONLY AND NOT CMAKE_PROJECT_NAME MATCHES ^Urho3D-ExternalProject-)
-            install (${INSTALL_TYPE} ${INSTALL_SOURCES} DESTINATION ${ARG_DESTINATION} ${INSTALL_MATCHING})
-        endif ()
+    if (NOT DEST_INCLUDE_DIR)
+        return ()
+    endif ()
 
-        # Reparse the arguments for the create_symlink macro to "install" the header files in the build tree
-        if (NOT ARG_BASE)
-            # Use build tree as base path
+    # Parse the arguments for the underlying install command for the SDK
+    cmake_parse_arguments (ARG "FILES_MATCHING;USE_FILE_SYMLINK;BUILD_TREE_ONLY" "BASE;DESTINATION;ACCUMULATE" "FILES;DIRECTORY;PATTERN" ${ARGN})
+    unset (INSTALL_MATCHING)
+    if (ARG_FILES)
+        set (INSTALL_TYPE FILES)
+        set (INSTALL_SOURCES ${ARG_FILES})
+    elseif (ARG_DIRECTORY)
+        set (INSTALL_TYPE DIRECTORY)
+        set (INSTALL_SOURCES ${ARG_DIRECTORY})
+        if (ARG_FILES_MATCHING)
+            set (INSTALL_MATCHING FILES_MATCHING)
+            # Our macro supports PATTERN <list> but CMake's install command does not, so convert the list to: PATTERN <value1> PATTERN <value2> ...
+            foreach (PATTERN ${ARG_PATTERN})
+                list (APPEND INSTALL_MATCHING PATTERN ${PATTERN})
+            endforeach ()
+        endif ()
+    else ()
+        message (FATAL_ERROR "Couldn't setup install command because the install type is not specified.")
+    endif ()
+    if (NOT ARG_DESTINATION)
+        message (FATAL_ERROR "Couldn't setup install command because the install destination is not specified.")
+    endif ()
+    if (NOT ARG_BUILD_TREE_ONLY AND NOT CMAKE_PROJECT_NAME MATCHES ^Urho3D-ExternalProject- AND NOT URHO3D_SKIP_INSTALL AND IS_URHO3D)
+        install (${INSTALL_TYPE} ${INSTALL_SOURCES} DESTINATION ${CURRENT_INSTALL_PREFIX}${ARG_DESTINATION} ${INSTALL_MATCHING})
+    endif ()
+
+    # Reparse the arguments for the create_symlink macro to "install" the header files in the build tree
+    if (NOT ARG_BASE)
+        # Use build tree as base path
+        if (URHO3D_BUILD_DIR)
+            set (ARG_BASE ${URHO3D_BUILD_DIR})
+        else ()
             set (ARG_BASE ${CMAKE_BINARY_DIR})
         endif ()
-        foreach (INSTALL_SOURCE ${INSTALL_SOURCES})
-            if (NOT IS_ABSOLUTE ${INSTALL_SOURCE})
-                set (INSTALL_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/${INSTALL_SOURCE})
-            endif ()
-            if (INSTALL_SOURCE MATCHES /$)
-                # Source is a directory
-                if (ARG_USE_FILE_SYMLINK OR ARG_ACCUMULATE OR BASH_ON_WINDOWS)
-                    # Use file symlink for each individual files in the source directory
-                    if (IS_SYMLINK ${ARG_DESTINATION} AND NOT CMAKE_HOST_WIN32)
-                        execute_process (COMMAND ${CMAKE_COMMAND} -E remove ${ARG_DESTINATION})
-                    endif ()
-                    set (GLOBBING_EXPRESSION RELATIVE ${INSTALL_SOURCE})
-                    if (ARG_FILES_MATCHING)
-                        foreach (PATTERN ${ARG_PATTERN})
-                            list (APPEND GLOBBING_EXPRESSION ${INSTALL_SOURCE}${PATTERN})
-                        endforeach ()
-                    else ()
-                        list (APPEND GLOBBING_EXPRESSION ${INSTALL_SOURCE}*)
-                    endif ()
-                    file (GLOB_RECURSE NAMES ${GLOBBING_EXPRESSION})
-                    foreach (NAME ${NAMES})
-                        get_filename_component (PATH ${ARG_DESTINATION}/${NAME} PATH)
-                        # Recreate the source directory structure in the destination path
-                        if (NOT EXISTS ${ARG_BASE}/${PATH})
-                            file (MAKE_DIRECTORY ${ARG_BASE}/${PATH})
-                        endif ()
-                        create_symlink (${INSTALL_SOURCE}${NAME} ${ARG_DESTINATION}/${NAME} BASE ${ARG_BASE} FALLBACK_TO_COPY)
-                        if (ARG_ACCUMULATE)
-                            list (APPEND ${ARG_ACCUMULATE} ${ARG_DESTINATION}/${NAME})
-                        endif ()
+    endif ()
+    foreach (INSTALL_SOURCE ${INSTALL_SOURCES})
+        if (NOT IS_ABSOLUTE ${INSTALL_SOURCE})
+            set (INSTALL_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/${INSTALL_SOURCE})
+        endif ()
+        if (INSTALL_SOURCE MATCHES /$)
+            # Source is a directory
+            if (ARG_USE_FILE_SYMLINK OR ARG_ACCUMULATE OR BASH_ON_WINDOWS)
+                # Use file symlink for each individual files in the source directory
+                if (IS_SYMLINK ${ARG_DESTINATION} AND NOT CMAKE_HOST_WIN32)
+                    execute_process (COMMAND ${CMAKE_COMMAND} -E remove ${ARG_DESTINATION})
+                endif ()
+                set (GLOBBING_EXPRESSION RELATIVE ${INSTALL_SOURCE})
+                if (ARG_FILES_MATCHING)
+                    foreach (PATTERN ${ARG_PATTERN})
+                        list (APPEND GLOBBING_EXPRESSION ${INSTALL_SOURCE}${PATTERN})
                     endforeach ()
                 else ()
-                    # Use a single symlink pointing to the source directory
-                    if (NOT IS_SYMLINK ${ARG_DESTINATION} AND NOT CMAKE_HOST_WIN32)
-                        execute_process (COMMAND ${CMAKE_COMMAND} -E remove_directory ${ARG_DESTINATION})
+                    list (APPEND GLOBBING_EXPRESSION ${INSTALL_SOURCE}*)
+                endif ()
+                file (GLOB_RECURSE NAMES ${GLOBBING_EXPRESSION})
+                foreach (NAME ${NAMES})
+                    get_filename_component (PATH ${ARG_DESTINATION}/${NAME} PATH)
+                    # Recreate the source directory structure in the destination path
+                    if (NOT EXISTS ${ARG_BASE}/${PATH})
+                        file (MAKE_DIRECTORY ${ARG_BASE}/${PATH})
                     endif ()
-                    create_symlink (${INSTALL_SOURCE} ${ARG_DESTINATION} BASE ${ARG_BASE} FALLBACK_TO_COPY)
-                endif ()
+                    create_symlink (${INSTALL_SOURCE}${NAME} ${ARG_DESTINATION}/${NAME} BASE ${ARG_BASE} FALLBACK_TO_COPY)
+                    if (ARG_ACCUMULATE)
+                        list (APPEND ${ARG_ACCUMULATE} ${ARG_DESTINATION}/${NAME})
+                    endif ()
+                endforeach ()
             else ()
-                # Source is a file (it could also be actually a directory to be treated as a "file", i.e. for creating symlink pointing to the directory)
-                get_filename_component (NAME ${INSTALL_SOURCE} NAME)
-                create_symlink (${INSTALL_SOURCE} ${ARG_DESTINATION}/${NAME} BASE ${ARG_BASE} FALLBACK_TO_COPY)
-                if (ARG_ACCUMULATE)
-                    list (APPEND ${ARG_ACCUMULATE} ${ARG_DESTINATION}/${NAME})
+                # Use a single symlink pointing to the source directory
+                if (NOT IS_SYMLINK ${ARG_DESTINATION} AND NOT CMAKE_HOST_WIN32)
+                    execute_process (COMMAND ${CMAKE_COMMAND} -E remove_directory ${ARG_DESTINATION})
                 endif ()
+                create_symlink (${INSTALL_SOURCE} ${ARG_DESTINATION} BASE ${ARG_BASE} FALLBACK_TO_COPY)
             endif ()
-        endforeach ()
+        else ()
+            # Source is a file (it could also be actually a directory to be treated as a "file", i.e. for creating symlink pointing to the directory)
+            get_filename_component (NAME ${INSTALL_SOURCE} NAME)
+            create_symlink (${INSTALL_SOURCE} ${ARG_DESTINATION}/${NAME} BASE ${ARG_BASE} FALLBACK_TO_COPY)
+            if (ARG_ACCUMULATE)
+                list (APPEND ${ARG_ACCUMULATE} ${ARG_DESTINATION}/${NAME})
+            endif ()
+        endif ()
+    endforeach ()
+endmacro ()
+
+# Macro for setting the installation prefix of Urho3D or User Project
+# in a project, it should be used before set_output_directories
+macro (set_install_prefix)
+    if (IS_URHO3D OR CMAKE_PROJECT_NAME MATCHES ^Urho3D-ExternalProject)
+        set (varprefix "URHO3D_INSTALL_PREFIX")
+    else ()
+        string (TOUPPER ${CMAKE_PROJECT_NAME} PROJECTNAME)
+        set (varprefix "${PROJECTNAME}_INSTALL_PREFIX")
+    endif ()
+    if (${varprefix})
+        string (REGEX REPLACE ^/|/$ "" prefix "${${varprefix}}")
+        set (${varprefix} "${prefix}" CACHE STRING "Urho3D install prefix added to cmake install prefix path" FORCE)
+        set (CURRENT_INSTALL_PREFIX "${${varprefix}}/")        
+    else ()
+        set (CURRENT_INSTALL_PREFIX "")
     endif ()
 endmacro ()
 
 # Macro for setting common output directories
 macro (set_output_directories OUTPUT_PATH)
-    cmake_parse_arguments (ARG LOCAL "" "" ${ARGN})
+    # Argument BASE added : allow to specify the base dir for REL_OUTPUT_PATH
+    cmake_parse_arguments (ARG LOCAL BASE "" ${ARGN})
     if (ARG_LOCAL)
         unset (SCOPE)
         unset (OUTPUT_DIRECTORY_PROPERTIES)
     else ()
         set (SCOPE CMAKE_)
+    endif ()
+    if (NOT ARG_BASE)
+        set (ARG_BASE ${CMAKE_CURRENT_BINARY_DIR})
     endif ()
     foreach (TYPE ${ARG_UNPARSED_ARGUMENTS})
         set (${SCOPE}${TYPE}_OUTPUT_DIRECTORY ${OUTPUT_PATH})
@@ -1539,8 +1653,8 @@ macro (set_output_directories OUTPUT_PATH)
             list (APPEND OUTPUT_DIRECTORY_PROPERTIES ${TYPE}_OUTPUT_DIRECTORY_${CONFIG} ${${TYPE}_OUTPUT_DIRECTORY_${CONFIG}})
         endforeach ()
         if (TYPE STREQUAL RUNTIME AND NOT ${OUTPUT_PATH} STREQUAL .)
-            file (RELATIVE_PATH REL_OUTPUT_PATH ${CMAKE_BINARY_DIR} ${OUTPUT_PATH})
-            set (DEST_RUNTIME_DIR ${REL_OUTPUT_PATH})
+            file (RELATIVE_PATH REL_OUTPUT_PATH ${ARG_BASE} ${OUTPUT_PATH})
+            set (DEST_RUNTIME_DIR ${CURRENT_INSTALL_PREFIX}${REL_OUTPUT_PATH})
         endif ()
     endforeach ()
     if (ARG_LOCAL)
@@ -1574,8 +1688,8 @@ macro (setup_executable)
     if (ARG_TOOL)
         list (APPEND TARGET_PROPERTIES XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH YES)
         if (NOT ARG_PRIVATE AND NOT DEST_RUNTIME_DIR MATCHES tool)
-            set_output_directories (${CMAKE_BINARY_DIR}/bin/tool LOCAL RUNTIME PDB)
-            set (RUNTIME_DIR ${CMAKE_BINARY_DIR}/bin/tool)
+            set (RUNTIME_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/tool)
+            set_output_directories (${RUNTIME_DIR} BASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} LOCAL RUNTIME PDB)
         endif ()
     endif ()
     if (NOT ARG_NODEPS)
@@ -1585,6 +1699,22 @@ macro (setup_executable)
         # Xcode universal build linker flags when targeting 64-bit OSX with LuaJIT enabled
         list (APPEND TARGET_PROPERTIES XCODE_ATTRIBUTE_OTHER_LDFLAGS[arch=x86_64] "${LUAJIT_EXE_LINKER_FLAGS_APPLE} $(OTHER_LDFLAGS)")
     endif ()
+
+    # Create symbolic links in the build tree
+    if (RESOURCE_DIRS AND NOT ANDROID AND NOT URHO3D_PACKAGING AND RUNTIME_DIR)
+        foreach (I ${RESOURCE_DIRS})
+            get_filename_component (NAME ${I} NAME)
+            if (EXISTS ${I})
+                if (NOT EXISTS ${RUNTIME_DIR})
+                    file (MAKE_DIRECTORY ${RUNTIME_DIR})
+                endif ()
+                if (NOT EXISTS ${RUNTIME_DIR}/${NAME})
+                    create_symlink (${I} ${RUNTIME_DIR}/${NAME} FALLBACK_TO_COPY)
+                endif ()
+            endif ()
+        endforeach ()
+    endif ()
+
     _setup_target ()
 
     if (URHO3D_SCP_TO_TARGET)
@@ -1665,7 +1795,6 @@ macro (setup_library)
     set_property(TARGET ${TARGET_NAME} PROPERTY POSITION_INDEPENDENT_CODE ON)
     
     if (PROJECT_NAME STREQUAL Urho3D)
-
         # Accumulate all the dependent static libraries that are used in building the Urho3D library itself
         if (NOT ${TARGET_NAME} STREQUAL Urho3D AND LIB_TYPE STREQUAL STATIC_LIBRARY)
             set (STATIC_LIBRARY_TARGETS ${STATIC_LIBRARY_TARGETS} ${TARGET_NAME} PARENT_SCOPE)
@@ -1676,7 +1805,7 @@ macro (setup_library)
             endif ()
         endif ()
 		# C.VILLE - In Native Compiling, be sure to have the VIDEOCORE include dir
-        if (RPI AND (NOT RPI4) AND (NOT CMAKE_CROSSCOMPILING))
+        if (RPI AND (NOT RPI_ABI STREQUAL RPI4) AND (NOT CMAKE_CROSSCOMPILING))
             set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I/opt/vc/include")
             set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/opt/vc/include")
         endif ()
@@ -1705,6 +1834,9 @@ macro (setup_main_executable)
     cmake_parse_arguments (ARG "NOBUNDLE;MACOSX_BUNDLE;WIN32" "" "" ${ARGN})
     if (NOT RESOURCE_DIRS)
         define_resource_dirs ()
+    endif ()
+    if (NOT TARGET_NAME STREQUAL Urho3D AND URHO3D_AS_SUBMODULE)
+        include_directories (${URHO3D_BUILD_DIR}/include ${URHO3D_BUILD_DIR}/include/Urho3D/ThirdParty)
     endif ()
     if (ANDROID)
         # Setup target as main shared library
@@ -1750,7 +1882,14 @@ macro (setup_main_executable)
                 endif ()
             endif ()
         endif ()
+
         setup_executable (${EXE_TYPE} ${ARG_UNPARSED_ARGUMENTS})
+
+        if (NOT TARGET_NAME STREQUAL Urho3D AND URHO3D_AS_SUBMODULE)
+            add_dependencies (${TARGET_NAME} Urho3D)
+            target_link_libraries (${TARGET_NAME} Urho3D)
+        endif () 
+
         if (HAS_SHELL_FILE AND NOT CMAKE_VERSION VERSION_LESS 3.15)
             add_make_clean_files ($<TARGET_FILE_DIR:${TARGET_NAME}>/$<TARGET_FILE_BASE_NAME:${TARGET_NAME}>.js $<TARGET_FILE_DIR:${TARGET_NAME}>/$<TARGET_FILE_BASE_NAME:${TARGET_NAME}>.wasm)
         endif ()
@@ -1760,7 +1899,7 @@ macro (setup_main_executable)
         if (URHO3D_PACKAGING)
             # Urho3D project builds the PackageTool as required; downstream project uses PackageTool found in the Urho3D build tree or Urho3D SDK
             find_Urho3d_tool (PACKAGE_TOOL PackageTool
-                HINTS ${CMAKE_BINARY_DIR}/bin/tool ${URHO3D_HOME}/bin/tool
+                HINTS ${URHO3D_BUILD_DIR}/bin/tool ${URHO3D_ROOT_DIR}/bin/tool ${CMAKE_SOURCE_DIR}/bin/tool
                 DOC "Path to PackageTool" MSG_MODE WARNING)
             if (CMAKE_PROJECT_NAME STREQUAL Urho3D)
                 set (PACKAGING_DEP DEPENDS PackageTool)
@@ -1804,18 +1943,29 @@ macro (setup_main_executable)
         endif ()
         add_dependencies (${TARGET_NAME} ${RESOURCE_CHECK_${MD5ALL}})
     endif ()
-    # Only need to install the resource directories once in case they are referenced by multiple targets
-    if (RESOURCE_DIRS AND DEST_SHARE_DIR)
-        foreach (DIR ${RESOURCE_DIRS})
-            list (FIND INSTALLED_RESOURCE_DIRS ${DIR} FOUND_INDEX)
-            if (FOUND_INDEX EQUAL -1)
-                install (DIRECTORY ${DIR} DESTINATION ${DEST_SHARE_DIR}/resources)
-                list (APPEND INSTALLED_RESOURCE_DIRS ${DIR})
-            endif ()
-            # This cache variable is used to keep track of whether a resource directory has been instructed to be installed by CMake or not
-            set (INSTALLED_RESOURCE_DIRS ${INSTALLED_RESOURCE_DIRS} CACHE INTERNAL "Installed resource dirs")
-        endforeach ()
+
+    # Install Resource Dirs
+    if (RESOURCE_DIRS)
+        if (CMAKE_PROJECT_NAME STREQUAL Urho3D AND DEST_SHARE_DIR)
+            # Only need to install the resource directories once in case they are referenced by multiple targets
+            foreach (DIR ${RESOURCE_DIRS})
+                unset (FOUND_INDEX)
+                list (FIND INSTALLED_RESOURCE_DIRS ${DIR} FOUND_INDEX)
+                if (FOUND_INDEX EQUAL -1)
+                    install (DIRECTORY ${DIR} DESTINATION ${DEST_SHARE_DIR}/resources)
+                    list (APPEND INSTALLED_RESOURCE_DIRS ${DIR})
+                endif ()
+                # This cache variable is used to keep track of whether a resource directory has been instructed to be installed by CMake or not
+                set (INSTALLED_RESOURCE_DIRS ${INSTALLED_RESOURCE_DIRS} CACHE INTERNAL "Installed resource dirs")
+            endforeach ()
+        elseif (NOT CMAKE_PROJECT_NAME STREQUAL Urho3D AND DEST_RUNTIME_DIR)
+            # install resources for User project or Urho3D External project
+            foreach (DIR ${RESOURCE_DIRS})
+                install (DIRECTORY ${DIR} DESTINATION ${DEST_RUNTIME_DIR})
+            endforeach ()
+        endif ()
     endif ()
+
     # Define a custom command for stripping the main target executable for Release build configuration,
     # but only for platforms that support it and require it (for Android, let Android plugin handle it)
     if (CMAKE_BUILD_TYPE STREQUAL Release AND NOT ANDROID AND NOT WEB AND NOT MSVC)
@@ -1832,9 +1982,7 @@ macro (_setup_target)
     include_directories (${INCLUDE_DIRS})
     # Link libraries
     define_dependency_libs (${TARGET_NAME})
-    if (LIBS)
-	    message ("-- target ${TARGET_NAME} adding libs ${LIBS}")
-	endif()
+    # Needed external libraries for the current target
     target_link_libraries (${TARGET_NAME} ${ABSOLUTE_PATH_LIBS} ${LIBS})
     # Enable PCH if requested
     if (${TARGET_NAME}_HEADER_PATHNAME)
@@ -1855,15 +2003,20 @@ macro (_setup_target)
         endif ()
     endif ()
     # Extra linker flags for Emscripten
-    if (EMSCRIPTEN)
+    if (WEB AND EMSCRIPTEN)
         # These flags are set only once in the main executable
         if (NOT LIB_TYPE)   # LIB_TYPE is empty for executable target
             list (APPEND LINK_FLAGS "-s TOTAL_MEMORY=${EMSCRIPTEN_TOTAL_MEMORY}")
             if (EMSCRIPTEN_ALLOW_MEMORY_GROWTH)
                 list (APPEND LINK_FLAGS "-s ALLOW_MEMORY_GROWTH=1 --no-heap-copy")
             endif ()
-            if (EMSCRIPTEN_SHARE_DATA)
-                list (APPEND LINK_FLAGS "--pre-js \"${CMAKE_BINARY_DIR}/Source/pak-loader.js\"")
+            # pak-loader.js replaced by generated ${project_name}-paks.js (see define_resource_dirs)
+            # add to link flags for the current target
+            if (EMSCRIPTEN_SHARE_DATA AND RESOURCE_DIRS)
+                get_project_name (project_name)
+                set (SHAREDPAKS_JS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${project_name}-paks.js)
+                list (APPEND LINK_FLAGS "--pre-js \"${SHAREDPAKS_JS}\"")
+                message ("Setup Target ${TARGET_NAME} add LINK_FLAGS = ${LINK_FLAGS}")
             endif ()
             if (URHO3D_TESTING)
                 list (APPEND LINK_FLAGS --emrun)
@@ -1916,17 +2069,6 @@ macro (_setup_target)
         set_target_properties (${TARGET_NAME} PROPERTIES ${TARGET_PROPERTIES})
         unset (TARGET_PROPERTIES)
     endif ()
-    # Create symbolic links in the build tree
-    if (NOT ANDROID AND NOT URHO3D_PACKAGING)
-        # Ensure the asset root directory exist before creating the symlinks
-        file (MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-        foreach (I ${RESOURCE_DIRS})
-            get_filename_component (NAME ${I} NAME)
-            if (NOT EXISTS ${CMAKE_BINARY_DIR}/bin/${NAME} AND EXISTS ${I})
-                create_symlink (${I} ${CMAKE_BINARY_DIR}/bin/${NAME} FALLBACK_TO_COPY)
-            endif ()
-        endforeach ()
-    endif ()
 endmacro()
 
 # Macro for setting up a test case
@@ -1948,15 +2090,14 @@ macro (setup_test)
     endif ()
 endmacro ()
 
+# Set install prefix for the current project (from cached var ${PROJECT_UPPERNAME}_INSTALL_PREFIX)
+# CURRENT_INSTALL_PREFIX is defined and will be appended to CMAKE_INSTALL_PREFIX when install
+set_install_prefix ()
+
 # Set common binary output directory if not already set (note that this module can be included in an external project which may already have DEST_RUNTIME_DIR preset)
 if (NOT DEST_RUNTIME_DIR)
-    set_output_directories (${CMAKE_BINARY_DIR}/bin RUNTIME PDB)
-endif ()
-
-if (WEB)
-    if (EMSCRIPTEN_SHARE_DATA AND NOT EXISTS ${CMAKE_BINARY_DIR}/Source/pak-loader.js)
-        file (WRITE ${CMAKE_BINARY_DIR}/Source/pak-loader.js "var Module;if(typeof Module==='undefined')Module=eval('(function(){try{return Module||{}}catch(e){return{}}})()');var s=document.createElement('script');s.src='${CMAKE_PROJECT_NAME}.js';document.body.appendChild(s);Module['preRun'].push(function(){Module['addRunDependency']('${CMAKE_PROJECT_NAME}.js.loader')});s.onload=function(){Module['removeRunDependency']('${CMAKE_PROJECT_NAME}.js.loader')};")
-    endif ()
+    get_project_binary_dir (binary_dir)
+    set_output_directories ("${binary_dir}/bin" BASE "${binary_dir}" RUNTIME PDB)
 endif ()
 
 # Warn user if PATH environment variable has not been correctly set for using ccache
@@ -1981,13 +2122,15 @@ if (IOS)
         # Due to a bug in the CMake/Xcode generator (fixed in 3.4) that prevents iOS targets (library and bundle) to be installed correctly
         # (see http://public.kitware.com/Bug/bug_relationship_graph.php?bug_id=12506&graph=dependency),
         # below temporary fix is required to work around the bug
-        list (APPEND POST_CMAKE_FIXES COMMAND sed -i '' 's/\$$\(EFFECTIVE_PLATFORM_NAME\)//g' ${CMAKE_BINARY_DIR}/CMakeScripts/install_postBuildPhase.make* || exit 0)
+        list (APPEND POST_CMAKE_FIXES COMMAND sed -i '' 's/\$$\(EFFECTIVE_PLATFORM_NAME\)//g' ${URHO3D_BUILD_DIR}/CMakeScripts/install_postBuildPhase.make* || exit 0)
+        message (WARNING "Added a possibly broken 'fix' to an Xcode generator bug as ${CMAKE_VERSION} VERSION_LESS 3.4. See https://discourse-urho3d.github.io/t/ios-xcode-sed-cant-read-s-effective-platform-name-g-n/1629/ for more info.")
     endif ()
-elseif (TVOS)
+elseif (TVOS AND NOT TARGET APPLETV_POST_CMAKE_FIX)
     # Almost the same bug as iOS one above but not quite, most probably because CMake does not support AppleTV platform yet
-    list (APPEND POST_CMAKE_FIXES COMMAND sed -i '' 's/\)\$$\(EFFECTIVE_PLATFORM_NAME\)/\) -DEFFECTIVE_PLATFORM_NAME=$$\(EFFECTIVE_PLATFORM_NAME\)/g' ${CMAKE_BINARY_DIR}/CMakeScripts/install_postBuildPhase.make* || exit 0)
-    add_custom_target (APPLETV_POST_CMAKE_FIX COMMAND sed -i '' -E 's,\(Debug|RelWithDebInfo|Release\)/,$$\(CONFIGURATION\)$$\(EFFECTIVE_PLATFORM_NAME\)/,g' ${CMAKE_BINARY_DIR}/Source/Urho3D/CMakeScripts/Urho3D_cmakeRulesBuildPhase.make* || exit 0)
+    list (APPEND POST_CMAKE_FIXES COMMAND sed -i '' 's/\)\$$\(EFFECTIVE_PLATFORM_NAME\)/\) -DEFFECTIVE_PLATFORM_NAME=$$\(EFFECTIVE_PLATFORM_NAME\)/g' ${URHO3D_BUILD_DIR}/CMakeScripts/install_postBuildPhase.make* || exit 0)
+    add_custom_target (APPLETV_POST_CMAKE_FIX COMMAND sed -i '' -E 's,\(Debug|RelWithDebInfo|Release\)/,$$\(CONFIGURATION\)$$\(EFFECTIVE_PLATFORM_NAME\)/,g' ${URHO3D_BUILD_DIR}/Source/Urho3D/CMakeScripts/Urho3D_cmakeRulesBuildPhase.make* || exit 0)
+    message (WARNING "Added a possibly broken 'fix' to an Xcode generator bug as ${CMAKE_VERSION} VERSION_LESS 3.4. See https://discourse-urho3d.github.io/t/ios-xcode-sed-cant-read-s-effective-platform-name-g-n/1629/ for more info.")
 endif ()
-if (POST_CMAKE_FIXES)
+if (POST_CMAKE_FIXES AND NOT TARGET POST_CMAKE_FIXES)
     add_custom_target (POST_CMAKE_FIXES ALL ${POST_CMAKE_FIXES} COMMENT "Applying post-cmake fixes")
 endif ()

@@ -20,7 +20,7 @@
 # THE SOFTWARE.
 #
 
-if (NOT CMAKE_PROJECT_NAME STREQUAL Urho3D)
+if (NOT CMAKE_PROJECT_NAME STREQUAL Urho3D AND NOT URHO3D_AS_SUBMODULE)
     # Set CMake minimum version and CMake policy required by UrhoCommon module
     cmake_minimum_required (VERSION 3.10.2)
     if (COMMAND cmake_policy)
@@ -40,7 +40,7 @@ if (NOT CMAKE_PROJECT_NAME STREQUAL Urho3D)
     project (Urho3D-ExternalProject-BindingGenerator)
 
     # Set CMake modules search path
-    set (CMAKE_MODULE_PATH ${BAKED_CMAKE_SOURCE_DIR}/CMake/Modules)
+    set (CMAKE_MODULE_PATH ${URHO3D_CMAKE_MODULE})
 
     # Include UrhoCommon.cmake module after setting project name
     include (UrhoCommon)
@@ -64,3 +64,6 @@ set (LIBS PugiXml)
 
 # Setup target
 setup_executable (TOOL NODEPS)
+
+# Preventing VS from placing cpp and h files to different groups 
+source_group (TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCE_FILES})
