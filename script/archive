@@ -7,10 +7,10 @@
 #
 
 DISKSTATIONPATH="Users/chris/Dev/Frombones"
-URHO=Urho3D
-APP=FromBones
+URHO=Urho3D-FromBones-git-local
+APP=FromBones-git-local
 RES=FromBones-Ressources
-U_HOME=Urho3D/$URHO
+U_HOME=Projets/$URHO
 
 A_HOME=Projets/$APP
 R_HOME=Projets/$RES
