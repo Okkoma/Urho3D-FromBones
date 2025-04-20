@@ -577,7 +577,9 @@ if (ANDROID)
     # After migration to Gradle build system we do not support Android cross-compiling build via pkgconfig anymore, however, this file is still being provided as reference only
     set (RENAME RENAME Urho3D-${ANDROID_ABI}.pc)
 endif ()
+if (NOT URHO3D_SKIP_INSTALL) 
 install (FILES ${CMAKE_CURRENT_BINARY_DIR}/Urho3D.pc DESTINATION ${DEST_PKGCONFIG_DIR} ${RENAME})
+endif ()
 
 # Define post build steps
 if (URHO3D_LIB_TYPE STREQUAL SHARED AND ARM)
