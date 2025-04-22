@@ -1460,7 +1460,7 @@ void Graphics::SetDepthStencil(Texture2D* texture)
     impl_->rasterizerStateDirty_ = true;
 }
 
-void Graphics::SetViewport(const IntRect& rect, unsigned index)
+void Graphics::SetViewport(const IntRect& rect, int index)
 {
     IntVector2 size = GetRenderTargetDimensions();
 

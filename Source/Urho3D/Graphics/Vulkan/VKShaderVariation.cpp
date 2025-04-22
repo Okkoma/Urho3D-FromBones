@@ -117,7 +117,7 @@ bool ShaderVariation::LoadByteCode(const String& )
         folder = graphics_->GetShaderCacheDir();
         if (!cache->Exists(folder + fileName))
         {
-            URHO3D_LOGERROR(fileName + "not found !");
+            URHO3D_LOGERROR(fileName + " not found !");
             return false;
         }
     }

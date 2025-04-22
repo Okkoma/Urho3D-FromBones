@@ -1813,7 +1813,7 @@ void Graphics::SetDepthStencil(Texture2D* texture)
     SetDepthStencil(depthStencil);
 }
 
-void Graphics::SetViewport(const IntRect& rect, unsigned index)
+void Graphics::SetViewport(const IntRect& rect, int index)
 {
     PrepareDraw();
 

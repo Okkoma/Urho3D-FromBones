@@ -31,6 +31,7 @@
 #include "../Graphics/Shader.h"
 #include "../Graphics/ShaderVariation.h"
 #include "../Graphics/Texture2D.h"
+#include "../Graphics/Technique.h"
 #include "../Graphics/VertexBuffer.h"
 #include "../Input/Input.h"
 #include "../Input/InputEvents.h"
@@ -892,6 +893,9 @@ void UI::Render(bool resetRenderTargets, VertexBuffer* buffer, const PODVector<U
     graphics_->SetScissorTest(false);
     graphics_->SetStencilTest(false);
     graphics_->SetVertexBuffer(buffer);
+#ifdef URHO3D_VULKAN
+    graphics_->GetImpl()->SetRenderPass(Technique::presentationPassIndex);
+#endif
 
     ShaderVariation* noTextureVS = graphics_->GetShader(VS, "Basic", "VERTEXCOLOR");
     ShaderVariation* diffTextureVS = graphics_->GetShader(VS, "Basic", "DIFFMAP VERTEXCOLOR");

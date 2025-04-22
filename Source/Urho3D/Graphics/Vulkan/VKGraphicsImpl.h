@@ -89,43 +89,107 @@ struct PhysicalDeviceInfo
 #endif
 	VkPhysicalDeviceFeatures requireFeatures_;
 };
+
 struct PipelineInfo;
 
 struct FrameData
 {
+	// state
     unsigned id_;
-
-    /// Frame Outputs datas
-    VkImage image_;
-    VkImageView imageView_;
-//    VkFramebuffer frameBuffer_;
-
-    /// SwapChain Synchronization Objects
-//    VkSemaphore acquireSync_;
-//    VkSemaphore releaseSync_;
-    VkFence     submitSync_;
+    int viewportIndex_;
+    int renderPassIndex_;
+    int subpassIndex_;
+    bool textureDirty_;
+    bool commandBufferBegun_;
+    bool renderPassBegun_;
+	PipelineInfo* lastPipelineInfoBound_;
 
     VkCommandPool commandPool_;
     VkCommandBuffer commandBuffer_;
-
-    bool textureDirty_;
-    bool commandBufferBegun_;
     VkPipeline lastPipelineBound_;
+	VkFence     submitSync_;
 
-    PipelineInfo* lastPipelineInfoBound_;
-    int renderPassIndex_;
+	// Data dependent on screen size
+    VkImage image_;
+    VkImageView imageView_;
+
+    Vector<VkFramebuffer> framebuffers_;
 };
 
-enum
+struct ViewportRect
 {
-    RENDERATTACHMENT_PRESENT = 0,
-    RENDERATTACHMENT_TARGET,
-    RENDERATTACHMENT_DEPTH
+	int viewSizeIndex_;
+	VkRect2D rect_;
+};
+
+enum RenderPassTypeFlag
+{
+    PASS_CLEAR   = 0x1,
+    PASS_VIEW    = 0x2,
+    PASS_COPY    = 0x4,
+    PASS_PRESENT = 0x8
+};
+
+enum RenderSlotType
+{
+    RENDERSLOT_PRESENT = 0,
+    RENDERSLOT_TARGET1,
+    RENDERSLOT_TARGET2,
+    RENDERSLOT_DEPTH,
+
+    MAX_RENDERSLOTS,
+
+    RENDERSLOT_NONE,
+};
+
+struct RenderSubpassInfo
+{
+    Vector<VkAttachmentReference> colors_;
+    Vector<VkAttachmentReference> depths_;
+    Vector<VkAttachmentReference> inputs_;
+};
+
+struct RenderPassAttachmentInfo
+{
+	int slot_;
+	bool clear_;
+};
+
+struct RenderPassInfo
+{
+    RenderPassInfo() : id_(0), type_(0), key_(0U), renderPass_(0) { }
+
+	int id_;
+    int type_;
+    unsigned key_;
+
+    VkRenderPass renderPass_;
+
+    Vector<RenderPassAttachmentInfo> attachments_;
+	Vector<RenderSubpassInfo> subpasses_;
+	Vector<VkClearValue> clearValues_;
 };
 
 struct RenderAttachment
 {
-    int usage_;
+    RenderAttachment() :
+        slot_(RENDERSLOT_NONE),
+        viewSizeIndex_(0),
+        image_(0),
+        imageView_(0),
+        sampler_(0),
+        memory_(0) { }
+
+    RenderAttachment(const RenderAttachment& r) :
+        slot_(r.slot_),
+        viewSizeIndex_(r.viewSizeIndex_),
+        image_(r.image_),
+        imageView_(r.imageView_),
+        sampler_(r.sampler_),
+        memory_(r.memory_),
+        texture_(r.texture_) { }
+
+    int slot_, viewSizeIndex_;
 
     VkImage image_;
     VkImageView imageView_;
@@ -136,34 +200,15 @@ struct RenderAttachment
 #else
     VmaAllocation memory_;
 #endif
+
+    SharedPtr<Texture2D> texture_;
 };
 
-struct RenderPassInfo
-{
-    RenderPassInfo() : key_(0), renderPass_(0), numColorAttachments_(0), numDepthAttachments_(0) { }
-
-    unsigned key_;
-    unsigned renderPathCommandIndex_;
-    unsigned numColorAttachments_;
-    unsigned numDepthAttachments_;
-
-    VkRenderPass renderPass_;
-
-    Vector<RenderAttachment> attachments_;
-    Vector<VkClearValue> clearColors_;
-
-    SharedPtr<Texture2D> viewportTexture_;
-
-    // Frame Buffers for each frame of the swapchain
-    Vector<VkFramebuffer> framebuffers_;
-};
-
-struct RenderPathInfo
+struct RenderPathData
 {
     SharedPtr<RenderPath> renderPath_;
-
-    Vector<RenderPassInfo* > renderPassInfos_;
-    HashMap<unsigned, unsigned > renderPathCommandIndexToRenderPassIndex_;
+    Vector<RenderPassInfo* > passInfos_;
+	HashMap<unsigned, Pair<unsigned, unsigned > > renderPathCommandIndexToRenderPassIndexes_;
 };
 
 enum PipelineState
@@ -324,10 +369,14 @@ public:
     GraphicsImpl();
 
     static const unsigned DefaultRenderPassWithTarget;
-    static const unsigned DefaultRenderPass;
-    static const unsigned DefaultRenderPassWithTargetNoClear;
     static const unsigned DefaultRenderPassNoClear;
-    static const unsigned DefaultRenderPassNoClear2;
+
+    static const unsigned ClearPass_1C;
+    static const unsigned RenderPass_1C_1DS;
+    static const unsigned RenderPass_2C_1DS;
+    static const unsigned CopyPass_1C;
+    static const unsigned PresentPass_1C;
+
     /// Setters
 	// Configuration
 	void AddInstanceExtension(const char* extension);
@@ -336,18 +385,21 @@ public:
 
 	// RenderPaths
     void AddRenderPassInfo(const String& attachmentconfig);
-    void SetRenderPath(RenderPath* renderPath);
+    void SetRenderPath(RenderPath* renderPath, bool viewpassWithSubpasses=false);
     void SetRenderPass(unsigned passindex);
 
-	/// Pipelines
+	// Pipelines
     PipelineInfo* RegisterPipelineInfo(unsigned renderPassKey, ShaderVariation* vs, ShaderVariation* ps, unsigned states, VertexBuffer** buffers);
     PipelineInfo* RegisterPipelineInfo(unsigned renderPassKey, ShaderVariation* vs, ShaderVariation* ps, unsigned states, unsigned numVertexTables, const PODVector<VertexElement>* vertexTables);
-    
+    void ResetToDefaultPipelineStates();
     void SetPipelineState(unsigned& pipelineStates, PipelineState state, unsigned value);
     bool SetPipeline(unsigned renderPassKey, ShaderVariation* vs, ShaderVariation* ps, unsigned pipelineStates, VertexBuffer** vertexBuffers);
-    void SetViewport(const IntRect& rect, unsigned index);
 
-    /// Getters
+	// Viewports
+	void SetViewportInfos();
+	void SetViewport(int viewport, const IntRect& rect);
+
+	/// Getters
     static PipelineInfo* GetPipelineInfo() { return pipelineInfo_; }
     static unsigned GetUBOPaddedSize(unsigned size);
     static VkFormat GetSwapChainFormat() { return swapChainInfo_.format; }
@@ -373,7 +425,7 @@ public:
     const VkRect2D& GetScissor() const { return screenScissor_; }
     const VkRect2D& GetFrameScissor() const { return frameScissor_; }
 
-    Texture2D* GetViewportTexture() const { return viewportTexture_; }
+    Texture2D* GetCurrentViewportTexture() const;
 
     const RenderPassInfo* GetRenderPassInfo(unsigned renderPassKey) const;
 
@@ -386,6 +438,9 @@ public:
     PipelineInfo* GetPipelineInfo(const StringHash& key) const;
     VkPipeline GetPipeline(const StringHash& key) const;
 
+    VkSampler GetSampler(unsigned parametersKey);
+    VkSampler GetSampler(TextureFilterMode filter, const IntVector3& adressMode, bool anisotropy);
+
     int GetMaxCompatibleDescriptorSets(PipelineInfo* p1, PipelineInfo* p2) const;
 
     /// Dump
@@ -395,15 +450,26 @@ public:
 private:
     bool CreateVulkanInstance(Context* context, const String& appname, SDL_Window* window, const Vector<String>& requestedLayers);
     bool CreateWindowSurface(SDL_Window* window);
+
     void CleanUpVulkan();
+	void CleanUpRenderAttachments();
+    void CleanUpRenderPasses();
+    void CleanUpPipelines();
+    void CleanUpSamplers();
+    void CleanUpSwapChain();
 
     bool CreateSwapChain(int width=0, int height=0, bool* srgb=0, bool* vsync=0, bool* triplebuffer=0);
     void UpdateSwapChain(int width=0, int height=0, bool* srgb=0, bool* vsync=0, bool* triplebuffer=0);
-    void CleanUpSwapChain();
 
-    void CreateAttachment(RenderAttachment& attachment);
+    VkSampler CreateSampler(TextureFilterMode filter, const IntVector3& adressMode, bool anisotropy);
+    void CreateImageAttachment(int slot, RenderAttachment& attachment, unsigned width, unsigned height);
     void DestroyAttachment(RenderAttachment& attachment);
-    bool CreateRenderPasses();
+
+    bool CreateRenderPasses(RenderPathData& renderPathInfo);
+    bool CreateRenderAttachments();
+    bool CreateRenderPaths();
+
+    void UpdateViewportTexture(unsigned renderpassindex, unsigned subpassindex);
 
     void CreatePipelines();
     VkPipeline CreatePipeline(PipelineInfo* info);
@@ -447,14 +513,14 @@ private:
     bool vertexBuffersDirty_;
     bool indexBufferDirty_;
     bool pipelineDirty_;
-    bool viewportDirty_;
     bool scissorDirty_;
+    bool viewportChanged_;
 
     /// Vertex Buffers
     PODVector<VkBuffer> vertexBuffers_;
     PODVector<VkDeviceSize> vertexOffsets_;
 
-    /// Presentation
+    /// SwapChain
     Vector<FrameData> frames_;
     FrameData* frame_;
     unsigned numFrames_;
@@ -463,19 +529,26 @@ private:
     VkExtent2D swapChainExtent_;
     VkSwapchainKHR swapChain_;
 
-    /// Render Passes
-    HashMap<unsigned, RenderPathInfo > renderPathInfos_;
-    HashMap<unsigned, RenderPassInfo > renderPassInfos_;
-    RenderPathInfo* renderPathInfo_;
-    int renderPassIndex_;
+	// RenderTargets : Data dependent on viewport size
+	Vector<RenderAttachment > renderAttachments_;  // index by Slot * ViewSize
+
+	/// Viewports
+	int viewportIndex_;
+	VkViewport viewport_, screenViewport_;
+	Vector<IntVector2> viewportSizes_;
+	Vector<ViewportRect> viewportInfos_;
+    VkRect2D screenScissor_, frameScissor_;
     Texture2D* viewportTexture_;
-    unsigned viewportIndex_;
-    bool viewportChanged_;
+
+    /// Render Passes
+    HashMap<unsigned, RenderPathData > renderPathDatas_;
+    HashMap<unsigned, RenderPassInfo > renderPassInfos_;
+    RenderPathData* renderPathData_;
+    RenderPassInfo* renderPassInfo_;
+    int renderPassIndex_, subpassIndex_;
 
     /// Pipelines
     PipelineBuilder pipelineBuilder_;
-    VkViewport viewport_;
-    VkRect2D screenScissor_, frameScissor_;
     VkPipelineCache pipelineCache_;
     unsigned pipelineStates_;
     unsigned defaultPipelineStates_;
@@ -483,13 +556,11 @@ private:
     HashMap<StringHash, PipelineInfo > pipelinesInfos_;
     // indexed by vs,ps,states,stencilvalue
     HashMap<unsigned, HashMap<StringHash, HashMap<StringHash, HashMap<unsigned, Vector<PipelineInfo*> > > > > pipelineInfoTable_;
-    /// Test : New pipeline storage and hash
-//    Vector<PipelineInfo> pipelinesInfos_;
-//    HashMap<StringHash, Vector<PipelineInfo* > > vsPipelineInfos_;
-//    HashMap<StringHash, Vector<PipelineInfo* > > psPipelineInfos_;
+
+    /// Samplers
+    HashMap<unsigned, VkSampler> samplers_;
 
     /// Semaphore Pools
-    //Vector<VkSemaphore> semaphorePool_;
     VkSemaphore presentComplete_;
     VkSemaphore renderComplete_;
 
@@ -503,7 +574,6 @@ private:
     ShaderProgramMap shaderPrograms_;
     /// Shader program in use.
     ShaderProgram* shaderProgram_;
-
 };
 
 }

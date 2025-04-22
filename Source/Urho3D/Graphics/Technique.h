@@ -119,7 +119,7 @@ public:
 
     /// Return pixel shader defines.
     const String& GetPixelShaderDefines() const { return pixelShaderDefines_; }
-    
+
     /// Return vertex shader define excludes.
     const String& GetVertexShaderDefineExcludes() const { return vertexShaderDefineExcludes_; }
 
@@ -270,6 +270,11 @@ public:
     static unsigned litAlphaPassIndex;
     /// Index for shadow pass. Initialized once GetPassIndex() has been called for the first time.
     static unsigned shadowPassIndex;
+#ifdef URHO3D_VULKAN
+    static unsigned clearPassIndex;
+    static unsigned copyPassIndex;
+    static unsigned presentationPassIndex;
+#endif
 
 private:
     /// Require desktop GPU flag.

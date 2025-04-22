@@ -429,7 +429,11 @@ bool View::Define(RenderSurface* renderTarget, Viewport* viewport)
         if (!command.enabled_)
             continue;
 
-        if (command.type_ == CMD_SCENEPASS)
+        if (command.type_ == CMD_CLEAR)
+        {
+            command.passIndex_ = M_MAX_UNSIGNED-1;
+        }
+        else if (command.type_ == CMD_SCENEPASS)
         {
             hasScenePasses_ = true;
 
@@ -689,8 +693,18 @@ void View::Render()
 
     // Run framebuffer blitting if necessary. If scene was resolved from backbuffer, do not touch depth
     // (backbuffer should contain proper depth already)
+
+#ifdef URHO3D_VULKAN
+    graphics_->GetImpl()->SetRenderPass(Technique::copyPassIndex);
+    if (graphics_->GetImpl()->GetCurrentViewportTexture())
+    {
+//        URHO3D_LOGDEBUGF("Blit to viewRect=%s", viewRect_.ToString().CString());
+        BlitFramebuffer(graphics_->GetImpl()->GetCurrentViewportTexture(), 0, !usedResolve_);
+    }
+#else
     if (currentRenderTarget_ != renderTarget_)
         BlitFramebuffer(currentRenderTarget_->GetParentTexture(), renderTarget_, !usedResolve_);
+#endif
 
     SendViewEvent(E_ENDVIEWRENDER);
 }
@@ -812,11 +826,15 @@ void View::SetGBufferShaderParameters(const IntVector2& texSize, const IntRect& 
     Vector4 bufferUVOffset((pixelUVOffset.x_ + (float)viewRect.left_) / texWidth + widthRange,
         (pixelUVOffset.y_ + (float)viewRect.top_) / texHeight + heightRange, widthRange, heightRange);
 #endif
+
     graphics_->SetShaderParameter(VSP_GBUFFEROFFSETS, bufferUVOffset);
 
     float invSizeX = 1.0f / texWidth;
     float invSizeY = 1.0f / texHeight;
     graphics_->SetShaderParameter(PSP_GBUFFERINVSIZE, Vector2(invSizeX, invSizeY));
+
+//    URHO3D_LOGDEBUGF("SetShaderParameter texSize=%s viewRect=%s VSP_GBUFFEROFFSETS=%s PSP_GBUFFERINVSIZE=%f %f",
+//                     texSize.ToString().CString(), viewRect.ToString().CString(), bufferUVOffset.ToString().CString(), invSizeX, invSizeY);
 }
 
 void View::GetDrawables()
@@ -1606,7 +1624,7 @@ void View::ExecuteRenderPathCommands()
                 {
                     URHO3D_PROFILE(ClearRenderTarget);
                 #ifdef ACTIVE_FRAMELOGDEBUG
-                    URHO3D_LOGDEBUGF("View Execute Clear %s...", command.pass_.CString());
+                    URHO3D_LOGERRORF("View Execute Clear %s passindex=%u ...", command.pass_.CString(), command.passIndex_);
                 #endif
                     Color clearColor = command.clearColor_;
                     if (command.useFogColor_)
@@ -1624,7 +1642,7 @@ void View::ExecuteRenderPathCommands()
                     {
                         URHO3D_PROFILE(RenderScenePass);
                     #ifdef ACTIVE_FRAMELOGDEBUG
-                        URHO3D_LOGDEBUGF("View Execute Scene Pass %s passindex=%u ...", command.pass_.CString(), command.passIndex_);
+                        URHO3D_LOGERRORF("View Execute Scene Pass %s passindex=%u ...", command.pass_.CString(), command.passIndex_);
                     #endif
                         SetRenderTargets(command);
                         bool allowDepthWrite = SetTextures(command);
@@ -1663,9 +1681,9 @@ void View::ExecuteRenderPathCommands()
                 if (!actualView->lightQueues_.Empty())
                 {
                     URHO3D_PROFILE(RenderLights);
-                #ifdef ACTIVE_FRAMELOGDEBUG
+//                #ifdef ACTIVE_FRAMELOGDEBUG
                     URHO3D_LOGDEBUGF("View Execute Forward Lights %s...", command.pass_.CString());
-                #endif
+//                #endif
                     SetRenderTargets(command);
 
                     for (Vector<LightBatchQueue>::Iterator it = actualView->lightQueues_.Begin(); it != actualView->lightQueues_.End(); ++it)
@@ -1876,7 +1894,10 @@ bool View::SetTextures(RenderPathCommand& command)
         if (!command.textureNames_[i].Compare("viewport", false))
         {
         #ifdef URHO3D_VULKAN
-            graphics_->SetTexture(i, graphics_->GetImpl()->GetViewportTexture());
+            Texture2D* texture = graphics_->GetImpl()->GetCurrentViewportTexture();
+            graphics_->SetTexture(i, texture);
+//            URHO3D_LOGDEBUGF("View() - SetTextures ... pass=%s texturename[%d]=%s texture=%u(%u)",
+//                             command.pass_.CString(), i, command.textureNames_[i].CString(), texture, currentViewportTexture_);
         #else
             graphics_->SetTexture(i, currentViewportTexture_);
         #endif
@@ -2181,8 +2202,11 @@ void View::BlitFramebuffer(Texture* source, RenderSurface* destination, bool dep
     // If blitting to the destination rendertarget, use the actual viewport. Intermediate textures on the other hand
     // are always viewport-sized
     IntVector2 srcSize(source->GetWidth(), source->GetHeight());
-    IntVector2 destSize = destination ? IntVector2(destination->GetWidth(), destination->GetHeight()) : IntVector2(
-        graphics_->GetWidth(), graphics_->GetHeight());
+    if (srcSize.x_ == 0)
+        srcSize = viewRect_.Size();
+
+    IntVector2 destSize = destination ? IntVector2(destination->GetWidth(), destination->GetHeight()) :
+                                        IntVector2(graphics_->GetWidth(), graphics_->GetHeight());
 
     IntRect srcRect = (GetRenderSurfaceFromTexture(source) == renderTarget_) ? viewRect_ : IntRect(0, 0, srcSize.x_, srcSize.y_);
     IntRect destRect = (destination == renderTarget_) ? viewRect_ : IntRect(0, 0, destSize.x_, destSize.y_);
@@ -2199,7 +2223,9 @@ void View::BlitFramebuffer(Texture* source, RenderSurface* destination, bool dep
     for (unsigned i = 1; i < MAX_RENDERTARGETS; ++i)
         graphics_->SetRenderTarget(i, (RenderSurface*)0);
     graphics_->SetDepthStencil(GetDepthStencil(destination));
-    graphics_->SetViewport(destRect);
+
+//    URHO3D_LOGDEBUGF("View::BlitFramebuffer ... destRect=%s", destRect.ToString().CString());
+    graphics_->SetViewport(destRect, camera_->GetViewport());
 
     static const char* shaderName = "CopyFramebuffer";
     graphics_->SetShaders(graphics_->GetShader(VS, shaderName), graphics_->GetShader(PS, shaderName));

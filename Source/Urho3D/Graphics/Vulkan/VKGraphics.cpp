@@ -128,8 +128,7 @@ Graphics::~Graphics()
 }
 
 
-bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, bool resizable, bool highDPI, bool vsync,
-    bool tripleBuffer, int multiSample, int monitor, int refreshRate)
+bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, bool resizable, bool highDPI, bool vsync, bool tripleBuffer, int multiSample, int monitor, int refreshRate)
 {
     URHO3D_PROFILE(SetScreenMode);
 
@@ -545,59 +544,7 @@ void Graphics::EndFrame()
 
 void Graphics::Clear(unsigned flags, const Color& color, float depth, unsigned stencil)
 {
-//    URHO3D_LOGDEBUGF("Graphics - Clear() : flags=%u", flags);
 
-//    PrepareDraw();
-
-//#ifdef GL_ES_VERSION_2_0
-//    flags &= ~CLEAR_STENCIL;
-//#endif
-//
-//    bool oldColorWrite = colorWrite_;
-//    bool oldDepthWrite = depthWrite_;
-//
-//    if (flags & CLEAR_COLOR && !oldColorWrite)
-//        SetColorWrite(true);
-//    if (flags & CLEAR_DEPTH && !oldDepthWrite)
-//        SetDepthWrite(true);
-//    if (flags & CLEAR_STENCIL && stencilWriteMask_ != M_MAX_UNSIGNED)
-//        glStencilMask(M_MAX_UNSIGNED);
-//
-//    unsigned glFlags = 0;
-//    if (flags & CLEAR_COLOR)
-//    {
-//        glFlags |= GL_COLOR_BUFFER_BIT;
-//        glClearColor(color.r_, color.g_, color.b_, color.a_);
-//    }
-//    if (flags & CLEAR_DEPTH)
-//    {
-//        glFlags |= GL_DEPTH_BUFFER_BIT;
-//        glClearDepth(depth);
-//    }
-//    if (flags & CLEAR_STENCIL)
-//    {
-//        glFlags |= GL_STENCIL_BUFFER_BIT;
-//        glClearStencil(stencil);
-//    }
-//
-//    // If viewport is less than full screen, set a scissor to limit the clear
-//    /// \todo Any user-set scissor test will be lost
-//    IntVector2 viewSize = GetRenderTargetDimensions();
-//    if (viewport_.left_ != 0 || viewport_.top_ != 0 || viewport_.right_ != viewSize.x_ || viewport_.bottom_ != viewSize.y_)
-//        SetScissorTest(true, IntRect(0, 0, viewport_.Width(), viewport_.Height()));
-//    else
-//        SetScissorTest(false);
-//
-//    glClear(glFlags);
-//
-//    SetScissorTest(false);
-//    SetColorWrite(oldColorWrite);
-//    SetDepthWrite(oldDepthWrite);
-//    if (flags & CLEAR_STENCIL && stencilWriteMask_ != M_MAX_UNSIGNED)
-//        glStencilMask(stencilWriteMask_);
-
-    // TODO : Vulkan RenderPass clearing
-    SetScissorTest(false);
 }
 
 bool Graphics::ResolveToTexture(Texture2D* destination, const IntRect& viewport)
@@ -1593,29 +1540,28 @@ void Graphics::SetDepthStencil(Texture2D* texture)
 //    SetDepthStencil(depthStencil);
 }
 
-void Graphics::SetViewport(const IntRect& rect, unsigned index)
+void Graphics::SetViewport(const IntRect& rect, int index)
 {
-//    PrepareDraw();
+    // Use Direct3D convention with the vertical coordinates ie. 0 is top
 
     IntVector2 rtSize = GetRenderTargetDimensions();
-
     IntRect rectCopy = rect;
 
     if (rectCopy.right_ <= rectCopy.left_)
-        rectCopy.right_ = rectCopy.left_ + 1;
+        rectCopy.right_  = rectCopy.left_ + 1;
     if (rectCopy.bottom_ <= rectCopy.top_)
         rectCopy.bottom_ = rectCopy.top_ + 1;
-    rectCopy.left_ = Clamp(rectCopy.left_, 0, rtSize.x_);
-    rectCopy.top_ = Clamp(rectCopy.top_, 0, rtSize.y_);
-    rectCopy.right_ = Clamp(rectCopy.right_, 0, rtSize.x_);
-    rectCopy.bottom_ = Clamp(rectCopy.bottom_, 0, rtSize.y_);
 
-    // Use Direct3D convention with the vertical coordinates ie. 0 is top
+    viewport_.left_   = Clamp(rectCopy.left_, 0, rtSize.x_);
+    viewport_.top_    = Clamp(rectCopy.top_, 0, rtSize.y_);
+    viewport_.right_  = Clamp(rectCopy.right_, 0, rtSize.x_);
+    viewport_.bottom_ = Clamp(rectCopy.bottom_, 0, rtSize.y_);
 
-    viewport_ = rectCopy;
-    impl_->SetViewport(viewport_, index);
+    impl_->SetViewport(index, viewport_);
 
-//    URHO3D_LOGDEBUGF("Graphics - SetViewport() %s", viewport_.ToString().CString());
+#ifdef ACTIVE_FRAMELOGDEBUG
+    URHO3D_LOGINFOF("Graphics() - SetViewport : index=%d rect=%s rtsize=%s", index, viewport_.ToString().CString(), rtSize.ToString().CString());
+#endif
 
     // Disable scissor test, needs to be re-enabled by the user
     SetScissorTest(false);
@@ -1829,8 +1775,7 @@ void Graphics::SetClipPlane(bool enable, const Plane& clipPlane, const Matrix3x4
     }
 }
 
-void Graphics::SetStencilTest(bool enable, CompareMode mode, StencilOp pass, StencilOp fail, StencilOp zFail, unsigned stencilRef,
-    unsigned compareMask, unsigned writeMask)
+void Graphics::SetStencilTest(bool enable, CompareMode mode, StencilOp pass, StencilOp fail, StencilOp zFail, unsigned stencilRef, unsigned compareMask, unsigned writeMask)
 {
     if (enable != stencilTest_)
     {
@@ -2611,20 +2556,32 @@ void Graphics::PrepareDraw()
     }
 
     FrameData& frame = *impl_->frame_;
+
 #ifdef ACTIVE_FRAMELOGDEBUG
-    URHO3D_LOGDEBUGF("PrepareDraw ... frame=%u ... pipelineDirty=%s textureDirty=%s frameRenderPassIndex=%d implRenderPassIndex=%d",
+    URHO3D_LOGDEBUGF("PrepareDraw ... frame=%u ... pipelineDirty=%s textureDirty=%s frameRenderPassIndex=(%d,%d) implRenderPassIndex=(%d,%d)",
                      impl_->GetFrameIndex(), impl_->pipelineDirty_ ? "true":"false",
                      frame.textureDirty_ && textures_[0] ? (!textures_[0]->GetName().Empty() ? textures_[0]->GetName().CString() : "noname") : "false",
-                     frame.renderPassIndex_, impl_->renderPassIndex_);
+                     frame.renderPassIndex_, frame.subpassIndex_, impl_->renderPassIndex_, impl_->subpassIndex_);
 #endif
 
     // End of the current renderpass.
-    if (frame.renderPassIndex_ != -1 && frame.renderPassIndex_ != impl_->renderPassIndex_)
+    if (frame.renderPassBegun_ && frame.renderPassIndex_ != -1 &&
+		(frame.renderPassIndex_ != impl_->renderPassIndex_ || frame.viewportIndex_ != impl_->viewportIndex_))
     {
+        // Execute all remaining subpasses to ensure the correct transition of the attachment layouts
+        const unsigned remaingSubpasses = impl_->renderPathData_->passInfos_[frame.renderPassIndex_]->subpasses_.Size() - 1;
     #ifdef ACTIVE_FRAMELOGDEBUG
-        URHO3D_LOGDEBUG("PrepareDraw ... Render Pass End !");
+        URHO3D_LOGDEBUGF("PrepareDraw ... Render Pass End : subpassindex=%d remain=%d", frame.subpassIndex_, remaingSubpasses);
     #endif
+
+        while (frame.subpassIndex_ < remaingSubpasses)
+        {
+            frame.subpassIndex_++;
+            vkCmdNextSubpass(frame.commandBuffer_, VK_SUBPASS_CONTENTS_INLINE);
+        }
+
         vkCmdEndRenderPass(frame.commandBuffer_);
+        frame.renderPassBegun_ = false;
     }
 
 	// Begin command recording.
@@ -2640,33 +2597,67 @@ void Graphics::PrepareDraw()
 	}
 
 	// Begin the next renderpass.
-    if (frame.renderPassIndex_ != impl_->renderPassIndex_)
+    if (frame.renderPassIndex_ != impl_->renderPassIndex_ || frame.viewportIndex_ != impl_->viewportIndex_)
     {
         frame.renderPassIndex_ = impl_->renderPassIndex_;
+        frame.subpassIndex_    = 0;
+		frame.viewportIndex_   = impl_->viewportIndex_;
 
-    #ifdef ACTIVE_FRAMELOGDEBUG
-        URHO3D_LOGDEBUGF("PrepareDraw ... Begin New Render Pass %d ...", frame.renderPassIndex_);
-    #endif
-
-        RenderPassInfo* renderPassInfo = impl_->renderPathInfo_->renderPassInfos_[frame.renderPassIndex_];
+        RenderPassInfo* renderPassInfo = impl_->renderPathData_->passInfos_[frame.renderPassIndex_];
 
         // Begin the render pass.
         VkRenderPassBeginInfo renderPassBI{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
-        renderPassBI.renderPass         = renderPassInfo->renderPass_;
-        renderPassBI.framebuffer        = renderPassInfo->framebuffers_[frame.id_];
-        renderPassBI.renderArea.offset  = { 0, 0 };
-        renderPassBI.renderArea.extent  = impl_->swapChainExtent_;
-        renderPassBI.clearValueCount    = renderPassInfo->clearColors_.Size();
-        renderPassBI.pClearValues       = renderPassInfo->clearColors_.Size() ? &renderPassInfo->clearColors_[0] : 0;
+        renderPassBI.renderPass = renderPassInfo->renderPass_;
+
+		if (frame.viewportIndex_ == -1 || (renderPassInfo->type_ & (PASS_CLEAR|PASS_PRESENT)))
+        {
+            renderPassBI.renderArea.offset = { 0, 0 };
+			renderPassBI.renderArea.extent = impl_->swapChainExtent_;
+        }
+        else
+        {
+			renderPassBI.renderArea.offset = impl_->screenScissor_.offset;
+			renderPassBI.renderArea.extent = impl_->viewportInfos_[frame.viewportIndex_].rect_.extent;
+        }
+
+        unsigned fbindex = renderPassInfo->id_;
+        if (frame.viewportIndex_ != -1 && renderPassInfo->type_ == PASS_VIEW)
+            fbindex += impl_->viewportInfos_[frame.viewportIndex_].viewSizeIndex_ * impl_->renderPassInfos_.Size();
+
+        renderPassBI.framebuffer = frame.framebuffers_[fbindex];
+
+    #ifdef ACTIVE_FRAMELOGDEBUG
+        URHO3D_LOGDEBUGF("PrepareDraw ... Begin New Render passindex=%d viewportindex=%d viewport=%F,%F,%F,%F renderArea=%d,%d,%u,%u ...",
+                         frame.renderPassIndex_, frame.viewportIndex_,
+                         impl_->viewport_.x, impl_->viewport_.y, impl_->viewport_.width, impl_->viewport_.height,
+                         renderPassBI.renderArea.offset.x, renderPassBI.renderArea.offset.y,
+                         renderPassBI.renderArea.extent.width, renderPassBI.renderArea.extent.height);
+    #endif
+
+		// Start with the first subpass
+        renderPassBI.clearValueCount = renderPassInfo->clearValues_.Size();
+        renderPassBI.pClearValues    = renderPassInfo->clearValues_.Size() ? &renderPassInfo->clearValues_[0] : 0;
         vkCmdBeginRenderPass(frame.commandBuffer_, &renderPassBI, VK_SUBPASS_CONTENTS_INLINE);
 
-        impl_->pipelineDirty_ = true;
+        frame.renderPassBegun_ = true;
+        impl_->pipelineDirty_  = true;
+    }
+
+    // change to the required subpass
+    // that's execute all previous subpasses (like "clear subpass")
+    if (frame.renderPassBegun_ && frame.subpassIndex_ != impl_->subpassIndex_)
+    {
+        while (frame.subpassIndex_ < impl_->subpassIndex_)
+        {
+            frame.subpassIndex_++;
+            vkCmdNextSubpass(frame.commandBuffer_, VK_SUBPASS_CONTENTS_INLINE);
+        }
     }
 
     // Set the Pipeline if dirty (shaders changed or/and states changed)
     if (vertexShader_ && pixelShader_ && (!impl_->pipelineInfo_ || impl_->pipelineDirty_))
     {
-        unsigned renderPassKey = impl_->renderPathInfo_->renderPassInfos_[frame.renderPassIndex_]->key_;
+        unsigned renderPassKey = impl_->renderPathData_->passInfos_[frame.renderPassIndex_]->key_;
         impl_->SetPipeline(renderPassKey, vertexShader_, pixelShader_, impl_->pipelineStates_, vertexBuffers_);
     }
 
@@ -2697,6 +2688,9 @@ void Graphics::PrepareDraw()
         static Vector<VkDescriptorImageInfo> imageInfos;
         imageInfos.Resize(descriptorWrites.Size());
 
+        static Vector<VkDescriptorImageInfo> inputInfos;
+        inputInfos.Resize(descriptorWrites.Size());
+
         unsigned descriptorWritesCount = 0;
 
         int lastSetToBind = -1;
@@ -2715,7 +2709,7 @@ void Graphics::PrepareDraw()
             bool newDecriptorSet = alloc.index_ >= impl_->pipelineInfo_->maxAllocatedDescriptorSets_;
 
             unsigned set = descGroup.id_;
-            unsigned numSamplerUpdate = 0;
+            unsigned numSamplerUpdate = 0, numInputsUpdate = 0;
             const unsigned startWritesCount = descriptorWritesCount;
             const Vector<ShaderBind>& bindings = descGroup.bindings_;
             for (unsigned j = 0; j < bindings.Size(); j++)
@@ -2774,6 +2768,27 @@ void Graphics::PrepareDraw()
                     if (buffer->IsDirty())
                         buffer->Apply();
                 }
+                // Input Attachment (for subpass)
+                else if (binding.type_ == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT)
+                {
+                    VkDescriptorImageInfo& inputInfo = inputInfos[numInputsUpdate];
+                    inputInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                    inputInfo.imageView = VK_NULL_HANDLE;//TODO attachments[i].color.view;
+                    inputInfo.sampler = VK_NULL_HANDLE;
+
+                    VkWriteDescriptorSet& descriptorWrite = descriptorWrites[descriptorWritesCount];
+                    descriptorWrite.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                    descriptorWrite.dstBinding       = binding.id_;
+                    descriptorWrite.dstArrayElement  = 0;
+                    descriptorWrite.descriptorType   = (VkDescriptorType)binding.type_;
+                    descriptorWrite.descriptorCount  = 1;
+                    descriptorWrite.pImageInfo      = &inputInfos[numInputsUpdate];
+                    descriptorWrite.pNext           = nullptr;
+
+                    numInputsUpdate++;
+
+                    descriptorWritesCount++;
+                }
                 // Sampler
                 else if (binding.type_ == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
                 {
@@ -2796,25 +2811,24 @@ void Graphics::PrepareDraw()
 
                         if (!texture)
                         {
-                        #ifdef ACTIVE_FRAMELOGDEBUG
-                            URHO3D_LOGERRORF("PrepareDraw ... update stage=%s Set=%u.%u check texture unit=%u %u/%u no Texture in the unit ... SKIP !",
-                                             shaderStage == VS ? "VS":"PS", set, binding.id_+numTexturesToUpdate, unit, numTexturesToUpdate, binding.unitRange_);
-                        #endif
+//                        #ifdef ACTIVE_FRAMELOGDEBUG
+//                            URHO3D_LOGERRORF("PrepareDraw ... update stage=%s Set=%u.%u check texture unit=%u %u/%u no Texture in the unit ... SKIP !",
+//                                             shaderStage == VS ? "VS":"PS", set, binding.id_+numTexturesToUpdate, unit, numTexturesToUpdate, binding.unitRange_);
+//                        #endif
                             continue;
                         }
 
                         if (!texture->GetShaderResourceView() || !texture->GetSampler())
                         {
-                        #ifdef ACTIVE_FRAMELOGDEBUG
-                            URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u check texture unit=%u %u/%u name=%s imageview=%u sampler=%u ... SKIP !",
-                                             shaderStage == VS ? "VS":"PS", set, binding.id_+numTexturesToUpdate, unit, numTexturesToUpdate, binding.unitRange_,
-                                             texture->GetName().CString(), texture->GetShaderResourceView(), texture->GetSampler());
-                        #endif
+//                        #ifdef ACTIVE_FRAMELOGDEBUG
+//                            URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u check texture unit=%u %u/%u name=%s imageview=%u sampler=%u ... SKIP !",
+//                                             shaderStage == VS ? "VS":"PS", set, binding.id_+numTexturesToUpdate, unit, numTexturesToUpdate, binding.unitRange_,
+//                                             texture->GetName().CString(), texture->GetShaderResourceView(), texture->GetSampler());
+//                        #endif
                             continue;
                         }
 
                         VkDescriptorImageInfo& imageInfo = imageInfos[numSamplerUpdate+numTexturesToUpdate];
-//                        imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
                         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                         imageInfo.imageView   = (VkImageView)(texture->GetShaderResourceView());
                         imageInfo.sampler     = (VkSampler)(texture->GetSampler());
@@ -2839,7 +2853,6 @@ void Graphics::PrepareDraw()
                         {
                             // use the last updated texture
                             VkDescriptorImageInfo& imageInfo = imageInfos[numSamplerUpdate+unit];
-//                            imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
                             imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                             imageInfo.imageView   = (VkImageView)(lasttexture->GetShaderResourceView());
                             imageInfo.sampler     = (VkSampler)(lasttexture->GetSampler());
@@ -3091,7 +3104,7 @@ void Graphics::PrepareDraw()
                         }
 
                         VkDescriptorImageInfo& imageInfo = imageInfos[numSamplerUpdate+numTexturesToUpdate];
-                        imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;//VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                         imageInfo.imageView   = (VkImageView)(texture->GetShaderResourceView());
                         imageInfo.sampler     = (VkSampler)(texture->GetSampler());
 
@@ -3121,7 +3134,7 @@ void Graphics::PrepareDraw()
                         {
                             // use the last updated texture
                             VkDescriptorImageInfo& imageInfo = imageInfos[numSamplerUpdate+unit];
-                            imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;//VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                             imageInfo.imageView   = (VkImageView)(lasttexture->GetShaderResourceView());
                             imageInfo.sampler     = (VkSampler)(lasttexture->GetSampler());
                         }
@@ -3242,11 +3255,9 @@ void Graphics::PrepareDraw()
     }
 
     // Set viewport
-    // TODO : 2 viewport datas : Rect Graphics::viewport_ && VkViewport GraphicsImpl::viewport_
     vkCmdSetViewport(frame.commandBuffer_, 0, 1, &impl_->viewport_);
 
     // Set scissor
-    // TODO : 2 viewport datas : IntRect Graphics::scissorRect_ && VkRect2D GraphicsImpl::scissor_
     if (scissorTest_)
         vkCmdSetScissor(frame.commandBuffer_, 0, 1, &impl_->frameScissor_);
     else
@@ -3257,35 +3268,7 @@ void Graphics::PrepareDraw()
 
 void Graphics::CleanupFramebuffers()
 {
-//    if (!IsDeviceLost())
-//    {
-//        BindFramebuffer(impl_->systemFBO_);
-//        impl_->boundFBO_ = impl_->systemFBO_;
-//        impl_->fboDirty_ = true;
-//
-//        for (HashMap<unsigned long long, FrameBufferObject>::Iterator i = impl_->frameBuffers_.Begin();
-//             i != impl_->frameBuffers_.End(); ++i)
-//            DeleteFramebuffer(i->second_.fbo_);
-//
-//        if (impl_->resolveSrcFBO_)
-//            DeleteFramebuffer(impl_->resolveSrcFBO_);
-//        if (impl_->resolveDestFBO_)
-//            DeleteFramebuffer(impl_->resolveDestFBO_);
-//    }
-//	else
-//    {
-//        impl_->boundFBO_ = 0;
-//        impl_->resolveSrcFBO_ = 0;
-//        impl_->resolveDestFBO_ = 0;
-//    }
-//
-////    else
-////        impl_->boundFBO_ = 0;
-////
-////    impl_->resolveSrcFBO_ = 0;
-////    impl_->resolveDestFBO_ = 0;
-//
-//    impl_->frameBuffers_.Clear();
+
 }
 
 void Graphics::ResetCachedState()
@@ -3330,7 +3313,6 @@ void Graphics::ResetCachedState()
     useClipPlane_ = false;
 
     impl_->swapChainDirty_     = true;
-    impl_->viewportDirty_      = true;
     impl_->scissorDirty_       = true;
     impl_->vertexBuffersDirty_ = true;
     impl_->pipelineDirty_      = true;

@@ -89,6 +89,21 @@ const char* textureUnitNames[] =
     "ZONECUBEMAP"
 };
 
+const char* descriptorTypeNames[] =
+{
+    "VK_DESCRIPTOR_TYPE_SAMPLER",
+    "VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER",
+    "VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE",
+    "VK_DESCRIPTOR_TYPE_STORAGE_IMAGE",
+    "VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER",
+    "VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER",
+    "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER",
+    "VK_DESCRIPTOR_TYPE_STORAGE_BUFFER",
+    "VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC",
+    "VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC",
+    "VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT"
+};
+
 String ToStringDescriptorType(SpvReflectDescriptorType value)
 {
     switch (value)
@@ -929,7 +944,11 @@ void Run(Vector<String>& arguments)
                     for (unsigned k = 0; k < binding.unitRange_; k++)
                         useTextureUnit[binding.unitStart_+k] = true;
                 }
+                // Input Attachments
+                else if (binding.type_ == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT)
+                {
 
+                }
                 // Uniform Buffers
                 else if (binding.type_ == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER || binding.type_ == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
                 {
@@ -1008,7 +1027,14 @@ void Run(Vector<String>& arguments)
             file->WriteUByte((unsigned char)binding.unitRange_);
 
             if (debug)
-                URHO3D_LOGTRACEF(" ... bind=%u type=%d unit=%u to %u", binding.id_, binding.type_, binding.unitStart_, binding.unitStart_+binding.unitRange_-1);
+            {
+                if (binding.type_ == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                    URHO3D_LOGTRACEF(" ... bind=%u type=%s(%d) unit=%u to %u", binding.id_, descriptorTypeNames[binding.type_],
+                                     binding.type_, binding.unitStart_, binding.unitStart_+binding.unitRange_-1);
+                else
+                    URHO3D_LOGTRACEF(" ... bind=%u type=%s(%d) group=%u", binding.id_, descriptorTypeNames[binding.type_],
+                                     binding.type_, binding.unitStart_);
+            }
         }
     }
 

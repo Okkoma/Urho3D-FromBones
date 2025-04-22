@@ -65,17 +65,7 @@ public:
 
     /// Set backup texture to use when rendering to this texture.
     void SetBackupTexture(Texture* texture);
-//#ifdef URHO3D_VULKAN
-//    void SetShaderResourceView(VkImageView view, bool addsampler=false)
-//    {
-//        imageView_ = view;
-//        if (addsampler)
-//        {
-//            parametersDirty_ = true;
-//            UpdateParameters();
-//        }
-//    }
-//#endif
+
 #ifdef URHO3D_VULKAN
     void SetShaderResourceView(void* view, bool addsampler=false)
     {
@@ -226,10 +216,6 @@ protected:
 
     union
     {
-//#ifdef URHO3D_VULKAN
-//    	/// Vulkan image view.
-//    	VkImageView imageView_;
-//#endif
 #ifdef URHO3D_VULKAN
     	/// Vulkan image view.
     	void* imageView_;

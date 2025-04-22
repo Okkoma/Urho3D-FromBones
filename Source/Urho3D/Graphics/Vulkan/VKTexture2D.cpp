@@ -100,9 +100,6 @@ void Texture2D::Release()
 
     if (graphics_)
     {
-        if (sampler_)
-            vkDestroySampler(graphics_->GetImpl()->GetDevice(), (VkSampler)sampler_, nullptr);
-
         if (imageView_)
             vkDestroyImageView(graphics_->GetImpl()->GetDevice(), (VkImageView)imageView_, nullptr);
 
@@ -318,7 +315,7 @@ bool Texture2D::SetData(unsigned levels, int x, int y, int width, int height, co
 
                 // Image Barrier : To Shader Read
                 barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-                barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;//VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                 barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
                 barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
                 vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
@@ -333,7 +330,7 @@ bool Texture2D::SetData(unsigned levels, int x, int y, int width, int height, co
         // Image Barrier : To Shader Read
         barrier.subresourceRange.baseMipLevel = levels ? levels-1 : 0;
         barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-        barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;//VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
         vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
@@ -581,6 +578,11 @@ bool Texture2D::Create()
 
     if (!graphics_ || !width_ || !height_)
         return false;
+
+#ifdef URHO3D_VMA
+    if (!graphics_->GetImpl()->GetAllocator())
+        return false;
+#endif
 
     levels_ = CheckMaxLevels(width_, height_, requestedLevels_);
 
