@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2008-2017 the Urho3D project.
+# Copyright (c) 2008-2022 the Urho3D project.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,7 @@
 #  DRM_LIBRARIES
 #
 
-find_path (DRM_INCLUDE_DIRS NAMES xf86drm.h DOC "DirectRenderingManager include directory")
+find_path (DRM_INCLUDE_DIRS NAMES drm.h PATH_SUFFIXES libdrm DOC "DirectRenderingManager include directory")
 find_library (DRM_LIBRARIES NAMES drm DOC "DirectRenderingManager library")
 
 include (FindPackageHandleStandardArgs)
