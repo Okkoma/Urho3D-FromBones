@@ -205,6 +205,7 @@ public:
     void SetDefaultTextureFilterMode(TextureFilterMode mode);
     /// Set default texture anisotropy level. Called by Renderer before rendering.
     void SetDefaultTextureAnisotropy(unsigned level);
+    void SetRenderSize(int renderWidth, int renderHeight) { renderWidth_= renderWidth; renderHeight_ = renderHeight; }
     /// Reset all rendertargets, depth-stencil surface and viewport.
     void ResetRenderTargets();
     /// Reset specific rendertarget.
@@ -286,11 +287,14 @@ public:
     /// Return window height in pixels.
     int GetHeight() const { return height_; }
 
+    /// Return render size in pixels.
+    IntVector2 GetSize() const { return GetRenderSize(); }
+
+    IntVector2 GetWindowSize() const { return IntVector2(width_, height_); }
+    IntVector2 GetRenderSize() const { return IntVector2(renderWidth_, renderHeight_); }
+
     /// Return multisample mode (1 = no multisampling.)
     int GetMultiSample() const { return multiSample_; }
-
-    /// Return window size in pixels.
-    IntVector2 GetSize() const { return IntVector2(width_, height_); }
 
     /// Return whether window is fullscreen.
     bool GetFullscreen() const { return fullscreen_; }
@@ -652,6 +656,10 @@ private:
     int width_;
     /// Window height in pixels.
     int height_;
+    /// Render width in pixels.
+    int renderWidth_;
+    /// Render height in pixels.
+    int renderHeight_;
     /// Window position.
     IntVector2 position_;
     /// Multisampling mode.

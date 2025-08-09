@@ -228,6 +228,8 @@ Graphics::Graphics(Context* context) :
     externalWindow_(0),
     width_(0),
     height_(0),
+    renderWidth_(0),
+    renderHeight_(0),
     position_(SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED),
     multiSample_(1),
     fullscreen_(false),
@@ -293,6 +295,8 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
     URHO3D_PROFILE(SetScreenMode);
 
     bool maximize = false;
+    renderWidth_ = width;
+    renderHeight_ = height;
 
 #if defined(IOS) || defined(TVOS)
     // iOS and tvOS app always take the fullscreen (and with status bar hidden)
@@ -464,9 +468,6 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
 
 //        SDL_SetHint(SDL_HINT_ORIENTATIONS, orientations_.CString());
 
-//#ifdef URHO3D_LOGGING
-//        URHO3D_LOGINFOF("Graphics() - %s %s Try to create window with w=%d h=%d maximize=%d externalWindow_=%u...", GetApiName().CString(), SDL_GetCurrentVideoDriver(), width, height, maximize, externalWindow_);
-//#endif
         for (;;)
         {
             if (!externalWindow_)
@@ -512,6 +513,9 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
         {
             Maximize();
             SDL_GL_GetDrawableSize(window_, &width, &height);
+#ifdef URHO3D_LOGGING
+            URHO3D_LOGINFOF("Graphics() - %s %s Try 3 to create window with w=%d h=%d maximize=%d ...", GetApiName().CString(), SDL_GetCurrentVideoDriver(), width, height, maximize);
+#endif
         }
 
         // Create/restore context and GPU objects and set initial renderstate
@@ -565,7 +569,8 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
     URHO3D_LOGINFOF("Graphics() - Adapter used %s %s", (const char *) glGetString(GL_VENDOR), (const char *) glGetString(GL_RENDERER));
 
     String msg;
-    msg.AppendWithFormat("Graphics() - api=%s driver=%s Set screen mode %dx%d %s monitor %d", GetApiName().CString(), SDL_GetCurrentVideoDriver(), width_, height_, (fullscreen_ ? "fullscreen" : "windowed"), monitor_);
+    msg.AppendWithFormat("Graphics() - api=%s driver=%s Set screen mode %dx%d (%dx%d) %s monitor %d",
+                         GetApiName().CString(), SDL_GetCurrentVideoDriver(), width_, height_, renderWidth_, renderHeight_, (fullscreen_ ? "fullscreen" : "windowed"), monitor_);
     if (borderless_)
         msg.Append(" borderless");
     if (resizable_)
