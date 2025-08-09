@@ -16,6 +16,7 @@ build*/
 /captures/
 .cxx/
 /demo/
+.cache/
 
 # Output files
 /Source/**/*.a
@@ -121,3 +122,6 @@ Thumbs.db
 # Doxygen mess from absence of 'dot' dependency
 CMakeDoxyFile.in
 CMakeDoxygenDefaults.cmake
+
+# cmake compile commands for clang
+/compile_commands.json
