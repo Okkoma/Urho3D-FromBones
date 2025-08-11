@@ -57,7 +57,7 @@ public:
     /// Set viewport camera.
     void SetCamera(Camera* camera);
     /// Set view rectangle. A zero rectangle (0 0 0 0) means to use the rendertarget's full dimensions.
-    void SetRect(const IntRect& rect=IntRect::ZERO);
+    void SetRect(const IntRect& rect);
     /// Set rendering path.
     void SetRenderPath(RenderPath* path);
     /// Set rendering path from an XML file.

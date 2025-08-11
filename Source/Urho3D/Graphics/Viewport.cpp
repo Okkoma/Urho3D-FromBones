@@ -41,7 +41,6 @@ Viewport::Viewport(Context* context) :
     Object(context),
     drawDebug_(true)
 {
-    SetRect();
     SetRenderPath((RenderPath*)0);
 }
 
@@ -51,7 +50,6 @@ Viewport::Viewport(Context* context, Scene* scene, Camera* camera, RenderPath* r
     camera_(camera),
     drawDebug_(true)
 {
-    SetRect();
     SetRenderPath(renderPath);
 }
 
@@ -59,9 +57,9 @@ Viewport::Viewport(Context* context, Scene* scene, Camera* camera, const IntRect
     Object(context),
     scene_(scene),
     camera_(camera),
+    rect_(rect),
     drawDebug_(true)
 {
-    SetRect(rect);
     SetRenderPath(renderPath);
 }
 

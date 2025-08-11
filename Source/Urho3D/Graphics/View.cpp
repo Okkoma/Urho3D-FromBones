@@ -325,15 +325,14 @@ bool View::Define(RenderSurface* renderTarget, Viewport* viewport)
     renderTarget_ = renderTarget;
     drawDebug_ = viewport->GetDrawDebug();
 
-    float viewRenderRatio = graphics_->GetViewRenderRatio();
     IntVector2 viewRenderSize  = viewport->GetRect().Size();
-    viewRenderSize.x_ = (int)(viewRenderRatio * (float)viewRenderSize.x_);
-    viewRenderSize.y_ = (int)(viewRenderRatio * (float)viewRenderSize.y_);
-    IntRect viewRenderRect = IntRect(0, 0, viewRenderSize.x_, viewRenderSize.y_); 
-
+    viewRenderSize.x_ = (int)(graphics_->GetViewRenderRatio() * (float)viewRenderSize.x_);
+    viewRenderSize.y_ = (int)(graphics_->GetViewRenderRatio() * (float)viewRenderSize.y_);
+    
     // Validate the rect and calculate size. If zero rect, use whole rendertarget size
     int rtWidth = renderTarget ? renderTarget->GetWidth() : viewRenderSize.x_;
     int rtHeight = renderTarget ? renderTarget->GetHeight() : viewRenderSize.y_;
+    IntRect viewRenderRect = IntRect(0, 0, viewRenderSize.x_, viewRenderSize.y_); 
     if (viewRenderRect != IntRect::ZERO)
     {
         viewRect_.left_ = Clamp(viewRenderRect.left_, 0, rtWidth - 1);
@@ -347,11 +346,10 @@ bool View::Define(RenderSurface* renderTarget, Viewport* viewport)
     viewSize_ = viewRect_.Size();
     rtSize_ = IntVector2(rtWidth, rtHeight);
     viewportRect_ = viewport->GetRect();
-
+/*
     URHO3D_LOGERRORF("View::Define : renderTarget=%u, viewRenderRatio=%f viewport=%u viewportRect_=%s viewRect=%s viewSize=%s rtSize=%s", 
-                    renderTarget, viewport, viewRenderRatio, viewportRect_.ToString().CString(), viewRect_.ToString().CString(), 
-                    viewSize_.ToString().CString(), rtSize_.ToString().CString());
-
+                    renderTarget, viewport, graphics_->GetViewRenderRatio(), viewportRect_.ToString().CString(), viewRect_.ToString().CString(), 
+*/
     // On OpenGL flip the viewport if rendering to a texture for consistent UV addressing with Direct3D9
 #ifdef URHO3D_OPENGL
     if (renderTarget_)
@@ -2112,7 +2110,7 @@ void View::AllocateScreenBuffers()
             needSubstitute = true;
     }
     // FromBones : upscaling
-    if (graphics_->GetViewRenderRatio() != 1.f)    
+    if (!renderTarget_ && graphics_->GetViewRenderRatio() != 1.f)    
         needSubstitute = true;
     
     // Follow final rendertarget format, or use RGB to match the backbuffer format
