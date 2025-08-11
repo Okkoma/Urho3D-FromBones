@@ -294,9 +294,10 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
 {
     URHO3D_PROFILE(SetScreenMode);
 
+    if (!renderWidth_ || !renderHeight_)
+        SetRenderSize(width, height);
+
     bool maximize = false;
-    renderWidth_ = width;
-    renderHeight_ = height;
 
 #if defined(IOS) || defined(TVOS)
     // iOS and tvOS app always take the fullscreen (and with status bar hidden)

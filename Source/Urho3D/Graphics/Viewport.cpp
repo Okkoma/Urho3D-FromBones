@@ -31,16 +31,19 @@
 #include "../Resource/XMLFile.h"
 #include "../Scene/Scene.h"
 
+#include "../IO/Log.h"
+
 #include "../DebugNew.h"
+#include "Math/Vector2.h"
 
 namespace Urho3D
 {
 
 Viewport::Viewport(Context* context) :
     Object(context),
-    rect_(IntRect::ZERO),
     drawDebug_(true)
 {
+    SetRect();
     SetRenderPath((RenderPath*)0);
 }
 
@@ -48,9 +51,9 @@ Viewport::Viewport(Context* context, Scene* scene, Camera* camera, RenderPath* r
     Object(context),
     scene_(scene),
     camera_(camera),
-    rect_(IntRect::ZERO),
     drawDebug_(true)
 {
+    SetRect();
     SetRenderPath(renderPath);
 }
 
@@ -58,9 +61,9 @@ Viewport::Viewport(Context* context, Scene* scene, Camera* camera, const IntRect
     Object(context),
     scene_(scene),
     camera_(camera),
-    rect_(rect),
     drawDebug_(true)
 {
+    SetRect(rect);
     SetRenderPath(renderPath);
 }
 
@@ -85,7 +88,16 @@ void Viewport::SetCullCamera(Camera* camera)
 
 void Viewport::SetRect(const IntRect& rect)
 {
-    rect_ = rect;
+    Graphics* graphics = GetSubsystem<Graphics>(); 
+
+    Vector2 renderRatio((float)graphics->GetRenderWidth() / graphics->GetWidth(),
+                        (float)graphics->GetRenderHeight() / graphics->GetHeight());
+  
+    rect_ = rect != IntRect::ZERO ? rect : IntRect(0, 0, graphics->GetWidth(), graphics->GetHeight());    
+    renderRect_ = IntRect(0, 0, renderRatio.x_ * rect_.Size().x_, renderRatio.y_ * rect_.Size().y_); 
+
+    URHO3D_LOGERRORF("Viewport::SetRect: viewport=%u rect_=%s renderRect_=%s renderRatio=%s", 
+        this, rect_.ToString().CString(), renderRect_.ToString().CString(), renderRatio.ToString().CString());
 }
 
 void Viewport::SetDrawDebug(bool enable)

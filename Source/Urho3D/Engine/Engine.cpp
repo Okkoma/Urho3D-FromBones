@@ -262,6 +262,10 @@ bool Engine::Initialize(const VariantMap& parameters)
             graphics->SetForceGL2(GetParameter(parameters, EP_FORCE_GL2).GetBool());
 #endif
 
+        // FromBones upscaling if renderWidth or renderHeight are specified
+        graphics->SetRenderSize(GetParameter(parameters, EP_RENDER_WIDTH, GetParameter(parameters, EP_WINDOW_WIDTH, 0).GetInt()).GetInt(),
+                                GetParameter(parameters, EP_RENDER_HEIGHT, GetParameter(parameters, EP_WINDOW_HEIGHT, 0).GetInt()).GetInt());
+        
         if (!graphics->SetMode(
             GetParameter(parameters, EP_WINDOW_WIDTH, 0).GetInt(),
             GetParameter(parameters, EP_WINDOW_HEIGHT, 0).GetInt(),

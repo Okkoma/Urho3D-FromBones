@@ -342,10 +342,12 @@ private:
     Texture* currentViewportTexture_;
     /// Dummy texture for D3D9 depth only rendering.
     Texture* depthOnlyDummyTexture_;
-    /// Viewport rectangle.
+    /// FromBones upscaling : rendered viewport rectangle.
     IntRect viewRect_;
-    /// Viewport size.
+    /// FromBones upscaling : rendered viewport size.
     IntVector2 viewSize_;
+    /// FromBones : windowed viewport rectangle. (same as viewport->GetRect())
+    IntRect viewportRect_;
     /// Destination rendertarget size.
     IntVector2 rtSize_;
     /// Information of the frame being rendered.
