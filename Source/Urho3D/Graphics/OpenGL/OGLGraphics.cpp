@@ -228,8 +228,7 @@ Graphics::Graphics(Context* context) :
     externalWindow_(0),
     width_(0),
     height_(0),
-    renderWidth_(0),
-    renderHeight_(0),
+    viewRenderRatio_(1.f),
     position_(SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED),
     multiSample_(1),
     fullscreen_(false),
@@ -294,8 +293,7 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
 {
     URHO3D_PROFILE(SetScreenMode);
 
-    if (!renderWidth_ || !renderHeight_)
-        SetRenderSize(width, height);
+    int wantedHeight = height;
 
     bool maximize = false;
 
@@ -566,12 +564,19 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
 
     CheckFeatureSupport();
 
+    // FromBones Upscaling : in fullscreen if the result height is different than the wanted height, apply Upscaling.
+    if (height_ != wantedHeight)
+        SetViewRenderDownScale(height_ / wantedHeight);
+
+    int renderWidth = viewRenderRatio_ * width_;
+    int renderHeight = viewRenderRatio_ * height_;
+
 #ifdef URHO3D_LOGGING
     URHO3D_LOGINFOF("Graphics() - Adapter used %s %s", (const char *) glGetString(GL_VENDOR), (const char *) glGetString(GL_RENDERER));
 
     String msg;
     msg.AppendWithFormat("Graphics() - api=%s driver=%s Set screen mode %dx%d (%dx%d) %s monitor %d",
-                         GetApiName().CString(), SDL_GetCurrentVideoDriver(), width_, height_, renderWidth_, renderHeight_, (fullscreen_ ? "fullscreen" : "windowed"), monitor_);
+                         GetApiName().CString(), SDL_GetCurrentVideoDriver(), width_, height_, renderWidth, renderHeight, (fullscreen_ ? "fullscreen" : "windowed"), monitor_);
     if (borderless_)
         msg.Append(" borderless");
     if (resizable_)

@@ -68,11 +68,9 @@ void Graphics::SetExternalWindow(void* window)
         URHO3D_LOGERROR("Window already opened, can not set external window");
 }
 
-void Graphics::SetRenderSize(int renderWidth, int renderHeight)
+void Graphics::SetViewRenderDownScale(int renderscale)
 {
-    renderWidth_ = renderWidth; 
-    renderHeight_ = renderHeight;
-    URHO3D_LOGERRORF("Graphics() - SetRenderSize renderWidth_=%d renderHeight_=%d", renderWidth_, renderHeight_);
+    viewRenderRatio_ = Clamp(1.f / renderscale, 0.1f, 1.f);
 }
 
 void Graphics::SetWindowTitle(const String& windowTitle)

@@ -205,8 +205,8 @@ public:
     void SetDefaultTextureFilterMode(TextureFilterMode mode);
     /// Set default texture anisotropy level. Called by Renderer before rendering.
     void SetDefaultTextureAnisotropy(unsigned level);
-    /// FromBones upscaling : Set Window Render Size.
-    void SetRenderSize(int renderWidth, int renderHeight);
+    /// FromBones upscaling : Set View render scale.
+    void SetViewRenderDownScale(int renderscale);
     /// Reset all rendertargets, depth-stencil surface and viewport.
     void ResetRenderTargets();
     /// Reset specific rendertarget.
@@ -291,14 +291,8 @@ public:
     /// Return window size in pixels.
     IntVector2 GetSize() const { return IntVector2(width_, height_); }
     
-    /// FromBones upscaling : Return render width in pixels.
-    int GetRenderWidth() const { return renderWidth_; }
-
-    /// FromBones upscaling : Return render height in pixels.
-    int GetRenderHeight() const { return renderHeight_; }
-
-    /// FromBones upscaling : Return render size in pixels.
-    IntVector2 GetRenderSize() const { return IntVector2(renderWidth_, renderHeight_); }
+    /// FromBones upscaling : Return render ratio.
+    float GetViewRenderRatio() const { return viewRenderRatio_; }
 
     /// Return multisample mode (1 = no multisampling.)
     int GetMultiSample() const { return multiSample_; }
@@ -663,10 +657,8 @@ private:
     int width_;
     /// Window height in pixels.
     int height_;
-    /// Render width in pixels.
-    int renderWidth_;
-    /// Render height in pixels.
-    int renderHeight_;
+    /// FromBones upscaling : View render ratio.
+    float viewRenderRatio_;
     /// Window position.
     IntVector2 position_;
     /// Multisampling mode.

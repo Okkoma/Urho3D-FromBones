@@ -74,6 +74,6 @@ static const String EP_WINDOW_TITLE = "WindowTitle";
 static const String EP_WINDOW_WIDTH = "WindowWidth";
 static const String EP_WORKER_THREADS = "WorkerThreads";
 // FromBones upscaling
-static const String EP_RENDER_WIDTH = "RenderWidth";
-static const String EP_RENDER_HEIGHT = "RenderHeight";
+static const String EP_VIEW_RENDER_DOWNSCALE = "ViewRenderDownScale";
+
 }

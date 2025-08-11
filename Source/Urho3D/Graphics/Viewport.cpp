@@ -31,8 +31,6 @@
 #include "../Resource/XMLFile.h"
 #include "../Scene/Scene.h"
 
-#include "../IO/Log.h"
-
 #include "../DebugNew.h"
 #include "Math/Vector2.h"
 
@@ -88,16 +86,15 @@ void Viewport::SetCullCamera(Camera* camera)
 
 void Viewport::SetRect(const IntRect& rect)
 {
-    Graphics* graphics = GetSubsystem<Graphics>(); 
-
-    Vector2 renderRatio((float)graphics->GetRenderWidth() / graphics->GetWidth(),
-                        (float)graphics->GetRenderHeight() / graphics->GetHeight());
-  
-    rect_ = rect != IntRect::ZERO ? rect : IntRect(0, 0, graphics->GetWidth(), graphics->GetHeight());    
-    renderRect_ = IntRect(0, 0, renderRatio.x_ * rect_.Size().x_, renderRatio.y_ * rect_.Size().y_); 
-
-    URHO3D_LOGERRORF("Viewport::SetRect: viewport=%u rect_=%s renderRect_=%s renderRatio=%s", 
-        this, rect_.ToString().CString(), renderRect_.ToString().CString(), renderRatio.ToString().CString());
+    if (rect == IntRect::ZERO)
+    {
+        Graphics* graphics = GetSubsystem<Graphics>(); 
+        rect_ = IntRect(0, 0, graphics->GetWidth(), graphics->GetHeight());
+    }
+    else
+    {
+        rect_ = rect;
+    }
 }
 
 void Viewport::SetDrawDebug(bool enable)
