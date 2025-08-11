@@ -342,8 +342,7 @@ dep_option(CLOCK_GETTIME       "Use clock_gettime() instead of gettimeofday()" O
 set_option(INPUT_TSLIB         "Use the Touchscreen library for input" ${UNIX_SYS})
 dep_option(VIDEO_WAYLAND       "Use Wayland video driver" ON UNIX_SYS OFF)
 dep_option(WAYLAND_SHARED      "Dynamically load Wayland support" ON VIDEO_WAYLAND OFF)
-dep_option(WAYLAND_LIBDECOR    "Libdecor support for Wayland video driver" OFF VIDEO_WAYLAND OFF)
-dep_option(WAYLAND_LIBDECOR_SHARED "Dynamically load Libdecor for Wayland video driver" ON "WAYLAND_LIBDECOR AND WAYLAND_SHARED" OFF)
+dep_option(WAYLAND_LIBDECOR    "Libdecor support for Wayland video driver" ON VIDEO_WAYLAND OFF)
 
 # Urho3D - change the VIDEO_WAYLAND_QT_TOUCH default value to FALSE (this is only needed by Sailfish[?] but we don't know way to auto-detect that yet)
 dep_option(VIDEO_WAYLAND_QT_TOUCH  "QtWayland server support for Wayland video driver" OFF VIDEO_WAYLAND OFF)
