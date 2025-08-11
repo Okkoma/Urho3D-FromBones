@@ -70,6 +70,12 @@ void Graphics::SetExternalWindow(void* window)
 
 void Graphics::SetViewRenderDownScale(int renderscale)
 {
+    viewRenderScale_ = renderscale;
+    SetViewRenderRatio(renderscale);
+}
+
+void Graphics::SetViewRenderRatio(int renderscale)
+{
     viewRenderRatio_ = Clamp(1.f / renderscale, 0.1f, 1.f);
 }
 

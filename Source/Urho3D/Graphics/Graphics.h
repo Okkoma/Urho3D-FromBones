@@ -205,8 +205,9 @@ public:
     void SetDefaultTextureFilterMode(TextureFilterMode mode);
     /// Set default texture anisotropy level. Called by Renderer before rendering.
     void SetDefaultTextureAnisotropy(unsigned level);
-    /// FromBones upscaling : Set View render scale.
+    /// FromBones upscaling : Set View render scale and ratio (inverse of scale and clamped)
     void SetViewRenderDownScale(int renderscale);
+    void SetViewRenderRatio(int renderscale);
     /// Reset all rendertargets, depth-stencil surface and viewport.
     void ResetRenderTargets();
     /// Reset specific rendertarget.
@@ -658,6 +659,7 @@ private:
     /// Window height in pixels.
     int height_;
     /// FromBones upscaling : View render ratio.
+    int viewRenderScale_;
     float viewRenderRatio_;
     /// Window position.
     IntVector2 position_;

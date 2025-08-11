@@ -346,6 +346,10 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
         return true;
     }
 
+    // If wayland backend and fullscreen, get desktopDisplayMode.
+    if (strcmp(SDL_GetCurrentVideoDriver(), "wayland") == 0 && fullscreen)
+        width = 0;
+
     // If zero dimensions in windowed mode, set windowed mode to maximize and set a predefined default restored window size.
     // If zero in fullscreen, use desktop mode
     if (!width || !height)
@@ -564,10 +568,10 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
 
     CheckFeatureSupport();
 
-    // FromBones Upscaling : in fullscreen if the result height is different than the wanted height, apply Upscaling.
-    if (height_ != wantedHeight)
-        SetViewRenderDownScale(height_ / wantedHeight);
-
+    // FromBones Upscaling :
+    // if the wanted height is not equal to the obtained height, then set a render ratio.
+    // else use the render ratio corresponding to the ViewRenderDownScale engine parameter.
+    SetViewRenderRatio(height_ != wantedHeight ? height_ / wantedHeight : viewRenderScale_);
     int renderWidth = viewRenderRatio_ * width_;
     int renderHeight = viewRenderRatio_ * height_;
 
