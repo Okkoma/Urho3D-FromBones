@@ -94,6 +94,8 @@ extern SDL_bool SDL_DBus_QueryPropertyOnConnection(DBusConnection *conn, const c
 extern void SDL_DBus_ScreensaverTickle(void);
 extern SDL_bool SDL_DBus_ScreensaverInhibit(SDL_bool inhibit);
 
+extern char **SDL_DBus_DocumentsPortalRetrieveFiles(const char *key, int *files_count);
+
 #endif /* HAVE_DBUS_DBUS_H */
 
 #endif /* SDL_dbus_h_ */

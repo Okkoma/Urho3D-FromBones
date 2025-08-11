@@ -18,18 +18,15 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-#include "../../SDL_internal.h"
 
-#ifndef SDL_waylandclipboard_h_
-#define SDL_waylandclipboard_h_
+#ifndef SDL_keysym_to_scancode_c_h_
+#define SDL_keysym_to_scancode_c_h_
 
-extern int Wayland_SetClipboardText(_THIS, const char *text);
-extern char *Wayland_GetClipboardText(_THIS);
-extern SDL_bool Wayland_HasClipboardText(_THIS);
-extern int Wayland_SetPrimarySelectionText(_THIS, const char *text);
-extern char *Wayland_GetPrimarySelectionText(_THIS);
-extern SDL_bool Wayland_HasPrimarySelectionText(_THIS);
+#include "SDL_scancode.h"
 
-#endif /* SDL_waylandclipboard_h_ */
+/* This function only correctly maps letters and numbers for keyboards in US QWERTY layout */
+extern SDL_Scancode SDL_GetScancodeFromKeySym(Uint32 keysym, Uint32 keycode);
+
+#endif /* SDL_keysym_to_scancode_c_h_ */
 
 /* vi: set ts=4 sw=4 expandtab: */

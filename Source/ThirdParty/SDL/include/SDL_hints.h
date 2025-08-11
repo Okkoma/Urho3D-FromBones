@@ -537,6 +537,26 @@ extern "C" {
 #define SDL_HINT_IME_INTERNAL_EDITING "SDL_IME_INTERNAL_EDITING"
 
 /**
+ * \brief A variable to control whether certain IMEs should show native UI components (such as the Candidate List) instead of suppressing them.
+ *
+ * The variable can be set to the following values:
+ *   "0"       - Native UI components are not display. (default)
+ *   "1"       - Native UI components are displayed.
+ */
+#define SDL_HINT_IME_SHOW_UI "SDL_IME_SHOW_UI"
+
+/**
+ * \brief A variable to control if extended IME text support is enabled.
+ * If enabled then SDL_TextEditingExtEvent will be issued if the text would be truncated otherwise.
+ * Additionally SDL_TextInputEvent will be dispatched multiple times so that it is not truncated.
+ *
+ * The variable can be set to the following values:
+ *   "0"       - Legacy behavior. Text can be truncated, no heap allocations. (default)
+ *   "1"       - Modern behavior.
+ */
+#define SDL_HINT_IME_SUPPORT_EXTENDED_TEXT "SDL_IME_SUPPORT_EXTENDED_TEXT"
+
+/**
  * \brief  A variable controlling whether the home indicator bar on iPhone X
  *         should be hidden.
  *
@@ -1203,7 +1223,7 @@ extern "C" {
 /**
  * \brief Tell the video driver that we only want a double buffer.
  *
- * By default, most lowlevel 2D APIs will use a triple buffer scheme that 
+ * By default, most lowlevel 2D APIs will use a triple buffer scheme that
  * wastes no CPU time on waiting for vsync after issuing a flip, but
  * introduces a frame of latency. On the other hand, using a double buffer
  * scheme instead is recommended for cases where low latency is an important
@@ -1214,10 +1234,22 @@ extern "C" {
  * Since it's driver-specific, it's only supported where possible and
  * implemented. Currently supported the following drivers:
  *
+ * - Wayland (wayland)
  * - KMSDRM (kmsdrm)
  * - Raspberry Pi (raspberrypi)
  */
 #define SDL_HINT_VIDEO_DOUBLE_BUFFER      "SDL_VIDEO_DOUBLE_BUFFER"
+
+/**
+ * \brief A variable controlling whether the EGL window is allowed to be
+ * composited as transparent, rather than opaque.
+ *
+ * Most window systems will always render windows opaque, even if the surface
+ * format has an alpha channel. This is not always true, however, so by default
+ * SDL will try to enforce opaque composition. To override this behavior, you
+ * can set this hint to "1".
+ */
+#define SDL_HINT_VIDEO_EGL_ALLOW_TRANSPARENCY "SDL_VIDEO_EGL_ALLOW_TRANSPARENCY"
 
 /**
  * \brief A variable controlling whether the graphics context is externally managed.
@@ -1276,6 +1308,52 @@ extern "C" {
  *  libdecor is used over xdg-shell when xdg-decoration protocol is unavailable.
  */
 #define SDL_HINT_VIDEO_WAYLAND_ALLOW_LIBDECOR "SDL_VIDEO_WAYLAND_ALLOW_LIBDECOR"
+
+/**
+ *  \brief  A variable controlling whether the libdecor Wayland backend is preferred over native decrations.
+ *
+ *  When this hint is set, libdecor will be used to provide window decorations, even if xdg-decoration is
+ *  available. (Note that, by default, libdecor will use xdg-decoration itself if available).
+ *
+ *  This variable can be set to the following values:
+ *    "0"       - libdecor is enabled only if server-side decorations are unavailable.
+ *    "1"       - libdecor is always enabled if available.
+ *
+ *  libdecor is used over xdg-shell when xdg-decoration protocol is unavailable.
+ */
+#define SDL_HINT_VIDEO_WAYLAND_PREFER_LIBDECOR "SDL_VIDEO_WAYLAND_PREFER_LIBDECOR"
+
+/**
+ *  \brief  A variable controlling whether video mode emulation is enabled under Wayland.
+ *
+ *  When this hint is set, a standard set of emulated CVT video modes will be exposed for use by the application.
+ *  If it is disabled, the only modes exposed will be the logical desktop size and, in the case of a scaled
+ *  desktop, the native display resolution.
+ *
+ *  This variable can be set to the following values:
+ *    "0"       - Video mode emulation is disabled.
+ *    "1"       - Video mode emulation is enabled.
+ *
+ *  By default video mode emulation is enabled.
+ */
+#define SDL_HINT_VIDEO_WAYLAND_MODE_EMULATION "SDL_VIDEO_WAYLAND_MODE_EMULATION"
+
+/**
+ *  \brief  Enable or disable mouse pointer warp emulation, needed by some older games.
+ *
+ *  When this hint is set, any SDL will emulate mouse warps using relative mouse mode.
+ *  This is required for some older games (such as Source engine games), which warp the
+ *  mouse to the centre of the screen rather than using relative mouse motion. Note that
+ *  relative mouse mode may have different mouse acceleration behaviour than pointer warps.
+ *
+ *  This variable can be set to the following values:
+ *    "0"       - All mouse warps fail, as mouse warping is not available under wayland.
+ *    "1"       - Some mouse warps will be emulated by forcing relative mouse mode.
+ *
+ *  If not set, this is automatically enabled unless an application uses relative mouse
+ *  mode directly.
+ */
+#define SDL_HINT_VIDEO_WAYLAND_EMULATE_MOUSE_WARP "SDL_VIDEO_WAYLAND_EMULATE_MOUSE_WARP"
 
 /**
 *  \brief  A variable that is the address of another SDL_Window* (as a hex string formatted with "%p").

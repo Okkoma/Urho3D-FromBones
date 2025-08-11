@@ -852,8 +852,20 @@ SDL_AddDisplayMode(SDL_VideoDisplay * display,  const SDL_DisplayMode * mode)
     return SDL_TRUE;
 }
 
-static int
-SDL_GetNumDisplayModesForDisplay(SDL_VideoDisplay * display)
+void SDL_SetCurrentDisplayMode(SDL_VideoDisplay *display, const SDL_DisplayMode *mode)
+{
+    SDL_memcpy(&display->current_mode, mode, sizeof(*mode));
+}
+
+void SDL_SetDesktopDisplayMode(SDL_VideoDisplay *display, const SDL_DisplayMode *mode)
+{
+    if (display->desktop_mode.driverdata) {
+        SDL_free(display->desktop_mode.driverdata);
+    }
+    SDL_memcpy(&display->desktop_mode, mode, sizeof(*mode));
+}
+
+static int SDL_GetNumDisplayModesForDisplay(SDL_VideoDisplay *display)
 {
     if (!display->num_display_modes && _this->GetDisplayModes) {
         _this->GetDisplayModes(_this, display);
@@ -871,8 +883,25 @@ SDL_GetNumDisplayModes(int displayIndex)
     return SDL_GetNumDisplayModesForDisplay(&_this->displays[displayIndex]);
 }
 
-int
-SDL_GetDisplayMode(int displayIndex, int index, SDL_DisplayMode * mode)
+void SDL_ResetDisplayModes(int displayIndex)
+{
+    SDL_VideoDisplay *display;
+    int i;
+
+    CHECK_DISPLAY_INDEX(displayIndex, );
+
+    display = &_this->displays[displayIndex];
+    for (i = display->num_display_modes; i--;) {
+        SDL_free(display->display_modes[i].driverdata);
+        display->display_modes[i].driverdata = NULL;
+    }
+    SDL_free(display->display_modes);
+    display->display_modes = NULL;
+    display->num_display_modes = 0;
+    display->max_display_modes = 0;
+}
+
+int SDL_GetDisplayMode(int displayIndex, int index, SDL_DisplayMode *mode)
 {
     SDL_VideoDisplay *display;
 
@@ -1257,26 +1286,27 @@ SDL_RestoreMousePosition(SDL_Window *window)
 extern Uint32 WINRT_DetectWindowFlags(SDL_Window * window);
 #endif
 
-static int
-SDL_UpdateFullscreenMode(SDL_Window * window, SDL_bool fullscreen)
+static int SDL_UpdateFullscreenMode(SDL_Window *window, SDL_bool fullscreen)
 {
     SDL_VideoDisplay *display;
     SDL_Window *other;
+    SDL_bool resized = SDL_FALSE;
 
-    CHECK_WINDOW_MAGIC(window,-1);
+    CHECK_WINDOW_MAGIC(window, -1);
 
     /* if we are in the process of hiding don't go back to fullscreen */
     if (window->is_hiding && fullscreen) {
         return 0;
     }
 
-#ifdef __MACOSX__
+#if defined(__MACOSX__) && defined(SDL_VIDEO_DRIVER_COCOA)
     /* if the window is going away and no resolution change is necessary,
        do nothing, or else we may trigger an ugly double-transition
      */
-    if (SDL_strcmp(_this->name, "cocoa") == 0) {  /* don't do this for X11, etc */
-        if (window->is_destroying && (window->last_fullscreen_flags & FULLSCREEN_MASK) == SDL_WINDOW_FULLSCREEN_DESKTOP)
+    if (SDL_strcmp(_this->name, "cocoa") == 0) { /* don't do this for X11, etc */
+        if (window->is_destroying && (window->last_fullscreen_flags & FULLSCREEN_MASK) == SDL_WINDOW_FULLSCREEN_DESKTOP) {
             return 0;
+        }
 
         /* If we're switching between a fullscreen Space and "normal" fullscreen, we need to get back to normal first. */
         if (fullscreen && ((window->last_fullscreen_flags & FULLSCREEN_MASK) == SDL_WINDOW_FULLSCREEN_DESKTOP) && ((window->flags & FULLSCREEN_MASK) == SDL_WINDOW_FULLSCREEN)) {
@@ -1299,7 +1329,7 @@ SDL_UpdateFullscreenMode(SDL_Window * window, SDL_bool fullscreen)
             return 0;
         }
     }
-#elif __WINRT__ && (NTDDI_VERSION < NTDDI_WIN10)
+#elif defined(__WINRT__) && (NTDDI_VERSION < NTDDI_WIN10)
     /* HACK: WinRT 8.x apps can't choose whether or not they are fullscreen
        or not.  The user can choose this, via OS-provided UI, but this can't
        be set programmatically.
@@ -1326,6 +1356,9 @@ SDL_UpdateFullscreenMode(SDL_Window * window, SDL_bool fullscreen)
 #endif
 
     display = SDL_GetDisplayForWindow(window);
+    if (!display) { /* No display connected, nothing to do. */
+        return 0;
+    }
 
     if (fullscreen) {
         /* Hide any other fullscreen windows */
@@ -1360,14 +1393,14 @@ SDL_UpdateFullscreenMode(SDL_Window * window, SDL_bool fullscreen)
             SDL_zero(fullscreen_mode);
 
             if (SDL_GetWindowDisplayMode(other, &fullscreen_mode) == 0) {
-                SDL_bool resized = SDL_TRUE;
+                resized = SDL_TRUE;
 
                 if (other->w == fullscreen_mode.w && other->h == fullscreen_mode.h) {
                     resized = SDL_FALSE;
                 }
 
                 /* only do the mode change if we want exclusive fullscreen */
-                if ((window->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != SDL_WINDOW_FULLSCREEN_DESKTOP) {
+                if ((other->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != SDL_WINDOW_FULLSCREEN_DESKTOP) {
                     if (SDL_SetDisplayModeForDisplay(display, &fullscreen_mode) < 0) {
                         return -1;
                     }
@@ -1384,15 +1417,21 @@ SDL_UpdateFullscreenMode(SDL_Window * window, SDL_bool fullscreen)
 
                 /* Generate a mode change event here */
                 if (resized) {
-#ifndef ANDROID
-                    /* Android may not resize the window to exactly what our fullscreen mode is, especially on
-                     * windowed Android environments like the Chromebook or Samsung DeX.  Given this, we shouldn't
-                     * use fullscreen_mode.w and fullscreen_mode.h, but rather get our current native size.  As such,
-                     * Android's SetWindowFullscreen will generate the window event for us with the proper final size.
-                     */
-                    SDL_SendWindowEvent(other, SDL_WINDOWEVENT_RESIZED,
-                                        fullscreen_mode.w, fullscreen_mode.h);
-#endif
+                    if (SDL_strcmp(_this->name, "Android") != 0 && SDL_strcmp(_this->name, "windows") != 0) {
+                        /* Android may not resize the window to exactly what our fullscreen mode is, especially on
+                         * windowed Android environments like the Chromebook or Samsung DeX.  Given this, we shouldn't
+                         * use fullscreen_mode.w and fullscreen_mode.h, but rather get our current native size.  As such,
+                         * Android's SetWindowFullscreen will generate the window event for us with the proper final size.
+                         */
+
+                        /* This is also unnecessary on Win32 (WIN_SetWindowFullscreen calls SetWindowPos,
+                         * WM_WINDOWPOSCHANGED will send SDL_WINDOWEVENT_RESIZED). Also, on Windows with DPI scaling enabled,
+                         * we're keeping modes in pixels, but window sizes in dpi-scaled points, so this would be a unit mismatch.
+                         */
+                        SDL_SendWindowEvent(other, SDL_WINDOWEVENT_RESIZED,
+                                            fullscreen_mode.w, fullscreen_mode.h);
+                    }
+
                 } else {
                     SDL_OnWindowResized(other);
                 }
@@ -1410,11 +1449,18 @@ SDL_UpdateFullscreenMode(SDL_Window * window, SDL_bool fullscreen)
 
     if (_this->SetWindowFullscreen) {
         _this->SetWindowFullscreen(_this, window, display, SDL_FALSE);
+    } else {
+        resized = SDL_TRUE;
     }
     display->fullscreen_window = NULL;
 
-    /* Generate a mode change event here */
-    SDL_OnWindowResized(window);
+    if (!resized) {
+        /* Generate a mode change event here */
+        SDL_OnWindowResized(window);
+    } else {
+        SDL_SendWindowEvent(window, SDL_WINDOWEVENT_RESIZED,
+                            window->windowed.w, window->windowed.h);
+    }
 
     /* Restore the cursor position */
     SDL_RestoreMousePosition(window);
@@ -1653,6 +1699,7 @@ SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint32 flags)
     window->brightness = 1.0f;
     window->next = _this->windows;
     window->is_destroying = SDL_FALSE;
+    window->display_index = SDL_GetWindowDisplayIndex(window);
 
     if (_this->windows) {
         _this->windows->prev = window;
@@ -2272,6 +2319,27 @@ SDL_GetWindowBordersSize(SDL_Window * window, int *top, int *left, int *bottom, 
     }
 
     return _this->GetWindowBordersSize(_this, window, top, left, bottom, right);
+}
+
+void SDL_GetWindowSizeInPixels(SDL_Window *window, int *w, int *h)
+{
+    int filter;
+
+    CHECK_WINDOW_MAGIC(window, );
+
+    if (!w) {
+        w = &filter;
+    }
+
+    if (!h) {
+        h = &filter;
+    }
+
+    if (_this->GetWindowSizeInPixels) {
+        _this->GetWindowSizeInPixels(_this, window, w, h);
+    } else {
+        SDL_GetWindowSize(window, w, h);
+    }
 }
 
 void
@@ -4648,5 +4716,94 @@ void SDL_Metal_GetDrawableSize(SDL_Window * window, int *w, int *h)
         SDL_GetWindowSize(window, w, h);
     }
 }
+
+#if defined(SDL_VIDEO_DRIVER_X11) || defined(SDL_VIDEO_DRIVER_WAYLAND) || defined(SDL_VIDEO_DRIVER_EMSCRIPTEN)
+const char *SDL_GetCSSCursorName(SDL_SystemCursor id, const char **fallback_name)
+{
+    /* Reference: https://www.w3.org/TR/css-ui-4/#cursor */
+    /* Also in: https://www.freedesktop.org/wiki/Specifications/cursor-spec/ */
+    switch (id) {
+    case SDL_SYSTEM_CURSOR_ARROW:
+        return "default";
+
+    case SDL_SYSTEM_CURSOR_IBEAM:
+        return "text";
+
+    case SDL_SYSTEM_CURSOR_WAIT:
+        return "wait";
+
+    case SDL_SYSTEM_CURSOR_CROSSHAIR:
+        return "crosshair";
+
+    case SDL_SYSTEM_CURSOR_WAITARROW:
+        return "progress";
+
+    case SDL_SYSTEM_CURSOR_SIZENWSE:
+        if (fallback_name) {
+            /* only a single arrow */
+            *fallback_name = "nw-resize";
+        }
+        return "nwse-resize";
+
+    case SDL_SYSTEM_CURSOR_SIZENESW:
+        if (fallback_name) {
+            /* only a single arrow */
+            *fallback_name = "ne-resize";
+        }
+        return "nesw-resize";
+
+    case SDL_SYSTEM_CURSOR_SIZEWE:
+        if (fallback_name) {
+            *fallback_name = "col-resize";
+        }
+        return "ew-resize";
+
+    case SDL_SYSTEM_CURSOR_SIZENS:
+        if (fallback_name) {
+            *fallback_name = "row-resize";
+        }
+        return "ns-resize";
+
+    case SDL_SYSTEM_CURSOR_SIZEALL:
+        return "all-scroll";
+
+    case SDL_SYSTEM_CURSOR_NO:
+        return "not-allowed";
+
+    case SDL_SYSTEM_CURSOR_HAND:
+        return "pointer";
+
+#if 0
+    case SDL_SYSTEM_CURSOR_WINDOW_TOPLEFT:
+        return "nw-resize";
+
+    case SDL_SYSTEM_CURSOR_WINDOW_TOP:
+        return "n-resize";
+
+    case SDL_SYSTEM_CURSOR_WINDOW_TOPRIGHT:
+        return "ne-resize";
+
+    case SDL_SYSTEM_CURSOR_WINDOW_RIGHT:
+        return "e-resize";
+
+    case SDL_SYSTEM_CURSOR_WINDOW_BOTTOMRIGHT:
+        return "se-resize";
+
+    case SDL_SYSTEM_CURSOR_WINDOW_BOTTOM:
+        return "s-resize";
+
+    case SDL_SYSTEM_CURSOR_WINDOW_BOTTOMLEFT:
+        return "sw-resize";
+
+    case SDL_SYSTEM_CURSOR_WINDOW_LEFT:
+        return "w-resize";
+#endif
+
+    default:
+        SDL_assert(0);
+        return "default";
+    }
+}
+#endif
 
 /* vi: set ts=4 sw=4 expandtab: */

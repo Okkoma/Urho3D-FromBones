@@ -18,18 +18,20 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-#include "../../SDL_internal.h"
+#include "../SDL_internal.h"
 
-#ifndef SDL_waylandclipboard_h_
-#define SDL_waylandclipboard_h_
+#include "../../include/SDL_scancode.h"
 
-extern int Wayland_SetClipboardText(_THIS, const char *text);
-extern char *Wayland_GetClipboardText(_THIS);
-extern SDL_bool Wayland_HasClipboardText(_THIS);
-extern int Wayland_SetPrimarySelectionText(_THIS, const char *text);
-extern char *Wayland_GetPrimarySelectionText(_THIS);
-extern SDL_bool Wayland_HasPrimarySelectionText(_THIS);
+typedef enum
+{
+    SDL_SCANCODE_TABLE_DARWIN,
+    SDL_SCANCODE_TABLE_LINUX,
+    SDL_SCANCODE_TABLE_XFREE86_1,
+    SDL_SCANCODE_TABLE_XFREE86_2,
+    SDL_SCANCODE_TABLE_XVNC,
+} SDL_ScancodeTable;
 
-#endif /* SDL_waylandclipboard_h_ */
+extern const SDL_Scancode *SDL_GetScancodeTable(SDL_ScancodeTable table, int *num_entries);
+extern SDL_Scancode SDL_GetScancodeFromTable(SDL_ScancodeTable table, int keycode);
 
 /* vi: set ts=4 sw=4 expandtab: */

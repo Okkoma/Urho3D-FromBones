@@ -24,6 +24,7 @@
 #define SDL_sysvideo_h_
 
 #include "SDL_messagebox.h"
+#include "SDL_mouse.h"
 #include "SDL_shape.h"
 #include "SDL_thread.h"
 #include "SDL_metal.h"
@@ -83,6 +84,7 @@ struct SDL_Window
     int max_w, max_h;
     Uint32 flags;
     Uint32 last_fullscreen_flags;
+    Uint32 display_index;
 
     /* Stored position and size for windowed mode */
     SDL_Rect windowed;
@@ -100,7 +102,9 @@ struct SDL_Window
 
     SDL_bool is_hiding;
     SDL_bool is_destroying;
-    SDL_bool is_dropping;       /* drag/drop in progress, expecting SDL_SendDropComplete(). */
+    SDL_bool is_dropping; /* drag/drop in progress, expecting SDL_SendDropComplete(). */
+
+    SDL_Rect mouse_rect;
 
     SDL_WindowShaper *shaper;
 
@@ -114,9 +118,9 @@ struct SDL_Window
     SDL_Window *prev;
     SDL_Window *next;
 };
-#define FULLSCREEN_VISIBLE(W) \
+#define FULLSCREEN_VISIBLE(W)                \
     (((W)->flags & SDL_WINDOW_FULLSCREEN) && \
-     ((W)->flags & SDL_WINDOW_SHOWN) && \
+     ((W)->flags & SDL_WINDOW_SHOWN) &&      \
      !((W)->flags & SDL_WINDOW_MINIMIZED))
 
 /*
@@ -144,7 +148,14 @@ struct SDL_VideoDisplay
 struct SDL_SysWMinfo;
 
 /* Define the SDL video driver structure */
-#define _THIS   SDL_VideoDevice *_this
+#define _THIS SDL_VideoDevice *_this
+
+/* Video device flags */
+typedef enum
+{
+    VIDEO_DEVICE_QUIRK_DISABLE_DISPLAY_MODE_SWITCHING = 0x01,
+    VIDEO_DEVICE_QUIRK_DISABLE_UNSET_FULLSCREEN_ON_MINIMIZE = 0x02,
+} DeviceQuirkFlags;
 
 struct SDL_VideoDevice
 {
@@ -209,15 +220,16 @@ struct SDL_VideoDevice
     /*
      * Window functions
      */
-    int (*CreateSDLWindow) (_THIS, SDL_Window * window);
-    int (*CreateSDLWindowFrom) (_THIS, SDL_Window * window, const void *data);
-    void (*SetWindowTitle) (_THIS, SDL_Window * window);
-    void (*SetWindowIcon) (_THIS, SDL_Window * window, SDL_Surface * icon);
-    void (*SetWindowPosition) (_THIS, SDL_Window * window);
-    void (*SetWindowSize) (_THIS, SDL_Window * window);
-    void (*SetWindowMinimumSize) (_THIS, SDL_Window * window);
-    void (*SetWindowMaximumSize) (_THIS, SDL_Window * window);
-    int (*GetWindowBordersSize) (_THIS, SDL_Window * window, int *top, int *left, int *bottom, int *right);
+    int (*CreateSDLWindow)(_THIS, SDL_Window *window);
+    int (*CreateSDLWindowFrom)(_THIS, SDL_Window *window, const void *data);
+    void (*SetWindowTitle)(_THIS, SDL_Window *window);
+    void (*SetWindowIcon)(_THIS, SDL_Window *window, SDL_Surface *icon);
+    void (*SetWindowPosition)(_THIS, SDL_Window *window);
+    void (*SetWindowSize)(_THIS, SDL_Window *window);
+    void (*SetWindowMinimumSize)(_THIS, SDL_Window *window);
+    void (*SetWindowMaximumSize)(_THIS, SDL_Window *window);
+    int (*GetWindowBordersSize)(_THIS, SDL_Window *window, int *top, int *left, int *bottom, int *right);
+    void (*GetWindowSizeInPixels)(_THIS, SDL_Window *window, int *w, int *h);
     int (*SetWindowOpacity) (_THIS, SDL_Window * window, float opacity);
     int (*SetWindowModalFor) (_THIS, SDL_Window * modal_window, SDL_Window * parent_window);
     int (*SetWindowInputFocus) (_THIS, SDL_Window * window);
@@ -233,6 +245,9 @@ struct SDL_VideoDevice
     void (*SetWindowFullscreen) (_THIS, SDL_Window * window, SDL_VideoDisplay * display, SDL_bool fullscreen);
     int (*SetWindowGammaRamp) (_THIS, SDL_Window * window, const Uint16 * ramp);
     int (*GetWindowGammaRamp) (_THIS, SDL_Window * window, Uint16 * ramp);
+    void* (*GetWindowICCProfile) (_THIS, SDL_Window * window, size_t* size);
+    int (*GetWindowDisplayIndex)(_THIS, SDL_Window * window);
+    void (*SetWindowMouseRect)(_THIS, SDL_Window * window);
     void (*SetWindowMouseGrab) (_THIS, SDL_Window * window, SDL_bool grabbed);
     void (*SetWindowKeyboardGrab) (_THIS, SDL_Window * window, SDL_bool grabbed);
     void (*DestroyWindow) (_THIS, SDL_Window * window);
@@ -301,9 +316,11 @@ struct SDL_VideoDevice
     void (*SuspendScreenSaver) (_THIS);
 
     /* Text input */
-    void (*StartTextInput) (_THIS);
-    void (*StopTextInput) (_THIS);
-    void (*SetTextInputRect) (_THIS, SDL_Rect *rect);
+    void (*StartTextInput)(_THIS);
+    void (*StopTextInput)(_THIS);
+    void (*SetTextInputRect)(_THIS, SDL_Rect *rect);
+    void (*ClearComposition)(_THIS);
+    SDL_bool (*IsTextInputShown)(_THIS);
 
     /* Screen keyboard */
     SDL_bool (*HasScreenKeyboardSupport) (_THIS);
@@ -312,9 +329,12 @@ struct SDL_VideoDevice
     SDL_bool (*IsScreenKeyboardShown) (_THIS, SDL_Window *window);
 
     /* Clipboard */
-    int (*SetClipboardText) (_THIS, const char *text);
-    char * (*GetClipboardText) (_THIS);
-    SDL_bool (*HasClipboardText) (_THIS);
+    int (*SetClipboardText)(_THIS, const char *text);
+    char *(*GetClipboardText)(_THIS);
+    SDL_bool (*HasClipboardText)(_THIS);
+    int (*SetPrimarySelectionText)(_THIS, const char *text);
+    char *(*GetPrimarySelectionText)(_THIS);
+    SDL_bool (*HasPrimarySelectionText)(_THIS);
 
     /* MessageBox */
     int (*ShowMessageBox) (_THIS, const SDL_MessageBoxData *messageboxdata, int *buttonid);
@@ -338,6 +358,9 @@ struct SDL_VideoDevice
     Uint8 window_magic;
     Uint32 next_object_id;
     char *clipboard_text;
+    char *primary_selection_text;
+    SDL_bool setting_display_mode;
+    Uint32 quirk_flags;
 
     /* * * */
     /* Data used by the GL drivers */
@@ -358,6 +381,7 @@ struct SDL_VideoDevice
         int stereo;
         int multisamplebuffers;
         int multisamplesamples;
+        int floatbuffers;
         int accelerated;
         int major_version;
         int minor_version;
@@ -454,7 +478,10 @@ extern SDL_VideoDevice *SDL_GetVideoDevice(void);
 extern int SDL_AddBasicVideoDisplay(const SDL_DisplayMode * desktop_mode);
 extern int SDL_AddVideoDisplay(const SDL_VideoDisplay * display, SDL_bool send_event);
 extern void SDL_DelVideoDisplay(int index);
-extern SDL_bool SDL_AddDisplayMode(SDL_VideoDisplay *display, const SDL_DisplayMode * mode);
+extern SDL_bool SDL_AddDisplayMode(SDL_VideoDisplay *display, const SDL_DisplayMode *mode);
+extern void SDL_SetCurrentDisplayMode(SDL_VideoDisplay *display, const SDL_DisplayMode *mode);
+extern void SDL_SetDesktopDisplayMode(SDL_VideoDisplay *display, const SDL_DisplayMode *mode);
+extern void SDL_ResetDisplayModes(int displayIndex);
 extern int SDL_GetIndexOfDisplay(SDL_VideoDisplay *display);
 extern SDL_VideoDisplay *SDL_GetDisplay(int displayIndex);
 extern SDL_VideoDisplay *SDL_GetDisplayForWindow(SDL_Window *window);
@@ -485,6 +512,14 @@ extern SDL_bool SDL_ShouldAllowTopmost(void);
 extern float SDL_ComputeDiagonalDPI(int hpix, int vpix, float hinches, float vinches);
 
 extern void SDL_ToggleDragAndDropSupport(void);
+
+extern int SDL_GetPointDisplayIndex(const SDL_Point *point);
+
+extern int SDL_GL_SwapWindowWithResult(SDL_Window *window);
+
+#if defined(SDL_VIDEO_DRIVER_X11) || defined(SDL_VIDEO_DRIVER_WAYLAND) || defined(SDL_VIDEO_DRIVER_EMSCRIPTEN)
+const char *SDL_GetCSSCursorName(SDL_SystemCursor id, const char **fallback_name);
+#endif
 
 #endif /* SDL_sysvideo_h_ */
 
