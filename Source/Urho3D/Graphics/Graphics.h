@@ -384,9 +384,8 @@ public:
 
     /// Return supported fullscreen resolutions (third component is refreshRate). Will be empty if listing the resolutions is not supported on the platform (e.g. Web).
     PODVector<IntVector3> GetResolutions(int monitor) const;
-    IntVector3 GetResolution(int monitor, int index) const;    
     /// Return index of the best resolution for requested width, height and refresh rate.
-    unsigned FindBestResolutionIndex(int monitor, int width, int height, int refreshRate) const;
+    unsigned FindBestResolutionIndex(int width, int height, int refreshRate, const PODVector<IntVector3>& resolutions) const;
     /// Return supported multisampling levels.
     PODVector<int> GetMultiSampleLevels() const;
     /// Return the desktop resolution.

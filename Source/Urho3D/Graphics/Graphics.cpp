@@ -228,15 +228,8 @@ PODVector<IntVector3> Graphics::GetResolutions(int monitor) const
     return ret;
 }
 
-IntVector3 Graphics::GetResolution(int monitor, int index) const
+unsigned Graphics::FindBestResolutionIndex(int width, int height, int refreshRate, const PODVector<IntVector3>& resolutions) const
 {
-    PODVector<IntVector3> resolutions = GetResolutions(monitor);
-    return index < resolutions.Size() ? resolutions[index] : IntVector3();
-}
-
-unsigned Graphics::FindBestResolutionIndex(int monitor, int width, int height, int refreshRate) const
-{
-    const PODVector<IntVector3> resolutions = GetResolutions(monitor);
     if (resolutions.Empty())
         return M_MAX_UNSIGNED;
 
