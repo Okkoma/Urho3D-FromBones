@@ -263,7 +263,7 @@ bool Engine::Initialize(const VariantMap& parameters)
 #endif
 
         // FromBones upscaling 
-        graphics->SetViewRenderDownScale(GetParameter(parameters, EP_VIEW_RENDER_DOWNSCALE, 1).GetInt());
+        graphics->SetDefaultViewRenderScale(GetParameter(parameters, EP_VIEWRENDER_SCALE, 1).GetInt());
         
         if (!graphics->SetMode(
             GetParameter(parameters, EP_WINDOW_WIDTH, 0).GetInt(),

@@ -56,6 +56,7 @@
 #include <SDL/SDL_syswm.h>
 
 #include "../DebugNew.h"
+#include "Math/Vector3.h"
 
 namespace Urho3D
 {
@@ -68,13 +69,13 @@ void Graphics::SetExternalWindow(void* window)
         URHO3D_LOGERROR("Window already opened, can not set external window");
 }
 
-void Graphics::SetViewRenderDownScale(int renderscale)
+void Graphics::SetDefaultViewRenderScale(int renderscale)
 {
     viewRenderScale_ = renderscale;
-    SetViewRenderRatio(renderscale);
+    UpdateViewRenderRatio(renderscale);
 }
 
-void Graphics::SetViewRenderRatio(int renderscale)
+void Graphics::UpdateViewRenderRatio(int renderscale)
 {
     viewRenderRatio_ = Clamp(1.f / renderscale, 0.1f, 1.f);
 }
@@ -177,6 +178,11 @@ void Graphics::SetShaderParameter(StringHash param, const Variant& value)
     }
 }
 
+String Graphics::GetVideoDriverName() const
+{
+    return String(SDL_GetCurrentVideoDriver());
+}
+
 IntVector2 Graphics::GetWindowPosition() const
 {
     if (window_)
@@ -220,6 +226,12 @@ PODVector<IntVector3> Graphics::GetResolutions(int monitor) const
 #endif
 
     return ret;
+}
+
+IntVector3 Graphics::GetResolution(int monitor, int index) const
+{
+    PODVector<IntVector3> resolutions = GetResolutions(monitor);
+    return index < resolutions.Size() ? resolutions[index] : IntVector3();
 }
 
 unsigned Graphics::FindBestResolutionIndex(int monitor, int width, int height, int refreshRate) const

@@ -206,8 +206,9 @@ public:
     /// Set default texture anisotropy level. Called by Renderer before rendering.
     void SetDefaultTextureAnisotropy(unsigned level);
     /// FromBones upscaling : Set View render scale and ratio (inverse of scale and clamped)
-    void SetViewRenderDownScale(int renderscale);
-    void SetViewRenderRatio(int renderscale);
+    void SetDefaultViewRenderScale(int renderscale);
+    int GetDefaultViewRenderScale() const { return viewRenderScale_; }
+    void UpdateViewRenderRatio(int renderscale);
     /// Reset all rendertargets, depth-stencil surface and viewport.
     void ResetRenderTargets();
     /// Reset specific rendertarget.
@@ -279,6 +280,8 @@ public:
 
     /// Return graphics API name.
     const String& GetApiName() const { return apiName_; }
+    /// Return graphics driver name.
+    String GetVideoDriverName() const;
 
     /// Return window position.
     IntVector2 GetWindowPosition() const;
@@ -381,6 +384,7 @@ public:
 
     /// Return supported fullscreen resolutions (third component is refreshRate). Will be empty if listing the resolutions is not supported on the platform (e.g. Web).
     PODVector<IntVector3> GetResolutions(int monitor) const;
+    IntVector3 GetResolution(int monitor, int index) const;    
     /// Return index of the best resolution for requested width, height and refresh rate.
     unsigned FindBestResolutionIndex(int monitor, int width, int height, int refreshRate) const;
     /// Return supported multisampling levels.

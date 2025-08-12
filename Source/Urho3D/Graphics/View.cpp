@@ -322,10 +322,18 @@ bool View::Define(RenderSurface* renderTarget, Viewport* viewport)
     if (!renderPath_)
         return false;
 
+    /// \todo define more explicitly the vars viewRect_,viewSize_ for each case (with/without rendertarget, with/without viewportsize, with/without renderratio)
+    /// \todo do we need rtSize_ ?
+    
     renderTarget_ = renderTarget;
     drawDebug_ = viewport->GetDrawDebug();
 
     IntVector2 viewRenderSize  = viewport->GetRect().Size();
+    if (viewRenderSize.x_ == 0 && !renderTarget)
+    {
+        viewRenderSize.x_ = graphics_->GetWidth();
+        viewRenderSize.y_ = graphics_->GetHeight();
+    }
     viewRenderSize.x_ = (int)(graphics_->GetViewRenderRatio() * (float)viewRenderSize.x_);
     viewRenderSize.y_ = (int)(graphics_->GetViewRenderRatio() * (float)viewRenderSize.y_);
     
@@ -346,10 +354,14 @@ bool View::Define(RenderSurface* renderTarget, Viewport* viewport)
     viewSize_ = viewRect_.Size();
     rtSize_ = IntVector2(rtWidth, rtHeight);
     viewportRect_ = viewport->GetRect();
+
+    if (!renderTarget && graphics_->GetViewRenderRatio() == 1.f)
+        viewRect_ = viewportRect_;
 /*
     URHO3D_LOGERRORF("View::Define : renderTarget=%u, viewRenderRatio=%f viewport=%u viewportRect_=%s viewRect=%s viewSize=%s rtSize=%s", 
                     renderTarget, viewport, graphics_->GetViewRenderRatio(), viewportRect_.ToString().CString(), viewRect_.ToString().CString(), 
-*/
+                    viewSize_.ToString().CString(), rtSize_.ToString().CString());
+*/                    
     // On OpenGL flip the viewport if rendering to a texture for consistent UV addressing with Direct3D9
 #ifdef URHO3D_OPENGL
     if (renderTarget_)
