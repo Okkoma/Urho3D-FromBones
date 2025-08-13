@@ -176,7 +176,7 @@ void DebugHud::Update()
     if (modeText_->IsVisible())
     {
         String mode;
-        mode.AppendWithFormat("Tex:%s Mat:%s Spec:%s Shadows:%s Size:%i Quality:%s Occlusion:%s Instancing:%s API:%s",
+        mode.AppendWithFormat("Tex:%s Mat:%s Spec:%s Shadows:%s Size:%i Quality:%s Occlusion:%s Instancing:%s API:%s VideoDriver=%s",
             qualityTexts[renderer->GetTextureQuality()],
             qualityTexts[Min((unsigned)renderer->GetMaterialQuality(), 3)],
             renderer->GetSpecularLighting() ? "On" : "Off",
@@ -185,7 +185,8 @@ void DebugHud::Update()
             shadowQualityTexts[renderer->GetShadowQuality()],
             renderer->GetMaxOccluderTriangles() > 0 ? "On" : "Off",
             renderer->GetDynamicInstancing() ? "On" : "Off",
-            graphics->GetApiName().CString());
+            graphics->GetApiName().CString(),
+            graphics->GetVideoDriverName().CString());
 
         modeText_->SetText(mode);
     }
