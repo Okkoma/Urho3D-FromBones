@@ -322,7 +322,11 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
         mode.h = height;
         mode.refresh_rate = refreshRate;
         SDL_SetWindowDisplayMode(window_, &mode);
-        if (SDL_SetWindowFullscreen(window_, SDL_WINDOW_FULLSCREEN) != 0)
+        int fullscreenflag = SDL_WINDOW_FULLSCREEN;
+        // allow fullscreen desktop with wayland
+        if (strcmp(SDL_GetCurrentVideoDriver(), "wayland") == 0)
+            fullscreenflag |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+        if (SDL_SetWindowFullscreen(window_, fullscreenflag) != 0)
         {
             URHO3D_LOGERRORF("Graphics() - api=%s driver=%s Could not change to fullscreen, root cause: '%s'", GetApiName().CString(), SDL_GetCurrentVideoDriver(), SDL_GetError());
             return false;
