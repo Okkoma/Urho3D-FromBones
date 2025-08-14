@@ -24,6 +24,7 @@
 
 #include "../Core/CoreEvents.h"
 #include "../Core/Profiler.h"
+#include "../Core/ProcessUtils.h"
 #include "../Core/EventProfiler.h"
 #include "../Core/Context.h"
 #include "../Engine/DebugHud.h"
@@ -93,6 +94,12 @@ DebugHud::DebugHud(Context* context) :
     modeText_->SetVisible(false);
     uiRoot->AddChild(modeText_);
 
+    envText_ = new Text(context_);
+    envText_->SetAlignment(HA_LEFT, VA_BOTTOM);
+    envText_->SetPriority(100);
+    envText_->SetVisible(false);
+    uiRoot->AddChild(envText_);
+
     profilerText_ = new Text(context_);
     profilerText_->SetAlignment(HA_RIGHT, VA_TOP);
     profilerText_->SetPriority(100);
@@ -118,6 +125,7 @@ DebugHud::~DebugHud()
 {
     statsText_->Remove();
     modeText_->Remove();
+    envText_->Remove();
     profilerText_->Remove();
     memoryText_->Remove();
     eventProfilerText_->Remove();
@@ -176,7 +184,7 @@ void DebugHud::Update()
     if (modeText_->IsVisible())
     {
         String mode;
-        mode.AppendWithFormat("Tex:%s Mat:%s Spec:%s Shadows:%s Size:%i Quality:%s Occlusion:%s Instancing:%s Display:%s Graphics:%s",
+        mode.AppendWithFormat("Tex:%s Mat:%s Spec:%s Shadows:%s Size:%i Quality:%s Occlusion:%s Instancing:%s",
             qualityTexts[renderer->GetTextureQuality()],
             qualityTexts[Min((unsigned)renderer->GetMaterialQuality(), 3)],
             renderer->GetSpecularLighting() ? "On" : "Off",
@@ -184,12 +192,23 @@ void DebugHud::Update()
             renderer->GetShadowMapSize(),
             shadowQualityTexts[renderer->GetShadowQuality()],
             renderer->GetMaxOccluderTriangles() > 0 ? "On" : "Off",
-            renderer->GetDynamicInstancing() ? "On" : "Off",
+            renderer->GetDynamicInstancing() ? "On" : "Off"
+            );
+
+        modeText_->SetText(mode);
+    }
+
+    if (envText_->IsVisible())
+    {
+        String env;
+        env.AppendWithFormat("Platform:%s OS:%s Vdisplay:%s Gapi:%s", 
+            GetPlatform().CString(),
+            GetOSVersion().CString(),
             graphics->GetVideoDriverName().CString(),
             graphics->GetApiName().CString()
             );
 
-        modeText_->SetText(mode);
+        envText_->SetText(env);
     }
 
     if (profilerTimer_.GetMSec(false) >= profilerInterval_)
@@ -235,6 +254,8 @@ void DebugHud::SetDefaultStyle(XMLFile* style)
 
     fpsText_->SetDefaultStyle(style);
     fpsText_->SetStyle("DebugHudText");
+    envText_->SetDefaultStyle(style);
+    envText_->SetStyle("DebugHudText");    
     statsText_->SetDefaultStyle(style);
     statsText_->SetStyle("DebugHudText");
     modeText_->SetDefaultStyle(style);
@@ -250,6 +271,7 @@ void DebugHud::SetDefaultStyle(XMLFile* style)
 void DebugHud::SetMode(unsigned mode)
 {
     fpsText_->SetVisible((mode & DEBUGHUD_SHOW_FPS) != 0);
+    envText_->SetVisible((mode & DEBUGHUD_SHOW_ENV) != 0);
     statsText_->SetVisible((mode & DEBUGHUD_SHOW_STATS) != 0);
     modeText_->SetVisible((mode & DEBUGHUD_SHOW_MODE) != 0);
     profilerText_->SetVisible((mode & DEBUGHUD_SHOW_PROFILER) != 0);

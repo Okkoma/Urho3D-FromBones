@@ -40,6 +40,8 @@ static const unsigned DEBUGHUD_SHOW_PROFILER = 0x4;
 static const unsigned DEBUGHUD_SHOW_MEMORY = 0x8;
 static const unsigned DEBUGHUD_SHOW_EVENTPROFILER = 0x10;
 static const unsigned DEBUGHUD_SHOW_FPS = 0x20;
+static const unsigned DEBUGHUD_SHOW_ENV = 0x40;
+static const unsigned DEBUGHUD_SHOW_FPS_ENV = DEBUGHUD_SHOW_FPS | DEBUGHUD_SHOW_ENV; 
 static const unsigned DEBUGHUD_SHOW_ALL = DEBUGHUD_SHOW_STATS | DEBUGHUD_SHOW_MODE | DEBUGHUD_SHOW_PROFILER | DEBUGHUD_SHOW_MEMORY;
 
 /// Displays rendering stats and profiling information.
@@ -126,6 +128,8 @@ private:
 
     /// Rendering FPS text.
     SharedPtr<Text> fpsText_;
+    /// Rendering env stats text.
+    SharedPtr<Text> envText_;
     /// Rendering stats text.
     SharedPtr<Text> statsText_;
     /// Rendering mode text.
