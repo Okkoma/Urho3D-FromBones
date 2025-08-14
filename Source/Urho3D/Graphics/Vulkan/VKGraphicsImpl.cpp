@@ -1897,24 +1897,25 @@ bool GraphicsImpl::CreateSwapChain(int width, int height, bool* srgb, bool* vsyn
 	}
 
     // find the srgb format
+#ifndef DISABLE_SRGB    
     int srgbformat = -1;
     for (unsigned int i = 0; i < physicalInfo_.surfaceFormats_.Size(); i++)
     {
         const VkSurfaceFormatKHR& availableFormat = physicalInfo_.surfaceFormats_[i];
-        if ((availableFormat.format == VK_FORMAT_R8G8B8A8_SRGB || availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB)
+        if ((availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB || availableFormat.format == VK_FORMAT_R8G8B8A8_SRGB)
             && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
         {
             srgbformat = i;
             break;
         }
     }
-
+#endif
     // find the unorm format
     int unormformat = -1;
     for (unsigned int i = 0; i < physicalInfo_.surfaceFormats_.Size(); i++)
     {
         const VkSurfaceFormatKHR& availableFormat = physicalInfo_.surfaceFormats_[i];
-        if ((availableFormat.format == VK_FORMAT_R8G8B8A8_UNORM || availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM))
+        if (availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM || availableFormat.format == VK_FORMAT_R8G8B8A8_UNORM)
         {
             unormformat = i;
             break;
@@ -1922,10 +1923,13 @@ bool GraphicsImpl::CreateSwapChain(int width, int height, bool* srgb, bool* vsyn
     }
 
     // if srgb specified, try to get the required format
+#ifndef DISABLE_SRGB    
     if (srgb)
         swapChainInfo_ = physicalInfo_.surfaceFormats_[*srgb == true && srgbformat != -1 ? srgbformat : unormformat != -1 ? unormformat : 0];
     // if not specified, in first use the unorm if exists (same behavior than OGL impl)
-    else if (unormformat != -1)
+    else 
+#endif    
+    if (unormformat != -1)
         swapChainInfo_ = physicalInfo_.surfaceFormats_[unormformat];
     // else use the srgb if exists
 #ifndef DISABLE_SRGB
@@ -1986,10 +1990,17 @@ bool GraphicsImpl::CreateSwapChain(int width, int height, bool* srgb, bool* vsyn
     numimages = Clamp(numimages, (unsigned int)physicalInfo_.surfaceCapabilities_.minImageCount,
                       (unsigned int)physicalInfo_.surfaceCapabilities_.maxImageCount);
 
-    URHO3D_LOGDEBUGF("Create swapchain numimages=%u (min=%u max=%u) required=%ux%u capabilities=%ux%u => %ux%u srgb=%s surfaceFormat=%u colorSpace=%u ...",
+
+    VkSurfaceTransformFlagBitsKHR transform    = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;//physicalInfo_.surfaceCapabilities_.currentTransform;
+    VkCompositeAlphaFlagBitsKHR compositeAlpha = physicalInfo_.surfaceCapabilities_.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR ? 
+                                                    VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR : VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
+
+    URHO3D_LOGDEBUGF("Create swapchain numimages=%u (min=%u max=%u) required=%ux%u capabilities=%ux%u => %ux%u srgb=%s surfaceFormat=%u colorSpace=%u compAlpha=%u(%u)...",
                      numimages, physicalInfo_.surfaceCapabilities_.minImageCount, physicalInfo_.surfaceCapabilities_.maxImageCount,
                      width, height, physicalInfo_.surfaceCapabilities_.maxImageExtent.width, physicalInfo_.surfaceCapabilities_.maxImageExtent.height,
-                     swapChainExtent_.width, swapChainExtent_.height, srgb && (*srgb == true) ? "true":"false", swapChainInfo_.format, swapChainInfo_.colorSpace);
+                     swapChainExtent_.width, swapChainExtent_.height, srgb && (*srgb == true) ? "true":"false", swapChainInfo_.format, swapChainInfo_.colorSpace,
+                     compositeAlpha, physicalInfo_.surfaceCapabilities_.supportedCompositeAlpha
+                    );
 
     // set the queue sharing mode.
     VkSharingMode sharingmode = VK_SHARING_MODE_EXCLUSIVE;
@@ -2002,8 +2013,6 @@ bool GraphicsImpl::CreateSwapChain(int width, int height, bool* srgb, bool* vsyn
         pqueues     = physicalInfo_.queueIndexes_.Buffer();
     }
 
-    VkSurfaceTransformFlagBitsKHR transform    = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;//physicalInfo_.surfaceCapabilities_.currentTransform;
-    VkCompositeAlphaFlagBitsKHR compositeAlpha = (VkCompositeAlphaFlagBitsKHR)physicalInfo_.surfaceCapabilities_.supportedCompositeAlpha;
 
     // create the swap chain.
     VkSwapchainCreateInfoKHR createInfo{VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
@@ -2018,7 +2027,7 @@ bool GraphicsImpl::CreateSwapChain(int width, int height, bool* srgb, bool* vsyn
     createInfo.queueFamilyIndexCount = queuecount;
     createInfo.pQueueFamilyIndices   = pqueues;
     createInfo.preTransform          = transform;
-    createInfo.compositeAlpha        = compositeAlpha;//VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;//VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    createInfo.compositeAlpha        = compositeAlpha;
     createInfo.presentMode           = presentMode_;
     createInfo.clipped               = VK_TRUE;
     createInfo.oldSwapchain          = swapChain_;
