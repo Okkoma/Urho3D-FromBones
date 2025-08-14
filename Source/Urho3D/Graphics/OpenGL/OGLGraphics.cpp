@@ -228,8 +228,6 @@ Graphics::Graphics(Context* context) :
     externalWindow_(0),
     width_(0),
     height_(0),
-    viewRenderScale_(1),
-    viewRenderRatio_(1.f),
     position_(SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED),
     multiSample_(1),
     fullscreen_(false),

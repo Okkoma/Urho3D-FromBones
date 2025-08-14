@@ -662,8 +662,8 @@ private:
     /// Window height in pixels.
     int height_;
     /// FromBones upscaling : View render ratio.
-    int viewRenderScale_;
-    float viewRenderRatio_;
+    int viewRenderScale_{1};
+    float viewRenderRatio_{1.f};
     /// Window position.
     IntVector2 position_;
     /// Multisampling mode.

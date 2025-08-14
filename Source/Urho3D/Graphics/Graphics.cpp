@@ -77,7 +77,8 @@ void Graphics::SetDefaultViewRenderScale(int renderscale)
 
 void Graphics::UpdateViewRenderRatio(int renderscale)
 {
-    viewRenderRatio_ = Clamp(1.f / renderscale, 0.1f, 1.f);
+    if (GetApiName() == "GL3")
+        viewRenderRatio_ = Clamp(1.f / renderscale, 0.1f, 1.f);
 }
 
 void Graphics::SetWindowTitle(const String& windowTitle)
