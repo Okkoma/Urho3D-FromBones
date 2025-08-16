@@ -714,12 +714,17 @@ void View::Render()
     // (backbuffer should contain proper depth already)
 
 #ifdef URHO3D_VULKAN
+    #ifndef URHO3D_VULKAN_RENDERSURFACE
     graphics_->GetImpl()->SetRenderPass(Technique::copyPassIndex);
     if (graphics_->GetImpl()->GetCurrentViewportTexture())
     {
-//        URHO3D_LOGDEBUGF("Blit to viewRect=%s", viewRect_.ToString().CString());
+    //        URHO3D_LOGDEBUGF("Blit to viewRect=%s", viewRect_.ToString().CString());
         BlitFramebuffer(graphics_->GetImpl()->GetCurrentViewportTexture(), 0, !usedResolve_);
     }
+    #else
+    if (currentRenderTarget_ != renderTarget_)
+        BlitFramebuffer(currentRenderTarget_->GetParentTexture(), renderTarget_, !usedResolve_);
+    #endif
 #else
     if (currentRenderTarget_ != renderTarget_)
         BlitFramebuffer(currentRenderTarget_->GetParentTexture(), renderTarget_, !usedResolve_);
@@ -1832,6 +1837,15 @@ void View::SetRenderTargets(RenderPathCommand& command)
 
 #ifdef URHO3D_VULKAN
     graphics_->GetImpl()->SetRenderPass(command.passIndex_);
+    
+#ifdef URHO3D_VULKAN_RENDERSURFACE
+    // Préparer le framebuffer avec le nouveau système
+    if (!graphics_->GetImpl()->PrepareVulkanFramebuffer())
+    {
+        URHO3D_LOGERROR("Failed to prepare Vulkan framebuffer");
+        return;
+    }
+#endif
 #endif
 
     while (index < command.outputs_.Size())
@@ -1913,8 +1927,23 @@ bool View::SetTextures(RenderPathCommand& command)
         if (!command.textureNames_[i].Compare("viewport", false))
         {
         #ifdef URHO3D_VULKAN
+        #ifdef URHO3D_VULKAN_RENDERSURFACE
+            // Utiliser le nouveau système RenderSurface
+            RenderSurface* currentTarget = graphics_->GetRenderTarget(0);
+            if (currentTarget && currentTarget->GetParentTexture())
+            {
+                graphics_->SetTexture(i, currentTarget->GetParentTexture());
+            }
+            else
+            {
+                // Fallback vers l'ancien système
+                Texture2D* texture = graphics_->GetImpl()->GetCurrentViewportTexture();
+                graphics_->SetTexture(i, texture);
+            }
+        #else
             Texture2D* texture = graphics_->GetImpl()->GetCurrentViewportTexture();
             graphics_->SetTexture(i, texture);
+        #endif
 //            URHO3D_LOGDEBUGF("View() - SetTextures ... pass=%s texturename[%d]=%s texture=%u(%u)",
 //                             command.pass_.CString(), i, command.textureNames_[i].CString(), texture, currentViewportTexture_);
         #else

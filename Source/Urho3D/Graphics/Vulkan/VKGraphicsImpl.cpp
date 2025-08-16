@@ -1168,6 +1168,10 @@ GraphicsImpl::GraphicsImpl() :
     viewportTexture_(nullptr),
     renderPassIndex_(-1),
     viewportIndex_(0)
+#ifdef URHO3D_VULKAN_RENDERSURFACE
+    , boundFramebuffer_(VK_NULL_HANDLE)
+    , vulkanFboDirty_(false)
+#endif
 {
     defaultPipelineStates_ = 0;
 
@@ -1818,6 +1822,9 @@ void GraphicsImpl::CleanUpVulkan()
     CleanUpRenderPasses();
     CleanUpPipelines();
     CleanUpSamplers();
+#ifdef URHO3D_VULKAN_RENDERSURFACE
+    CleanupVulkanFramebuffers();
+#endif
 
 #ifdef URHO3D_VMA
     if (allocator_ != VK_NULL_HANDLE)
@@ -2226,12 +2233,15 @@ void GraphicsImpl::CleanUpSamplers()
 
 void GraphicsImpl::CleanUpRenderAttachments()
 {
-    // TODO : memoryAllocator
-    const VkAllocationCallbacks* pAllocator = nullptr;
-
+#ifdef URHO3D_VULKAN_RENDERSURFACE
+    // Nettoyer le nouveau système de framebuffers
+    CleanupVulkanFramebuffers();
+#else
     for (Vector<RenderAttachment>::Iterator it = renderAttachments_.Begin(); it != renderAttachments_.End(); ++it)
         DestroyAttachment(*it);
-
+#endif
+    // TODO : memoryAllocator
+    const VkAllocationCallbacks* pAllocator = nullptr;
     for (Vector<FrameData>::Iterator it = frames_.Begin(); it != frames_.End(); ++it)
         for (Vector<VkFramebuffer>::Iterator jt = it->framebuffers_.Begin(); jt != it->framebuffers_.End(); ++jt)
         {
@@ -2620,9 +2630,10 @@ void GraphicsImpl::UpdateViewportTexture(unsigned renderpassindex, unsigned subp
             }
         }
     }
-
+#ifndef URHO3D_VULKAN_RENDERSURFACE
     if (slot != -1)
         viewportTexture_ = renderAttachments_[viewSizeIndex * MAX_RENDERSLOTS + slot].texture_;
+#endif
 }
 
 void GraphicsImpl::SetRenderPass(unsigned commandpassindex)
@@ -2963,6 +2974,7 @@ bool GraphicsImpl::CreateRenderAttachments()
 {
     SetViewportInfos();
 
+#ifndef URHO3D_VULKAN_RENDERSURFACE
     // Create RenderTarget Buffers
     renderAttachments_.Resize(MAX_RENDERSLOTS * viewportSizes_.Size());
     for (unsigned viewSizeIndex = 0; viewSizeIndex < viewportSizes_.Size(); viewSizeIndex++)
@@ -3038,7 +3050,7 @@ bool GraphicsImpl::CreateRenderAttachments()
             }
         }
     }
-
+#endif
     return true;
 }
 
@@ -3078,7 +3090,13 @@ void GraphicsImpl::SetViewport(int index, const IntRect& rect)
     {
         URHO3D_LOGINFOF("GraphicsImpl() - SetViewport : UpdateRenderAttachments() !");
         vkDeviceWaitIdle(device_);
+        
+#ifdef URHO3D_VULKAN_RENDERSURFACE
+        // Marquer les framebuffers comme dirty au lieu de recréer les attachments
+        vulkanFboDirty_ = true;
+#else
         CreateRenderAttachments();
+#endif
     }
 
     if (index == -1)
@@ -3794,5 +3812,214 @@ int GraphicsImpl::GetLineWidthIndex(float width)
 
     return index;
 }
+
+unsigned GraphicsImpl::FindMemoryType(unsigned typeFilter, VkMemoryPropertyFlags properties) const
+{
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(physicalInfo_.device_, &memProperties);
+
+    for (unsigned i = 0; i < memProperties.memoryTypeCount; i++)
+    {
+        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+            return i;
+        }
+    }
+
+    URHO3D_LOGERROR("Failed to find suitable memory type");
+    return 0;
+}
+
+#ifdef URHO3D_VULKAN_RENDERSURFACE
+VkFramebuffer GraphicsImpl::CreateVulkanFramebuffer()
+{
+    VkFramebuffer framebuffer = VK_NULL_HANDLE;
+    const VkAllocationCallbacks* pAllocator = nullptr;
+    
+    // Créer un framebuffer vide (sera configuré plus tard)
+    VkFramebufferCreateInfo framebufferInfo = {};
+    framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    framebufferInfo.renderPass = VK_NULL_HANDLE; // Sera défini lors de la configuration
+    framebufferInfo.attachmentCount = 0;
+    framebufferInfo.pAttachments = nullptr;
+    framebufferInfo.width = 1;
+    framebufferInfo.height = 1;
+    framebufferInfo.layers = 1;
+    
+    if (vkCreateFramebuffer(device_, &framebufferInfo, pAllocator, &framebuffer) != VK_SUCCESS)
+    {
+        URHO3D_LOGERROR("Failed to create Vulkan framebuffer");
+        return VK_NULL_HANDLE;
+    }
+    
+    return framebuffer;
+}
+
+void GraphicsImpl::DeleteVulkanFramebuffer(VkFramebuffer framebuffer)
+{
+    if (framebuffer != VK_NULL_HANDLE)
+    {
+        const VkAllocationCallbacks* pAllocator = nullptr;
+        vkDestroyFramebuffer(device_, framebuffer, pAllocator);
+    }
+}
+
+bool GraphicsImpl::PrepareVulkanFramebuffer()
+{
+    if (!vulkanFboDirty_)
+        return true;
+    
+    vulkanFboDirty_ = false;
+    
+    // Vérifier si on a besoin d'un framebuffer
+    bool needFramebuffer = false;
+    Graphics* graphics = graphics_;
+    
+    // Vérifier les rendertargets actuels
+    for (unsigned i = 0; i < MAX_RENDERTARGETS; ++i)
+    {
+        if (graphics->GetRenderTarget(i))
+        {
+            needFramebuffer = true;
+            break;
+        }
+    }
+    
+    // Vérifier le depth stencil
+    if (graphics->GetDepthStencil())
+        needFramebuffer = true;
+    
+    if (!needFramebuffer)
+    {
+        // Retourner au framebuffer par défaut (swapchain)
+        boundFramebuffer_ = VK_NULL_HANDLE;
+        return true;
+    }
+    
+    // Créer la clé du framebuffer (format + taille)
+    IntVector2 rtSize = graphics->GetRenderTargetDimensions();
+    unsigned format = 0;
+    if (graphics->GetRenderTarget(0))
+        format = graphics->GetRenderTarget(0)->GetParentTexture()->GetFormat();
+    else if (graphics->GetDepthStencil())
+        format = graphics->GetDepthStencil()->GetParentTexture()->GetFormat();
+    
+    unsigned long long fboKey = (unsigned long long)format << 32u | rtSize.x_ << 16u | rtSize.y_;
+    
+    // Chercher ou créer le framebuffer
+    HashMap<unsigned long long, VulkanFrameBufferObject>::Iterator i = vulkanFrameBuffers_.Find(fboKey);
+    if (i == vulkanFrameBuffers_.End())
+    {
+        VulkanFrameBufferObject newFbo;
+        newFbo.framebuffer_ = CreateVulkanFramebuffer();
+        newFbo.dirty_ = true;
+        i = vulkanFrameBuffers_.Insert(MakePair(fboKey, newFbo));
+    }
+    
+    VulkanFrameBufferObject& fbo = i->second_;
+    
+    // Mettre à jour les attachments si nécessaire
+    bool attachmentsChanged = false;
+    for (unsigned j = 0; j < MAX_RENDERTARGETS; ++j)
+    {
+        RenderSurface* currentTarget = graphics->GetRenderTarget(j);
+        if (fbo.colorAttachments_[j] != currentTarget)
+        {
+            fbo.colorAttachments_[j] = currentTarget;
+            attachmentsChanged = true;
+        }
+    }
+    
+    RenderSurface* currentDepth = graphics->GetDepthStencil();
+    if (fbo.depthAttachment_ != currentDepth)
+    {
+        fbo.depthAttachment_ = currentDepth;
+        attachmentsChanged = true;
+    }
+    
+    // Recréer le framebuffer si les attachments ont changé
+    if (attachmentsChanged || fbo.dirty_)
+    {
+        // Supprimer l'ancien framebuffer
+        if (fbo.framebuffer_ != VK_NULL_HANDLE)
+            DeleteVulkanFramebuffer(fbo.framebuffer_);
+        
+        // Créer les attachments
+        fbo.attachmentViews_.Clear();
+        
+        // Ajouter les color attachments
+        for (unsigned j = 0; j < MAX_RENDERTARGETS; ++j)
+        {
+            if (fbo.colorAttachments_[j])
+            {
+                // Pour l'instant, utiliser une approche temporaire
+                // TODO: Implémenter GetColorImageView() dans RenderSurface
+                VkImageView imageView = VK_NULL_HANDLE;
+                // fbo.colorAttachments_[j]->GetColorImageView();
+                if (imageView != VK_NULL_HANDLE)
+                    fbo.attachmentViews_.Push(imageView);
+            }
+        }
+        
+        // Ajouter le depth attachment
+        if (fbo.depthAttachment_)
+        {
+            // Pour l'instant, utiliser une approche temporaire
+            // TODO: Implémenter GetDepthImageView() dans RenderSurface
+            VkImageView depthView = VK_NULL_HANDLE;
+            // fbo.depthAttachment_->GetDepthImageView();
+            if (depthView != VK_NULL_HANDLE)
+                fbo.attachmentViews_.Push(depthView);
+        }
+        
+        // Créer le nouveau framebuffer
+        if (!fbo.attachmentViews_.Empty())
+        {
+            VkFramebufferCreateInfo framebufferInfo = {};
+            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            
+            // Utiliser le render pass actuel au lieu de VK_NULL_HANDLE
+            if (renderPassInfo_)
+                framebufferInfo.renderPass = renderPassInfo_->renderPass_;
+            else
+            {
+                URHO3D_LOGERROR("No current render pass available for framebuffer creation");
+                return false;
+            }
+            
+            framebufferInfo.attachmentCount = fbo.attachmentViews_.Size();
+            framebufferInfo.pAttachments = fbo.attachmentViews_.Buffer();
+            framebufferInfo.width = rtSize.x_;
+            framebufferInfo.height = rtSize.y_;
+            framebufferInfo.layers = 1;
+            
+            const VkAllocationCallbacks* pAllocator = nullptr;
+            if (vkCreateFramebuffer(device_, &framebufferInfo, pAllocator, &fbo.framebuffer_) != VK_SUCCESS)
+            {
+                URHO3D_LOGERROR("Failed to create Vulkan framebuffer with attachments");
+                return false;
+            }
+        }
+        
+        fbo.dirty_ = false;
+    }
+    
+    boundFramebuffer_ = fbo.framebuffer_;
+    return true;
+}
+
+void GraphicsImpl::CleanupVulkanFramebuffers()
+{
+    for (HashMap<unsigned long long, VulkanFrameBufferObject>::Iterator i = vulkanFrameBuffers_.Begin();
+         i != vulkanFrameBuffers_.End(); ++i)
+    {
+        DeleteVulkanFramebuffer(i->second_.framebuffer_);
+    }
+    
+    vulkanFrameBuffers_.Clear();
+    boundFramebuffer_ = VK_NULL_HANDLE;
+    vulkanFboDirty_ = false;
+}
+#endif
 
 } // namespace Urho3D

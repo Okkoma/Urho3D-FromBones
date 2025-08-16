@@ -46,6 +46,9 @@
 
 //#define ACTIVE_FRAMELOGDEBUG
 
+// Define pour activer l'implémentation complète de RenderSurface pour Vulkan
+#define URHO3D_VULKAN_RENDERSURFACE
+
 namespace Urho3D
 {
 
@@ -203,6 +206,34 @@ struct RenderAttachment
 
     SharedPtr<Texture2D> texture_;
 };
+
+#ifdef URHO3D_VULKAN_RENDERSURFACE
+/// Cached state of a Vulkan frame buffer object (similar to OpenGL FrameBufferObject)
+struct VulkanFrameBufferObject
+{
+    VulkanFrameBufferObject() :
+        framebuffer_(VK_NULL_HANDLE),
+        renderPass_(VK_NULL_HANDLE),
+        depthAttachment_(nullptr)
+    {
+        for (unsigned i = 0; i < MAX_RENDERTARGETS; ++i)
+            colorAttachments_[i] = nullptr;
+    }
+
+    /// Vulkan framebuffer handle.
+    VkFramebuffer framebuffer_;
+    /// Vulkan render pass.
+    VkRenderPass renderPass_;
+    /// Bound color attachment RenderSurfaces.
+    RenderSurface* colorAttachments_[MAX_RENDERTARGETS];
+    /// Bound depth/stencil attachment RenderSurface.
+    RenderSurface* depthAttachment_;
+    /// Attachment image views for framebuffer creation.
+    Vector<VkImageView> attachmentViews_;
+    /// Dirty flag for framebuffer recreation.
+    bool dirty_;
+};
+#endif
 
 struct RenderPathData
 {
@@ -443,9 +474,23 @@ public:
 
     int GetMaxCompatibleDescriptorSets(PipelineInfo* p1, PipelineInfo* p2) const;
 
+    /// Find memory type for Vulkan memory allocation
+    unsigned FindMemoryType(unsigned typeFilter, VkMemoryPropertyFlags properties) const;
+
     /// Dump
     String DumpPipelineStates(unsigned pipelineStates) const;
     void DumpRegisteredPipelineInfo() const;
+
+#ifdef URHO3D_VULKAN_RENDERSURFACE
+    /// Create Vulkan framebuffer (similar to OpenGL CreateFramebuffer).
+    VkFramebuffer CreateVulkanFramebuffer();
+    /// Delete Vulkan framebuffer (similar to OpenGL DeleteFramebuffer).
+    void DeleteVulkanFramebuffer(VkFramebuffer framebuffer);
+    /// Prepare Vulkan framebuffer (similar to OpenGL PrepareDraw).
+    bool PrepareVulkanFramebuffer();
+    /// Cleanup Vulkan framebuffers (similar to OpenGL CleanupFramebuffers).
+    void CleanupVulkanFramebuffers();
+#endif
 
 private:
     bool CreateVulkanInstance(Context* context, const String& appname, SDL_Window* window, const Vector<String>& requestedLayers);
@@ -529,8 +574,17 @@ private:
     VkExtent2D swapChainExtent_;
     VkSwapchainKHR swapChain_;
 
+#ifdef URHO3D_VULKAN_RENDERSURFACE
+    /// Map for Vulkan FBO's per resolution and format (similar to OpenGL frameBuffers_).
+    HashMap<unsigned long long, VulkanFrameBufferObject> vulkanFrameBuffers_;
+    /// Currently bound Vulkan framebuffer.
+    VkFramebuffer boundFramebuffer_;
+    /// Need Vulkan FBO commit flag.
+    bool vulkanFboDirty_;
+#else
 	// RenderTargets : Data dependent on viewport size
 	Vector<RenderAttachment > renderAttachments_;  // index by Slot * ViewSize
+#endif
 
 	/// Viewports
 	int viewportIndex_;
