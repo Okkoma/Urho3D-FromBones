@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2008-2022 the Urho3D project.
+// Copyright (c) 2022-2025 - Christophe VILLE.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -39,6 +40,7 @@
 
 #include <SDL/SDL.h>
 #include <SDL/SDL_vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 #ifdef URHO3D_VMA
 #define VMA_IMPLEMENTATION
@@ -1167,11 +1169,8 @@ GraphicsImpl::GraphicsImpl() :
     renderPassInfo_(nullptr),
     viewportTexture_(nullptr),
     renderPassIndex_(-1),
-    viewportIndex_(0)
-#ifdef URHO3D_VULKAN_RENDERSURFACE
-    , boundFramebuffer_(VK_NULL_HANDLE)
-    , vulkanFboDirty_(false)
-#endif
+    viewportIndex_(0),
+    fboDirty_(false)
 {
     defaultPipelineStates_ = 0;
 
@@ -1822,9 +1821,7 @@ void GraphicsImpl::CleanUpVulkan()
     CleanUpRenderPasses();
     CleanUpPipelines();
     CleanUpSamplers();
-#ifdef URHO3D_VULKAN_RENDERSURFACE
-    CleanupVulkanFramebuffers();
-#endif
+    CleanupRenderSurfaceAttachments();
 
 #ifdef URHO3D_VMA
     if (allocator_ != VK_NULL_HANDLE)
@@ -2231,15 +2228,11 @@ void GraphicsImpl::CleanUpSamplers()
     }
 }
 
-void GraphicsImpl::CleanUpRenderAttachments()
+void GraphicsImpl::CleanUpViewportAttachments()
 {
-#ifdef URHO3D_VULKAN_RENDERSURFACE
-    // Nettoyer le nouveau système de framebuffers
-    CleanupVulkanFramebuffers();
-#else
-    for (Vector<RenderAttachment>::Iterator it = renderAttachments_.Begin(); it != renderAttachments_.End(); ++it)
+    for (Vector<RenderAttachment>::Iterator it = viewportsAttachments_.Begin(); it != viewportsAttachments_.End(); ++it)
         DestroyAttachment(*it);
-#endif
+
     // TODO : memoryAllocator
     const VkAllocationCallbacks* pAllocator = nullptr;
     for (Vector<FrameData>::Iterator it = frames_.Begin(); it != frames_.End(); ++it)
@@ -2265,7 +2258,7 @@ void GraphicsImpl::CleanUpSwapChain()
     // TODO : memoryAllocator
     const VkAllocationCallbacks* pAllocator = nullptr;
 
-    CleanUpRenderAttachments();
+    CleanUpViewportAttachments();
 
     for (unsigned int i = 0; i < frames_.Size(); i++)
     {
@@ -2343,10 +2336,8 @@ void GraphicsImpl::UpdateSwapChain(int width, int height, bool* srgb, bool* vsyn
     {
         if (CreateRenderPaths())
         {
-            CreateRenderAttachments();
-
             CreatePipelines();
-
+            SetViewports();
             URHO3D_LOGDEBUGF("UpdateSwapChain !");
         }
     }
@@ -2400,8 +2391,8 @@ void GraphicsImpl::SetRenderPath(RenderPath* renderPath, bool viewpassWithSubpas
     HashMap<unsigned, RenderPathData>::Iterator it = renderPathDatas_.Find(key);
     if (it == renderPathDatas_.End())
     {
-        // TODO : read renderpath configuration
-        // TODO : and convert to pass/subpasses descriptions
+        ///\todo : read renderpath configuration
+        ///\todo : and convert to pass/subpasses descriptions
 
         // This is an hardcorded vulkan version of "ForwardUrho2D.Xml"
         renderPathData = &renderPathDatas_[key];
@@ -2594,46 +2585,50 @@ void GraphicsImpl::SetRenderPath(RenderPath* renderPath, bool viewpassWithSubpas
 void GraphicsImpl::UpdateViewportTexture(unsigned renderpassindex, unsigned subpassindex)
 {
     viewportTexture_ = 0;
-
+#ifdef ACTIVE_FRAMELOGDEBUG
+    URHO3D_LOGDEBUGF("GraphicsImpl() - UpdateViewportTexture : frame_=%u renderpassindex=%u subpassindex=%u viewportIndex=%d", 
+        frame_, renderpassindex, subpassindex, viewportIndex_);
+#endif
     if (!frame_ || !renderpassindex)
         return;
 
-    const int viewSizeIndex = viewportIndex_ != -1 ? viewportInfos_[viewportIndex_].viewSizeIndex_ : 0;
-
-    int slot = -1;
-
-    if (renderpassindex != renderPassIndex_)
+    if (viewportIndex_ < (int)viewportInfos_.Size())
     {
-        // take the rendertarget texture generated at the previous rendered pass.
-        const Vector<RenderPassAttachmentInfo>& attachments = renderPathData_->passInfos_[renderPassIndex_]->attachments_;
-        for (unsigned i = 0; i < attachments.Size(); i++)
+        const int viewSizeIndex = viewportIndex_ != -1 ? viewportInfos_[viewportIndex_].viewSizeIndex_ : 0;
+
+        int slot = -1;
+
+        if (renderpassindex != renderPassIndex_)
         {
-            if (attachments[i].slot_ > RENDERSLOT_PRESENT && attachments[i].slot_ < RENDERSLOT_DEPTH)
+            // take the rendertarget texture generated at the previous rendered pass.
+            const Vector<RenderPassAttachmentInfo>& attachments = renderPathData_->passInfos_[renderPassIndex_]->attachments_;
+            for (unsigned i = 0; i < attachments.Size(); i++)
             {
-                slot = attachments[i].slot_;
-                break;
+                if (attachments[i].slot_ > RENDERSLOT_PRESENT && attachments[i].slot_ < RENDERSLOT_DEPTH)
+                {
+                    slot = attachments[i].slot_;
+                    break;
+                }
             }
         }
-    }
-    else if (subpassindex)
-    {
-        // take the rendertarget texture generated at the previous rendered subpass of the pass "renderpassindex"
-        RenderPassInfo* renderPassInfo = renderPathData_->passInfos_[renderpassindex];
-        const Vector<RenderPassAttachmentInfo>& attachments = renderPassInfo->attachments_;
-        const Vector<VkAttachmentReference>& attachmentrefs = renderPassInfo->subpasses_[subpassindex-1].colors_;
-        for (unsigned i = 0; i < attachmentrefs.Size(); i++)
+        else if (subpassindex)
         {
-            if (attachmentrefs[i].layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+            // take the rendertarget texture generated at the previous rendered subpass of the pass "renderpassindex"
+            RenderPassInfo* renderPassInfo = renderPathData_->passInfos_[renderpassindex];
+            const Vector<RenderPassAttachmentInfo>& attachments = renderPassInfo->attachments_;
+            const Vector<VkAttachmentReference>& attachmentrefs = renderPassInfo->subpasses_[subpassindex-1].colors_;
+            for (unsigned i = 0; i < attachmentrefs.Size(); i++)
             {
-                slot = attachments[attachmentrefs[i].attachment].slot_;
-                break;
+                if (attachmentrefs[i].layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+                {
+                    slot = attachments[attachmentrefs[i].attachment].slot_;
+                    break;
+                }
             }
         }
+
+        viewportTexture_ = slot != -1 ? viewportsAttachments_[viewSizeIndex * MAX_RENDERSLOTS + slot].texture_.Get() : 0;
     }
-#ifndef URHO3D_VULKAN_RENDERSURFACE
-    if (slot != -1)
-        viewportTexture_ = renderAttachments_[viewSizeIndex * MAX_RENDERSLOTS + slot].texture_;
-#endif
 }
 
 void GraphicsImpl::SetRenderPass(unsigned commandpassindex)
@@ -2650,8 +2645,8 @@ void GraphicsImpl::SetRenderPass(unsigned commandpassindex)
             unsigned subpassIndex    = it->second_.second_;
 
 #ifdef ACTIVE_FRAMELOGDEBUG
-            URHO3D_LOGDEBUGF("GraphicsImpl() - SetRenderPass : commandpassindex=%u renderpassIndex=%u subpassIndex=%u",
-                             commandpassindex, renderpassIndex, subpassIndex);
+            URHO3D_LOGDEBUGF("GraphicsImpl() - SetRenderPass : commandpassindex=%u renderpassIndex=%u(%u) subpassIndex=%u(%u)",
+                             commandpassindex, renderpassIndex, renderPassIndex_, subpassIndex, subpassIndex_);
 #endif
             if (renderPassIndex_ != renderpassIndex || subpassIndex_ != subpassIndex)
             {
@@ -2666,6 +2661,11 @@ void GraphicsImpl::SetRenderPass(unsigned commandpassindex)
                 if (subpassIndex_ != subpassIndex)
                     subpassIndex_ = subpassIndex;
             }
+        }
+        else
+        {
+            subpassIndex_ = 0;
+            UpdateViewportTexture(1, subpassIndex_);
         }
     }
 }
@@ -2683,8 +2683,6 @@ const RenderPassInfo* GraphicsImpl::GetRenderPassInfo(unsigned renderPassKey) co
 
 void GraphicsImpl::CreateImageAttachment(int slot, RenderAttachment& attachment, unsigned width, unsigned height)
 {
-    URHO3D_LOGINFOF("CreateImageAttachment slot=%s(%d) !", RenderSlotTypeStr[slot], slot);
-
     attachment.slot_ = slot;
 
     if (slot > RENDERSLOT_PRESENT)
@@ -2717,7 +2715,7 @@ void GraphicsImpl::CreateImageAttachment(int slot, RenderAttachment& attachment,
     #ifndef URHO3D_VMA
         if (vkCreateImage(device_, &imageInfo, pAllocator, &attachment.image_) != VK_SUCCESS)
         {
-            URHO3D_LOGERRORF("Can't create image !");
+            URHO3D_LOGERRORF("CreateImageAttachment slot=%s(%d) Can't create image !");
             return false;
         }
 
@@ -2728,14 +2726,14 @@ void GraphicsImpl::CreateImageAttachment(int slot, RenderAttachment& attachment,
         uint32_t memorytypeindex;
         if (!physicalInfo_.GetMemoryTypeIndex(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, memorytypeindex))
         {
-            URHO3D_LOGERRORF("Can't get device memory type !");
+            URHO3D_LOGERRORF("CreateImageAttachment slot=%s(%d) Can't get device memory type !");
             return false;
         }
         memoryInfo.memoryTypeIndex = memorytypeindex;
         if (vkAllocateMemory(device_, &memoryInfo, nullptr, &attachment.memory_) != VK_SUCCESS ||
             vkBindImageMemory(device_, attachment.image_, attachment.memory_, 0) != VK_SUCCESS)
         {
-            URHO3D_LOGERRORF("Can't allocate/bind device memory !");
+            URHO3D_LOGERRORF("CreateImageAttachment slot=%s(%d) Can't allocate/bind device memory !");
             return false;
         }
     #else
@@ -2744,7 +2742,7 @@ void GraphicsImpl::CreateImageAttachment(int slot, RenderAttachment& attachment,
         allocationInfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         if (vmaCreateImage(allocator_, &imageInfo, &allocationInfo, &attachment.image_, &attachment.memory_, nullptr) != VK_SUCCESS)
         {
-            URHO3D_LOGERRORF("Can't create image !");
+            URHO3D_LOGERRORF("CreateImageAttachment slot=%s(%d) Can't create image !");
             return;
         }
     #endif
@@ -2768,7 +2766,7 @@ void GraphicsImpl::CreateImageAttachment(int slot, RenderAttachment& attachment,
 
         if (vkCreateImageView(device_, &imageViewInfo, pAllocator, &attachment.imageView_) != VK_SUCCESS)
         {
-            URHO3D_LOGERRORF("Can't create image view !");
+            URHO3D_LOGERRORF("CreateImageAttachment slot=%s(%d) Can't create image view !");
             return;
         }
 
@@ -2876,6 +2874,8 @@ bool GraphicsImpl::CreateRenderPasses(RenderPathData& renderPathData)
                 if (attachmentInfo.clear_)
                 {
                     desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                    // Default in black no transparent (swapchain images)
+                    ///\todo get the color from renderpath clear color attribute
                     renderPassInfo.clearValues_[i].color = {0.f, 0.f, 0.f, 1.f};
                 }
                 else
@@ -2970,45 +2970,62 @@ bool GraphicsImpl::CreateRenderPasses(RenderPathData& renderPathData)
     return true;
 }
 
-bool GraphicsImpl::CreateRenderAttachments()
-{
-    SetViewportInfos();
-
-#ifndef URHO3D_VULKAN_RENDERSURFACE
-    // Create RenderTarget Buffers
-    renderAttachments_.Resize(MAX_RENDERSLOTS * viewportSizes_.Size());
+bool GraphicsImpl::UpdateViewportAttachments()
+{ 
+#ifdef ACTIVE_FRAMELOGDEBUG                
+    URHO3D_LOGDEBUG("GraphicsImpl() - UpdateViewportAttachments ...");
+#endif      
+    // Create Viewports RenderTarget Buffers
+    viewportsAttachments_.Resize(MAX_RENDERSLOTS * viewportSizes_.Size());
     for (unsigned viewSizeIndex = 0; viewSizeIndex < viewportSizes_.Size(); viewSizeIndex++)
     {
         for (unsigned slot = 0; slot < MAX_RENDERSLOTS; slot++)
         {
-            RenderAttachment& attachment = renderAttachments_[viewSizeIndex * MAX_RENDERSLOTS + slot];
+            RenderAttachment& attachment = viewportsAttachments_[viewSizeIndex * MAX_RENDERSLOTS + slot];
             if (slot > RENDERSLOT_PRESENT && slot < MAX_RENDERSLOTS && attachment.slot_ == RENDERSLOT_NONE)
+            {
+#ifdef ACTIVE_FRAMELOGDEBUG                
+                URHO3D_LOGDEBUGF("... attachment slot=%s(%d) viewSizeIndex=%u w=%u h=%u ...", RenderSlotTypeStr[slot], slot, viewSizeIndex, viewportSizes_[viewSizeIndex].x_, viewportSizes_[viewSizeIndex].y_);
+#endif                
                 CreateImageAttachment(slot, attachment, viewportSizes_[viewSizeIndex].x_, viewportSizes_[viewSizeIndex].y_);
-            else
-                URHO3D_LOGINFOF("attachment slot=%s(%d) viewSizeIndex=%u w=%u h=%u ... already created", RenderSlotTypeStr[slot], slot, viewSizeIndex, viewportSizes_[viewSizeIndex].x_, viewportSizes_[viewSizeIndex].y_);
+            }                
+#ifdef ACTIVE_FRAMELOGDEBUG
+            else         
+            {
+                URHO3D_LOGDEBUGF("... attachment slot=%s(%d) viewSizeIndex=%u w=%u h=%u ... already created", RenderSlotTypeStr[slot], slot, viewSizeIndex, viewportSizes_[viewSizeIndex].x_, viewportSizes_[viewSizeIndex].y_);
+            }
+#endif                
         }
     }
 
-    // Create FrameBuffers for each frame, renderpass and viewportsize
-    const VkAllocationCallbacks* pAllocator = nullptr;
-    PODVector<VkImageView> framebufferAttachments;
-    for (unsigned frameindex = 0; frameindex < numFrames_; frameindex++)
+    // Update the number of needed framebuffers : 1 framebuffer per viewportsize, per renderpass and per frame
+    // if viewportSizes_.Size() changes, we just need to add new VkFramebuffers
+    // if renderPassInfos_.Size() changes, all VkFramebuffers must be already cleared    
+    const unsigned oldFramebuffersPerFrame = frames_.Front().framebuffers_.Size();
+    const unsigned newFramebuffersPerFrame = renderPassInfos_.Size() * viewportSizes_.Size();
+    if (oldFramebuffersPerFrame != newFramebuffersPerFrame)
     {
-        FrameData& frame = frames_[frameindex];
-
-        // if viewportSizes_.Size() changes, we just need to add new VkFramebuffers
-        // if renderPassInfos_.Size() changes, all VkFramebuffers must be already cleared
-
-        if (frame.framebuffers_.Size() != renderPassInfos_.Size() * viewportSizes_.Size())
+        for (unsigned frameindex = 0; frameindex < numFrames_; frameindex++)
         {
-            unsigned prevSize = frame.framebuffers_.Size();
-            frame.framebuffers_.Resize(renderPassInfos_.Size() * viewportSizes_.Size());
-            for (unsigned i = prevSize; i < frame.framebuffers_.Size(); i++)
+            FrameData& frame = frames_[frameindex];
+            frame.framebuffers_.Resize(newFramebuffersPerFrame);
+            for (unsigned i = oldFramebuffersPerFrame; i < newFramebuffersPerFrame; i++)
                 frame.framebuffers_[i] = VK_NULL_HANDLE;
         }
+    }
 
-        for (unsigned viewSizeIndex = 0; viewSizeIndex < viewportSizes_.Size(); viewSizeIndex++)
+    // Create frameBuffers if don't not exist
+    const VkAllocationCallbacks* pAllocator = nullptr;
+    PODVector<VkImageView> framebufferAttachments;
+    for (unsigned viewSizeIndex = 0; viewSizeIndex < viewportSizes_.Size(); viewSizeIndex++)
+    {    
+        int width = viewportSizes_[viewSizeIndex].x_;
+        int height = viewportSizes_[viewSizeIndex].y_;
+
+        for (unsigned frameindex = 0; frameindex < numFrames_; frameindex++)
         {
+            FrameData& frame = frames_[frameindex];
+
             for (HashMap<unsigned, RenderPassInfo>::Iterator it = renderPassInfos_.Begin(); it != renderPassInfos_.End(); ++it)
             {
                 RenderPassInfo& renderPassInfo = it->second_;
@@ -3017,30 +3034,30 @@ bool GraphicsImpl::CreateRenderAttachments()
 
                 if (framebuffer == VK_NULL_HANDLE)
                 {
+#ifdef ACTIVE_FRAMELOGDEBUG
+                    URHO3D_LOGDEBUGF("... framebuffer frame=%u fbindex=%u viewSizeIndex=%u renderpass=%d w=%u h=%u ... ", 
+                                    frameindex, fbindex, viewSizeIndex, renderPassInfo.id_, width, height);
+#endif    
                     framebufferAttachments.Resize(renderPassInfo.attachments_.Size());
-
-                    VkFramebufferCreateInfo framebufferInfo{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-                    framebufferInfo.renderPass      = renderPassInfo.renderPass_;
-                    framebufferInfo.attachmentCount = renderPassInfo.attachments_.Size();
-                    framebufferInfo.pAttachments    = &framebufferAttachments[0];
-                    framebufferInfo.layers          = 1;
-                    framebufferInfo.width           = viewportSizes_[viewSizeIndex].x_;
-                    framebufferInfo.height          = viewportSizes_[viewSizeIndex].y_;
-
-                    URHO3D_LOGINFOF("framebuffer frame=%u fbindex=%u viewSizeIndex=%u renderpass=%d w=%u h=%u ... ", frameindex, fbindex, viewSizeIndex, renderPassInfo.id_,
-                                    framebufferInfo.width, framebufferInfo.height);
-
                     for (unsigned k = 0; k < renderPassInfo.attachments_.Size(); k++)
                     {
                         int slot = renderPassInfo.attachments_[k].slot_;
                         if (slot == RENDERSLOT_PRESENT)
                             framebufferAttachments[k] = frame.imageView_;
                         else
-                            framebufferAttachments[k] = slot != RENDERSLOT_NONE ? renderAttachments_[viewSizeIndex * MAX_RENDERSLOTS + slot].imageView_ : VK_NULL_HANDLE;
-
-                        URHO3D_LOGINFOF(" ... add attachement %u : slot=%s(%d) imageview=%u", k, RenderSlotTypeStr[slot], slot, framebufferAttachments[k]);
+                            framebufferAttachments[k] = slot != RENDERSLOT_NONE ? viewportsAttachments_[viewSizeIndex * MAX_RENDERSLOTS + slot].imageView_ : VK_NULL_HANDLE;
+#ifdef ACTIVE_FRAMELOGDEBUG
+                        URHO3D_LOGDEBUGF("   -> add attachement %u : slot=%s(%d) imageview=%u", k, RenderSlotTypeStr[slot], slot, framebufferAttachments[k]);
+#endif                        
                     }
 
+                    VkFramebufferCreateInfo framebufferInfo{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
+                    framebufferInfo.renderPass      = renderPassInfo.renderPass_;
+                    framebufferInfo.attachmentCount = framebufferAttachments.Size();
+                    framebufferInfo.pAttachments    = &framebufferAttachments[0];
+                    framebufferInfo.layers          = 1;
+                    framebufferInfo.width           = width;
+                    framebufferInfo.height          = height;                                
                     if (vkCreateFramebuffer(device_, &framebufferInfo, pAllocator, &framebuffer) != VK_SUCCESS)
                     {
                         URHO3D_LOGERRORF("Can't create framebuffer !");
@@ -3050,7 +3067,7 @@ bool GraphicsImpl::CreateRenderAttachments()
             }
         }
     }
-#endif
+
     return true;
 }
 
@@ -3068,41 +3085,51 @@ void GraphicsImpl::SetViewport(int index, const IntRect& rect)
     bool dirty = renderer ? renderer->GetNumViewports() != viewportInfos_.Size() : false;
 #ifdef ACTIVE_FRAMELOGDEBUG
     if (dirty)
-        URHO3D_LOGINFOF("GraphicsImpl() - SetViewport : index=%d numviewports changed %u -> %u !", index, viewportInfos_.Size(), renderer->GetNumViewports());
+        URHO3D_LOGDEBUGF("GraphicsImpl() - SetViewport : index=%d numviewports changed %u -> %u !", index, viewportInfos_.Size(), renderer->GetNumViewports());
 #endif
     if (!dirty)
     {
-        if (index != -1)
+        if (index != -1 && index < viewportInfos_.Size())
         {
-            dirty = (viewportInfos_[index].rect_.offset.x != rect.left_ || viewportInfos_[index].rect_.extent.width  != rect.Width() ||
-                     viewportInfos_[index].rect_.offset.y != rect.top_  || viewportInfos_[index].rect_.extent.height != rect.Height());
-        #ifdef ACTIVE_FRAMELOGDEBUG
+            IntRect renderRect = renderer->GetViewport(index) ? renderer->GetViewport(index)->GetRect() : IntRect(0, 0, swapChainExtent_.width, swapChainExtent_.height);
+            dirty = (viewportInfos_[index].rect_.offset.x != renderRect.left_ || viewportInfos_[index].rect_.extent.width  != renderRect.Width() ||
+                     viewportInfos_[index].rect_.offset.y != renderRect.top_  || viewportInfos_[index].rect_.extent.height != renderRect.Height());
+#ifdef ACTIVE_FRAMELOGDEBUG
             if (dirty)
-                URHO3D_LOGINFOF("GraphicsImpl() - SetViewport : index=%d viewrect changed %d,%d,%u,%u -> %d,%d,%u,%u !", index,
+            {
+                URHO3D_LOGDEBUGF("GraphicsImpl() - SetViewport : index=%d viewrect changed %d,%d,%u,%u -> %d,%d,%u,%u !", index,
                                 viewportInfos_[index].rect_.offset.x, viewportInfos_[index].rect_.offset.y,
                                 viewportInfos_[index].rect_.extent.width, viewportInfos_[index].rect_.extent.height,
-                                rect.left_, rect.top_, rect.Width(), rect.Height());
-        #endif
+                                renderRect.left_, renderRect.top_, renderRect.Width(), renderRect.Height());
+            }
+#endif
         }
     }
 
     if (dirty)
     {
-        URHO3D_LOGINFOF("GraphicsImpl() - SetViewport : UpdateRenderAttachments() !");
-        vkDeviceWaitIdle(device_);
-        
-#ifdef URHO3D_VULKAN_RENDERSURFACE
-        // Marquer les framebuffers comme dirty au lieu de recréer les attachments
-        vulkanFboDirty_ = true;
-#else
-        CreateRenderAttachments();
+#ifdef ACTIVE_FRAMELOGDEBUG
+        URHO3D_LOGDEBUGF("GraphicsImpl() - SetViewport : Update Attachments !");
 #endif
+        vkDeviceWaitIdle(device_);        
+        SetViewports();        
     }
 
     if (index == -1)
     {
         viewport_ = screenViewport_;
         screenScissor_ = { 0, 0, swapChainExtent_.width, swapChainExtent_.height };
+    }
+    else if (index >= viewportInfos_.Size())
+    {
+        screenScissor_.offset.x = rect.left_;
+        screenScissor_.offset.y = rect.top_;
+        screenScissor_.extent.width = rect.Width();
+        screenScissor_.extent.height = rect.Height();
+        viewport_ = { (float)screenScissor_.offset.x, (float)screenScissor_.offset.y, (float)screenScissor_.extent.width, (float)screenScissor_.extent.height };
+#ifdef ACTIVE_FRAMELOGDEBUG        
+        URHO3D_LOGDEBUGF("GraphicsImpl() - SetViewport : index=%d > numviewports(%u) rect=(%F %F %F %F)", index, viewportInfos_.Size(), viewport_.x, viewport_.y, viewport_.width, viewport_.height);
+#endif
     }
     else if (!renderPassInfo_ || (renderPassInfo_ && (renderPassInfo_->type_ & (PASS_COPY|PASS_PRESENT))))
     {
@@ -3116,13 +3143,12 @@ void GraphicsImpl::SetViewport(int index, const IntRect& rect)
     }
 
     viewportIndex_ = index;
-
 #ifdef ACTIVE_FRAMELOGDEBUG
-    URHO3D_LOGINFOF("GraphicsImpl() - SetViewport : index=%d rect=(%F %F %F %F)", viewportIndex_, viewport_.x, viewport_.y, viewport_.width, viewport_.height);
+    URHO3D_LOGDEBUGF("GraphicsImpl() - SetViewport : index=%d rect=(%F %F %F %F)", viewportIndex_, viewport_.x, viewport_.y, viewport_.width, viewport_.height);
 #endif
 }
 
-void GraphicsImpl::SetViewportInfos()
+void GraphicsImpl::SetViewports()
 {
     Renderer* renderer = context_->GetSubsystem<Renderer>();
 
@@ -3144,8 +3170,9 @@ void GraphicsImpl::SetViewportInfos()
 
         VkRect2D& vkrect = viewportInfos_[i].rect_;
         vkrect = { (int)(rect.left_ * scale.x_), (int)(Min(rect.top_, rect.bottom_) * scale.y_), (unsigned)(rect.Width() * scale.x_), (unsigned)(rect.Height() * scale.y_) };
-
-        URHO3D_LOGINFOF("GraphicsImpl() - SetViewportInfos : viewport=%d rect=(%u %u %u %u) sc=%F", i, vkrect.offset.x, vkrect.offset.y, vkrect.extent.width, vkrect.extent.height, scale.x_);
+#ifdef ACTIVE_FRAMELOGDEBUG
+        URHO3D_LOGDEBUGF("GraphicsImpl() - SetViewports : viewport=%d rect=(%u %u %u %u) sc=%F", i, vkrect.offset.x, vkrect.offset.y, vkrect.extent.width, vkrect.extent.height, scale.x_);
+#endif
     }
 
     // Get the different viewports's sizes
@@ -3167,10 +3194,29 @@ void GraphicsImpl::SetViewportInfos()
         else
             viewportInfos_[i].viewSizeIndex_ = it - viewportSizes_.Begin();
 
-        URHO3D_LOGINFOF("GraphicsImpl() - SetViewportInfos : viewport=%d viewSizeIndex=%u", i, viewportInfos_[i].viewSizeIndex_);
+        const VkRect2D& vkrect = viewportInfos_[i].rect_;
+#ifdef ACTIVE_FRAMELOGDEBUG
+        URHO3D_LOGDEBUGF("GraphicsImpl() - SetViewports : viewport=%d viewSizeIndex=%u viewRect=(%u %u %u %u) rendererViewportRect=%s", 
+                        i, viewportInfos_[i].viewSizeIndex_, vkrect.offset.x, vkrect.offset.y, vkrect.extent.width, vkrect.extent.height, 
+                        renderer->GetViewport(i) ? renderer->GetViewport(i)->GetRect().ToString().CString() : "none");
+#endif
     }
+
+    UpdateViewportAttachments();
 }
 
+void GraphicsImpl::SetClearValue(const Color& c, float depth, unsigned stencil)
+{
+#ifdef ACTIVE_FRAMELOGDEBUG    
+    URHO3D_LOGDEBUGF("GraphicsImpl() - SetClearValue : r:%F g:%F b:%F a:%F d:%F s:%u ...", c.r_, c.g_, c.b_, c.a_, depth, stencil);
+#endif
+    clearColor_.color.float32[0] = c.r_;
+    clearColor_.color.float32[1] = c.g_;
+    clearColor_.color.float32[2] = c.b_;
+    clearColor_.color.float32[3] = c.a_;   
+    clearDepth_.depthStencil.depth = depth;
+    clearDepth_.depthStencil.stencil = stencil;   
+}
 
 // Pipeline
 
@@ -3689,20 +3735,6 @@ bool GraphicsImpl::AcquireFrame()
         VkResult result = vkBeginCommandBuffer(frame.commandBuffer_, &beginInfo);
     }
 
-    // start with a clear pass on the acquired image
-    {
-        VkRenderPassBeginInfo renderPassBI{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
-        renderPassBI.renderPass         = renderPathData_->passInfos_.Front()->renderPass_;
-        renderPassBI.framebuffer        = frame.framebuffers_.Front();
-        renderPassBI.renderArea.offset  = { 0, 0 };
-        renderPassBI.renderArea.extent  = swapChainExtent_;
-        renderPassBI.clearValueCount    = 1;
-        renderPassBI.pClearValues       = &renderPathData_->passInfos_.Front()->clearValues_[0];
-
-        vkCmdBeginRenderPass(frame.commandBuffer_, &renderPassBI, VK_SUBPASS_CONTENTS_INLINE);
-        vkCmdEndRenderPass(frame.commandBuffer_);
-    }
-
     frame.commandBufferBegun_ = true;
     frame.renderPassBegun_ = false;
     frame.renderPassIndex_ = -1;
@@ -3830,196 +3862,129 @@ unsigned GraphicsImpl::FindMemoryType(unsigned typeFilter, VkMemoryPropertyFlags
     return 0;
 }
 
-#ifdef URHO3D_VULKAN_RENDERSURFACE
-VkFramebuffer GraphicsImpl::CreateVulkanFramebuffer()
+VkFramebuffer* GraphicsImpl::GetRenderSurfaceFrameBuffers(RenderSurface* rendersurface, RenderPassInfo* renderpassinfo)
 {
-    VkFramebuffer framebuffer = VK_NULL_HANDLE;
-    const VkAllocationCallbacks* pAllocator = nullptr;
-    
-    // Créer un framebuffer vide (sera configuré plus tard)
-    VkFramebufferCreateInfo framebufferInfo = {};
-    framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    framebufferInfo.renderPass = VK_NULL_HANDLE; // Sera défini lors de la configuration
-    framebufferInfo.attachmentCount = 0;
-    framebufferInfo.pAttachments = nullptr;
-    framebufferInfo.width = 1;
-    framebufferInfo.height = 1;
-    framebufferInfo.layers = 1;
-    
-    if (vkCreateFramebuffer(device_, &framebufferInfo, pAllocator, &framebuffer) != VK_SUCCESS)
-    {
-        URHO3D_LOGERROR("Failed to create Vulkan framebuffer");
+    if (!rendersurface)
         return VK_NULL_HANDLE;
-    }
     
-    return framebuffer;
+    int renderpassid = renderpassinfo ? renderpassinfo->id_ : 0;
+
+    Vector<RenderSurfacePassAttachments>& passbuffers = renderSurfaceAttachments_[rendersurface];
+    if (renderpassid >= passbuffers.Size())
+    {
+        passbuffers.Resize(renderpassid+1);
+        passbuffers[renderpassid].renderPassInfo_ = renderpassinfo;
+        PrepareRenderSurfaceAttachments(rendersurface, renderpassid);
+    }
+
+    RenderSurfacePassAttachments& buffers = passbuffers[renderpassid];
+    return buffers.framebuffers_.Buffer();
 }
 
-void GraphicsImpl::DeleteVulkanFramebuffer(VkFramebuffer framebuffer)
+void GraphicsImpl::PrepareRenderSurfaceAttachments(RenderSurface* rendersurface, int renderpassid)
 {
-    if (framebuffer != VK_NULL_HANDLE)
+    int width = rendersurface->GetWidth();
+    int height = rendersurface->GetHeight();
+//#ifdef ACTIVE_FRAMELOGDEBUG
+    URHO3D_LOGDEBUGF("GraphicsImpl - PrepareRenderSurfaceAttachments() : rendersurface=%u renderpassid=%d w=%d h=%d ...",
+                    rendersurface, renderpassid, width, height);
+//#endif
+    Vector<RenderSurfacePassAttachments>& passbuffers = renderSurfaceAttachments_[rendersurface];
+    RenderSurfacePassAttachments& buffers = passbuffers[renderpassid];
+
+    if (buffers.framebuffers_.Size() != numFrames_)
     {
-        const VkAllocationCallbacks* pAllocator = nullptr;
-        vkDestroyFramebuffer(device_, framebuffer, pAllocator);
+        unsigned oldSize = buffers.framebuffers_.Size();
+        buffers.framebuffers_.Resize(numFrames_);
+        for (unsigned i = oldSize; i < numFrames_; i++)
+        buffers.framebuffers_[i] = VK_NULL_HANDLE;
+    }
+
+    PODVector<VkImageView> framebufferAttachments;
+    const VkAllocationCallbacks* pAllocator = nullptr;
+    for (unsigned frameindex = 0; frameindex < numFrames_; frameindex++)
+    {
+        VkFramebuffer& framebuffer = buffers.framebuffers_[frameindex];
+
+        if (framebuffer == VK_NULL_HANDLE)
+        {
+#ifdef ACTIVE_FRAMELOGDEBUG
+            URHO3D_LOGDEBUGF("... framebuffer frame=%u renderpass=%d w=%u h=%u ... ", frameindex, renderpassid, width, height);
+#endif    
+            framebufferAttachments.Resize(buffers.renderPassInfo_->attachments_.Size());
+            for (unsigned k = 0; k < buffers.renderPassInfo_->attachments_.Size(); k++)
+            {
+                framebufferAttachments[k] = VK_NULL_HANDLE;
+                int slot = buffers.renderPassInfo_->attachments_[k].slot_;
+                if (slot == RENDERSLOT_PRESENT || slot == RENDERSLOT_TARGET1 || slot == RENDERSLOT_TARGET2)
+                    framebufferAttachments[k] = (VkImageView)rendersurface->GetParentTexture()->GetImageView();
+                else if (slot == RENDERSLOT_DEPTH)
+                {
+                    RenderSurface* depthStencil = rendersurface->GetLinkedDepthStencil();
+                    if (!depthStencil)
+                    {
+                    #ifdef ACTIVE_FRAMELOGDEBUG
+                        URHO3D_LOGDEBUGF(" .. get depth stencil from renderer !");
+                    #endif
+                        depthStencil = context_->GetSubsystem<Renderer>()->GetDepthStencil(width, height, rendersurface->GetMultiSample(), rendersurface->GetAutoResolve());                        
+                        buffers.depthStencil_ = SharedPtr<Texture>(depthStencil->GetParentTexture());
+                        rendersurface->SetLinkedDepthStencil(depthStencil);
+                    }
+                    framebufferAttachments[k] = (VkImageView)depthStencil->GetParentTexture()->GetImageView();
+                }
+                
+                if (framebufferAttachments[k] == VK_NULL_HANDLE)            
+                    URHO3D_LOGERRORF("   -> add attachement %u : slot=%s(%d) no imageview => illformed framebuffer !");                                    
+#ifdef ACTIVE_FRAMELOGDEBUG
+                else 
+                    URHO3D_LOGDEBUGF("   -> add attachement %u : slot=%s(%d) imageview=%u", k, RenderSlotTypeStr[slot], slot, framebufferAttachments[k]);
+#endif                        
+            }
+
+            VkFramebufferCreateInfo framebufferInfo{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
+            framebufferInfo.renderPass      = buffers.renderPassInfo_->renderPass_;
+            framebufferInfo.attachmentCount = framebufferAttachments.Size();
+            framebufferInfo.pAttachments    = &framebufferAttachments[0];
+            framebufferInfo.layers          = 1;
+            framebufferInfo.width           = width;
+            framebufferInfo.height          = height;
+            if (vkCreateFramebuffer(device_, &framebufferInfo, pAllocator, &framebuffer) != VK_SUCCESS)
+            {
+                URHO3D_LOGERRORF("Can't create framebuffer !");
+                return;
+            }            
+        }
     }
 }
 
-bool GraphicsImpl::PrepareVulkanFramebuffer()
+void GraphicsImpl::RemoveRenderSurfaceAttachements(RenderSurface* rendersurface)
 {
-    if (!vulkanFboDirty_)
-        return true;
-    
-    vulkanFboDirty_ = false;
-    
-    // Vérifier si on a besoin d'un framebuffer
-    bool needFramebuffer = false;
-    Graphics* graphics = graphics_;
-    
-    // Vérifier les rendertargets actuels
-    for (unsigned i = 0; i < MAX_RENDERTARGETS; ++i)
+    HashMap<RenderSurface*, Vector<RenderSurfacePassAttachments> >::Iterator it = renderSurfaceAttachments_.Find(rendersurface);
+    if (it != renderSurfaceAttachments_.End())
     {
-        if (graphics->GetRenderTarget(i))
+        for (RenderSurfacePassAttachments buffer : it->second_)
         {
-            needFramebuffer = true;
-            break;
-        }
-    }
-    
-    // Vérifier le depth stencil
-    if (graphics->GetDepthStencil())
-        needFramebuffer = true;
-    
-    if (!needFramebuffer)
-    {
-        // Retourner au framebuffer par défaut (swapchain)
-        boundFramebuffer_ = VK_NULL_HANDLE;
-        return true;
-    }
-    
-    // Créer la clé du framebuffer (format + taille)
-    IntVector2 rtSize = graphics->GetRenderTargetDimensions();
-    unsigned format = 0;
-    if (graphics->GetRenderTarget(0))
-        format = graphics->GetRenderTarget(0)->GetParentTexture()->GetFormat();
-    else if (graphics->GetDepthStencil())
-        format = graphics->GetDepthStencil()->GetParentTexture()->GetFormat();
-    
-    unsigned long long fboKey = (unsigned long long)format << 32u | rtSize.x_ << 16u | rtSize.y_;
-    
-    // Chercher ou créer le framebuffer
-    HashMap<unsigned long long, VulkanFrameBufferObject>::Iterator i = vulkanFrameBuffers_.Find(fboKey);
-    if (i == vulkanFrameBuffers_.End())
-    {
-        VulkanFrameBufferObject newFbo;
-        newFbo.framebuffer_ = CreateVulkanFramebuffer();
-        newFbo.dirty_ = true;
-        i = vulkanFrameBuffers_.Insert(MakePair(fboKey, newFbo));
-    }
-    
-    VulkanFrameBufferObject& fbo = i->second_;
-    
-    // Mettre à jour les attachments si nécessaire
-    bool attachmentsChanged = false;
-    for (unsigned j = 0; j < MAX_RENDERTARGETS; ++j)
-    {
-        RenderSurface* currentTarget = graphics->GetRenderTarget(j);
-        if (fbo.colorAttachments_[j] != currentTarget)
-        {
-            fbo.colorAttachments_[j] = currentTarget;
-            attachmentsChanged = true;
-        }
-    }
-    
-    RenderSurface* currentDepth = graphics->GetDepthStencil();
-    if (fbo.depthAttachment_ != currentDepth)
-    {
-        fbo.depthAttachment_ = currentDepth;
-        attachmentsChanged = true;
-    }
-    
-    // Recréer le framebuffer si les attachments ont changé
-    if (attachmentsChanged || fbo.dirty_)
-    {
-        // Supprimer l'ancien framebuffer
-        if (fbo.framebuffer_ != VK_NULL_HANDLE)
-            DeleteVulkanFramebuffer(fbo.framebuffer_);
-        
-        // Créer les attachments
-        fbo.attachmentViews_.Clear();
-        
-        // Ajouter les color attachments
-        for (unsigned j = 0; j < MAX_RENDERTARGETS; ++j)
-        {
-            if (fbo.colorAttachments_[j])
+            for (VkFramebuffer framebuffer : buffer.framebuffers_)
             {
-                // Pour l'instant, utiliser une approche temporaire
-                // TODO: Implémenter GetColorImageView() dans RenderSurface
-                VkImageView imageView = VK_NULL_HANDLE;
-                // fbo.colorAttachments_[j]->GetColorImageView();
-                if (imageView != VK_NULL_HANDLE)
-                    fbo.attachmentViews_.Push(imageView);
+                if (framebuffer != VK_NULL_HANDLE)
+                {
+                    const VkAllocationCallbacks* pAllocator = nullptr;
+                    vkDestroyFramebuffer(device_, framebuffer, pAllocator);
+                }
             }
         }
-        
-        // Ajouter le depth attachment
-        if (fbo.depthAttachment_)
-        {
-            // Pour l'instant, utiliser une approche temporaire
-            // TODO: Implémenter GetDepthImageView() dans RenderSurface
-            VkImageView depthView = VK_NULL_HANDLE;
-            // fbo.depthAttachment_->GetDepthImageView();
-            if (depthView != VK_NULL_HANDLE)
-                fbo.attachmentViews_.Push(depthView);
-        }
-        
-        // Créer le nouveau framebuffer
-        if (!fbo.attachmentViews_.Empty())
-        {
-            VkFramebufferCreateInfo framebufferInfo = {};
-            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            
-            // Utiliser le render pass actuel au lieu de VK_NULL_HANDLE
-            if (renderPassInfo_)
-                framebufferInfo.renderPass = renderPassInfo_->renderPass_;
-            else
-            {
-                URHO3D_LOGERROR("No current render pass available for framebuffer creation");
-                return false;
-            }
-            
-            framebufferInfo.attachmentCount = fbo.attachmentViews_.Size();
-            framebufferInfo.pAttachments = fbo.attachmentViews_.Buffer();
-            framebufferInfo.width = rtSize.x_;
-            framebufferInfo.height = rtSize.y_;
-            framebufferInfo.layers = 1;
-            
-            const VkAllocationCallbacks* pAllocator = nullptr;
-            if (vkCreateFramebuffer(device_, &framebufferInfo, pAllocator, &fbo.framebuffer_) != VK_SUCCESS)
-            {
-                URHO3D_LOGERROR("Failed to create Vulkan framebuffer with attachments");
-                return false;
-            }
-        }
-        
-        fbo.dirty_ = false;
+        renderSurfaceAttachments_.Erase(rendersurface);
     }
-    
-    boundFramebuffer_ = fbo.framebuffer_;
-    return true;
 }
 
-void GraphicsImpl::CleanupVulkanFramebuffers()
+void GraphicsImpl::CleanupRenderSurfaceAttachments()
 {
-    for (HashMap<unsigned long long, VulkanFrameBufferObject>::Iterator i = vulkanFrameBuffers_.Begin();
-         i != vulkanFrameBuffers_.End(); ++i)
-    {
-        DeleteVulkanFramebuffer(i->second_.framebuffer_);
-    }
+    for (HashMap<RenderSurface*, Vector<RenderSurfacePassAttachments> >::Iterator i = renderSurfaceAttachments_.Begin();
+         i != renderSurfaceAttachments_.End(); ++i)
+        RemoveRenderSurfaceAttachements(i->first_);
     
-    vulkanFrameBuffers_.Clear();
-    boundFramebuffer_ = VK_NULL_HANDLE;
-    vulkanFboDirty_ = false;
+    renderSurfaceAttachments_.Clear();
+    fboDirty_ = false;
 }
-#endif
 
 } // namespace Urho3D

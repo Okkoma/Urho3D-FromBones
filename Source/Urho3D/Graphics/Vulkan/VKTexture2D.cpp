@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2008-2017 the Urho3D project.
+// Copyright (c) 2022-2025 - Christophe VILLE.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -116,7 +117,7 @@ void Texture2D::Release()
         #endif
         }
 
-        URHO3D_LOGDEBUGF("Release image !");
+        //URHO3D_LOGDEBUG("Release image !");
     }
 
     object_.buffer_ = 0;

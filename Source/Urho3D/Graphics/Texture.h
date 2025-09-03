@@ -175,6 +175,11 @@ public:
     /// Return shader resource view. Only used on Direct3D11.
     void* GetShaderResourceView() const { return shaderResourceView_; }
 
+#ifdef URHO3D_VULKAN
+    /// Return image view. Only used on Vulkan.
+    void* GetImageView() const { return imageView_; }
+#endif
+
     /// Return sampler state object. Only used on Direct3D11.
     void* GetSampler() const { return sampler_; }
 

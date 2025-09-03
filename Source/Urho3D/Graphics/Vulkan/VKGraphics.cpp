@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2008-2022 the Urho3D project.
+// Copyright (c) 2022-2025 - Christophe VILLE.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -42,6 +43,7 @@
 #include "../../IO/File.h"
 #include "../../IO/Log.h"
 #include "../../Resource/ResourceCache.h"
+#include "Graphics/Vulkan/VKGraphicsImpl.h"
 
 #ifdef URHO3D_VOLK
 #define VOLK_IMPLEMENTATION
@@ -491,6 +493,9 @@ bool Graphics::BeginFrame()
     URHO3D_LOGDEBUGF("-> Begin Frame=%u ...", impl_->currentFrame_);
 #endif
 
+    // Set default rendertarget and depth buffer
+    ResetRenderTargets();
+
     // Begin Command Buffer
 
 //    // If using an external window, check it for size changes, and reset screen mode if necessary
@@ -548,7 +553,11 @@ void Graphics::EndFrame()
 
 void Graphics::Clear(unsigned flags, const Color& color, float depth, unsigned stencil)
 {
+    impl_->SetClearValue(color, depth, stencil);
 
+#ifdef URHO3D_VULKAN_USE_SEPARATE_CLEARPASS
+    PrepareDraw();
+#endif
 }
 
 bool Graphics::ResolveToTexture(Texture2D* destination, const IntRect& viewport)
@@ -735,7 +744,9 @@ void Graphics::Draw(PrimitiveType type, unsigned vertexStart, unsigned vertexCou
 #ifdef ACTIVE_FRAMELOGDEBUG
     URHO3D_LOGDEBUGF("Graphics - Draw() ");
 #endif
-
+#if defined(DEBUG_VULKANCOMMANDS)
+    URHO3D_LOGDEBUGF("vkCmdDraw               (pass:%d  sub:%d)", impl_->frame_->renderPassIndex_, impl_->frame_->subpassIndex_);
+#endif
     vkCmdDraw(impl_->frame_->commandBuffer_, vertexCount, 1, vertexStart, 0);
 }
 
@@ -751,7 +762,9 @@ void Graphics::Draw(PrimitiveType type, unsigned indexStart, unsigned indexCount
 #ifdef ACTIVE_FRAMELOGDEBUG
     URHO3D_LOGDEBUGF("Graphics - Draw() indexed 1 ");
 #endif
-
+#if defined(DEBUG_VULKANCOMMANDS)    
+    URHO3D_LOGDEBUGF("vkCmdDrawIndexed        (pass:%d  sub:%d)", impl_->frame_->renderPassIndex_, impl_->frame_->subpassIndex_);
+#endif
     vkCmdDrawIndexed(impl_->frame_->commandBuffer_, indexCount, 1, indexStart, 0, 0);
 
 //    unsigned indexSize = indexBuffer_->GetIndexSize();
@@ -778,7 +791,9 @@ void Graphics::Draw(PrimitiveType type, unsigned indexStart, unsigned indexCount
 #ifdef ACTIVE_FRAMELOGDEBUG
     URHO3D_LOGDEBUGF("Graphics - Draw() indexed 2 ");
 #endif
-
+#if defined(DEBUG_VULKANCOMMANDS)    
+    URHO3D_LOGDEBUGF("vkCmdDrawIndexed        (pass:%d  sub:%d)", impl_->frame_->renderPassIndex_, impl_->frame_->subpassIndex_);
+#endif
     vkCmdDrawIndexed(impl_->frame_->commandBuffer_, indexCount, 1, indexStart, baseVertexIndex, 0);
 
 //    unsigned indexSize = indexBuffer_->GetIndexSize();
@@ -1467,30 +1482,29 @@ void Graphics::SetRenderTarget(unsigned index, RenderSurface* renderTarget)
     {
         renderTargets_[index] = renderTarget;
 
-//        // If the rendertarget is also bound as a texture, replace with backup texture or null
-//        if (renderTarget)
-//        {
-//            Texture* parentTexture = renderTarget->GetParentTexture();
-//
-//            for (unsigned i = 0; i < MAX_TEXTURE_UNITS; ++i)
-//            {
-//                if (textures_[i] == parentTexture)
-//                    SetTexture(i, textures_[i]->GetBackupTexture());
-//            }
-//
-//            // If multisampled, mark the texture & surface needing resolve
-//            if (parentTexture->GetMultiSample() > 1 && parentTexture->GetAutoResolve())
-//            {
-//                parentTexture->SetResolveDirty(true);
-//                renderTarget->SetResolveDirty(true);
-//            }
-//
-//            // If mipmapped, mark the levels needing regeneration
-//            if (parentTexture->GetLevels() > 1)
-//                parentTexture->SetLevelsDirty();
-//        }
-//
-//        impl_->fboDirty_ = true;
+       // If the rendertarget is also bound as a texture, replace with backup texture or null
+       if (renderTarget)
+       {
+           Texture* parentTexture = renderTarget->GetParentTexture();
+
+           for (unsigned i = 0; i < MAX_TEXTURE_UNITS; ++i)
+           {
+               if (textures_[i] == parentTexture)
+                   SetTexture(i, textures_[i]->GetBackupTexture());
+           }
+
+           // If multisampled, mark the texture & surface needing resolve
+           if (parentTexture->GetMultiSample() > 1 && parentTexture->GetAutoResolve())
+           {
+               parentTexture->SetResolveDirty(true);
+               renderTarget->SetResolveDirty(true);
+           }
+
+           // If mipmapped, mark the levels needing regeneration
+           if (parentTexture->GetLevels() > 1)
+               parentTexture->SetLevelsDirty();
+       }
+       impl_->fboDirty_ = true;
     }
 }
 
@@ -1561,11 +1575,11 @@ void Graphics::SetViewport(const IntRect& rect, int index)
     viewport_.right_  = Clamp(rectCopy.right_, 0, rtSize.x_);
     viewport_.bottom_ = Clamp(rectCopy.bottom_, 0, rtSize.y_);
 
-    impl_->SetViewport(index, viewport_);
-
 #ifdef ACTIVE_FRAMELOGDEBUG
-    URHO3D_LOGINFOF("Graphics() - SetViewport : index=%d rect=%s rtsize=%s", index, viewport_.ToString().CString(), rtSize.ToString().CString());
-#endif
+    URHO3D_LOGDEBUGF("Graphics() - SetViewport : index=%d rect=%s rtsize=%s => viewport=%s", index, 
+                    rect.ToString().CString(), rtSize.ToString().CString(), viewport_.ToString().CString());
+#endif    
+    impl_->SetViewport(index, viewport_);
 
     // Disable scissor test, needs to be re-enabled by the user
     SetScissorTest(false);
@@ -1997,8 +2011,7 @@ Texture* Graphics::GetTexture(unsigned index) const
 
 RenderSurface* Graphics::GetRenderTarget(unsigned index) const
 {
-//    return index < MAX_RENDERTARGETS ? renderTargets_[index] : 0;
-    return 0;
+    return index < MAX_RENDERTARGETS ? renderTargets_[index] : 0;
 }
 
 IntVector2 Graphics::GetRenderTargetDimensions() const
@@ -2322,7 +2335,7 @@ void Graphics::Restore()
 
 void Graphics::MarkFBODirty()
 {
-//    impl_->fboDirty_ = true;
+    impl_->fboDirty_ = true;
 }
 
 void Graphics::SetVBO(unsigned index)
@@ -2555,14 +2568,14 @@ void Graphics::PrepareDraw()
 {
     if (!impl_->frame_)
     {
-        URHO3D_LOGERRORF("PrepareDraw ... no frame !");
+        URHO3D_LOGERRORF("Graphics() - PrepareDraw ... no frame !");
         return;
     }
 
     FrameData& frame = *impl_->frame_;
 
-#ifdef ACTIVE_FRAMELOGDEBUG
-    URHO3D_LOGDEBUGF("PrepareDraw ... frame=%u ... pipelineDirty=%s textureDirty=%s frameRenderPassIndex=(%d,%d) implRenderPassIndex=(%d,%d)",
+#if defined(ACTIVE_FRAMELOGDEBUG) || defined(DEBUG_VULKANCOMMANDS)
+    URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... frame=%u ... pipelineDirty=%s textureDirty=%s frameRenderPassIndex=(%d,%d) implRenderPassIndex=(%d,%d)",
                      impl_->GetFrameIndex(), impl_->pipelineDirty_ ? "true":"false",
                      frame.textureDirty_ && textures_[0] ? (!textures_[0]->GetName().Empty() ? textures_[0]->GetName().CString() : "noname") : "false",
                      frame.renderPassIndex_, frame.subpassIndex_, impl_->renderPassIndex_, impl_->subpassIndex_);
@@ -2575,15 +2588,20 @@ void Graphics::PrepareDraw()
         // Execute all remaining subpasses to ensure the correct transition of the attachment layouts
         const unsigned remaingSubpasses = impl_->renderPathData_->passInfos_[frame.renderPassIndex_]->subpasses_.Size() - 1;
     #ifdef ACTIVE_FRAMELOGDEBUG
-        URHO3D_LOGDEBUGF("PrepareDraw ... Render Pass End : subpassindex=%d remain=%d", frame.subpassIndex_, remaingSubpasses);
+        URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... Render Pass End : subpassindex=%d remain=%d", frame.subpassIndex_, remaingSubpasses);
     #endif
 
         while (frame.subpassIndex_ < remaingSubpasses)
         {
             frame.subpassIndex_++;
+        #if defined(DEBUG_VULKANCOMMANDS)
+            URHO3D_LOGDEBUGF("vkCmdNextSubpass        (finish prev pass)(pass:%u  sub:%u)", frame.renderPassIndex_, frame.subpassIndex_);
+        #endif
             vkCmdNextSubpass(frame.commandBuffer_, VK_SUBPASS_CONTENTS_INLINE);
         }
-
+    #if defined(DEBUG_VULKANCOMMANDS)
+        URHO3D_LOGDEBUGF("vkCmdEndRenderPass      (finish prev pass)(pass:%u)", frame.renderPassIndex_);
+    #endif
         vkCmdEndRenderPass(frame.commandBuffer_);
         frame.renderPassBegun_ = false;
     }
@@ -2592,20 +2610,47 @@ void Graphics::PrepareDraw()
 	if (!frame.commandBufferBegun_)
 	{
     #ifdef ACTIVE_FRAMELOGDEBUG
-	    URHO3D_LOGDEBUG("PrepareDraw ... Command Buffer Not Begin => Begin !");
+	    URHO3D_LOGDEBUG("Graphics() - PrepareDraw ... Command Buffer Not Begin => Begin !");
+    #endif
+    #if defined(DEBUG_VULKANCOMMANDS)
+        URHO3D_LOGDEBUGF("vkBeginCommandBuffer    (pass:%u)", frame.renderPassIndex_);
     #endif
 	    VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
         VkResult result = vkBeginCommandBuffer(frame.commandBuffer_, &beginInfo);
         frame.commandBufferBegun_ = true;
 	}
+
+#ifdef URHO3D_VULKAN_BEGINFRAME_WITH_CLEARPASS
+    // start with a clear pass on the acquired image
+    if (frame.renderPassIndex_ == -1)
+    {
+        VkClearValue* cval = &impl_->clearColor_;//&impl_->renderPathData_->passInfos_.Front()->clearValues_[0];
+        VkRenderPassBeginInfo renderPassBI{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+        renderPassBI.renderPass         = impl_->renderPathData_->passInfos_.Front()->renderPass_;
+        renderPassBI.framebuffer        = frame.framebuffers_.Front();
+        renderPassBI.renderArea.offset  = { 0, 0 };
+        renderPassBI.renderArea.extent  = impl_->swapChainExtent_;
+        renderPassBI.clearValueCount    = 1;
+        renderPassBI.pClearValues       = cval;
+
+    #if defined(DEBUG_VULKANCOMMANDS)
+        URHO3D_LOGDEBUGF("vkCmdBeginRenderPass    (beginframe with clearpass color=%F,%F,%F,%F)(pass:%d)", 
+            cval->color.float32[0], cval->color.float32[1], cval->color.float32[2], cval->color.float32[3], frame.renderPassIndex_);
+        URHO3D_LOGDEBUGF("vkCmdEndRenderPass      (pass:%d)", frame.renderPassIndex_);
+    #endif
+        vkCmdBeginRenderPass(frame.commandBuffer_, &renderPassBI, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdEndRenderPass(frame.commandBuffer_);
+    }
+#endif
 
 	// Begin the next renderpass.
     if (frame.renderPassIndex_ != impl_->renderPassIndex_ || frame.viewportIndex_ != impl_->viewportIndex_)
     {
         frame.renderPassIndex_ = impl_->renderPassIndex_;
         frame.subpassIndex_    = 0;
-		frame.viewportIndex_   = impl_->viewportIndex_;
+		frame.viewportIndex_   = Max(0, impl_->viewportIndex_);
 
         RenderPassInfo* renderPassInfo = impl_->renderPathData_->passInfos_[frame.renderPassIndex_];
 
@@ -2613,36 +2658,83 @@ void Graphics::PrepareDraw()
         VkRenderPassBeginInfo renderPassBI{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
         renderPassBI.renderPass = renderPassInfo->renderPass_;
 
-		if (frame.viewportIndex_ == -1 || (renderPassInfo->type_ & (PASS_CLEAR|PASS_PRESENT)))
+        unsigned fbindex = renderPassInfo->id_;
+
+        if (frame.viewportIndex_ >= (int)impl_->viewportInfos_.Size())
+        {
+            VkFramebuffer* framebuffers = impl_->GetRenderSurfaceFrameBuffers(renderTargets_[0],renderPassInfo);
+        #ifdef ACTIVE_FRAMELOGDEBUG
+            URHO3D_LOGERRORF("Graphics() - PrepareDraw ... renderpassindex=%d viewportIndex_=%d numviewports=%u renderTargets_=%u", 
+                            impl_->renderPassIndex_, impl_->viewportIndex_, impl_->viewportInfos_.Size(), renderTargets_[0]);
+        #endif             
+            renderPassBI.renderArea = impl_->screenScissor_;
+            renderPassBI.framebuffer = framebuffers ? framebuffers[frame.id_] : frame.framebuffers_[fbindex];
+        }
+        else if (renderPassInfo->type_ & (PASS_CLEAR|PASS_PRESENT))
         {
             renderPassBI.renderArea.offset = { 0, 0 };
 			renderPassBI.renderArea.extent = impl_->swapChainExtent_;
+            renderPassBI.framebuffer = frame.framebuffers_[fbindex];
         }
         else
         {
+            fbindex += impl_->viewportInfos_[frame.viewportIndex_].viewSizeIndex_ * impl_->renderPassInfos_.Size();
 			renderPassBI.renderArea.offset = impl_->screenScissor_.offset;
 			renderPassBI.renderArea.extent = impl_->viewportInfos_[frame.viewportIndex_].rect_.extent;
-        }
-
-        unsigned fbindex = renderPassInfo->id_;
-        if (frame.viewportIndex_ != -1 && renderPassInfo->type_ == PASS_VIEW)
-            fbindex += impl_->viewportInfos_[frame.viewportIndex_].viewSizeIndex_ * impl_->renderPassInfos_.Size();
-
-        renderPassBI.framebuffer = frame.framebuffers_[fbindex];
-
+            renderPassBI.framebuffer = frame.framebuffers_[fbindex];
+        }  
+        
     #ifdef ACTIVE_FRAMELOGDEBUG
-        URHO3D_LOGDEBUGF("PrepareDraw ... Begin New Render passindex=%d viewportindex=%d viewport=%F,%F,%F,%F renderArea=%d,%d,%u,%u ...",
-                         frame.renderPassIndex_, frame.viewportIndex_,
+        URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... Begin New Render passindex=%d passtype=%d viewportindex=%d(max=%d) fbindex=%u viewport=%F,%F,%F,%F renderArea=%d,%d,%u,%u ...",
+                         frame.renderPassIndex_, renderPassInfo->type_, frame.viewportIndex_, impl_->viewportInfos_.Size()-1, fbindex,
                          impl_->viewport_.x, impl_->viewport_.y, impl_->viewport_.width, impl_->viewport_.height,
                          renderPassBI.renderArea.offset.x, renderPassBI.renderArea.offset.y,
                          renderPassBI.renderArea.extent.width, renderPassBI.renderArea.extent.height);
     #endif
 
 		// Start with the first subpass
-        renderPassBI.clearValueCount = renderPassInfo->clearValues_.Size();
-        renderPassBI.pClearValues    = renderPassInfo->clearValues_.Size() ? &renderPassInfo->clearValues_[0] : 0;
+
+    #ifdef URHO3D_VULKAN_USE_SEPARATE_CLEARPASS
+        Vector<VkClearValue>* pClearValues = renderPassInfo->type_ == PASS_CLEAR ? &renderPassInfo->clearValues_ : 0;
+    #else
+        Vector<VkClearValue>* pClearValues = &renderPassInfo->clearValues_;
+    #endif
+        if (pClearValues)
+        {
+            for (unsigned i = 0; i < pClearValues->Size(); i++)        
+                pClearValues->At(i) = renderPassInfo->attachments_[i].slot_ == RENDERSLOT_DEPTH ? impl_->clearDepth_ : impl_->clearColor_;
+            renderPassBI.clearValueCount = pClearValues->Size();
+            renderPassBI.pClearValues    = pClearValues->Size() ? pClearValues->Buffer() : 0;
+        #if defined(DEBUG_VULKANCOMMANDS)
+            URHO3D_LOGDEBUGF("vkCmdBeginRenderPass    (clearcolor:%F,%F,%F,%F)(pass:%d)", 
+                impl_->clearColor_.color.float32[0], impl_->clearColor_.color.float32[1], 
+                impl_->clearColor_.color.float32[2], impl_->clearColor_.color.float32[3], frame.renderPassIndex_);
+        #endif                
+        }
+        else 
+        {
+            renderPassBI.clearValueCount = 0;
+            renderPassBI.pClearValues    = 0;
+        #if defined(DEBUG_VULKANCOMMANDS)
+            URHO3D_LOGDEBUGF("vkCmdBeginRenderPass    (noclear)(pass:%d)", frame.renderPassIndex_);
+        #endif               
+        }
+        
         vkCmdBeginRenderPass(frame.commandBuffer_, &renderPassBI, VK_SUBPASS_CONTENTS_INLINE);
 
+    #ifdef URHO3D_VULKAN_USE_SEPARATE_CLEARPASS
+        if (renderPassInfo->type_ == PASS_CLEAR)
+        {
+        #ifdef ACTIVE_FRAMELOGDEBUG            
+            URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... URHO3D_VULKAN_USE_SEPARATE_CLEARPASS !");
+        #endif  
+        #if defined(DEBUG_VULKANCOMMANDS)
+            URHO3D_LOGDEBUGF("vkCmdEndRenderPass      (separateClearPass)(pass:%d)", frame.renderPassIndex_);
+        #endif
+            vkCmdEndRenderPass(frame.commandBuffer_);
+            return;
+        }
+    #endif
         frame.renderPassBegun_ = true;
         impl_->pipelineDirty_  = true;
     }
@@ -2654,12 +2746,15 @@ void Graphics::PrepareDraw()
         while (frame.subpassIndex_ < impl_->subpassIndex_)
         {
             frame.subpassIndex_++;
+        #if defined(DEBUG_VULKANCOMMANDS)
+            URHO3D_LOGDEBUGF("vkCmdNextSubpass        (pass:%d  sub:%d)", frame.renderPassIndex_, frame.subpassIndex_);
+        #endif
             vkCmdNextSubpass(frame.commandBuffer_, VK_SUBPASS_CONTENTS_INLINE);
         }
     }
 
     // Set the Pipeline if dirty (shaders changed or/and states changed)
-    if (vertexShader_ && pixelShader_ && (!impl_->pipelineInfo_ || impl_->pipelineDirty_))
+    if (vertexShader_ && pixelShader_ && frame.renderPassIndex_ !=-1 && (!impl_->pipelineInfo_ || impl_->pipelineDirty_))
     {
         unsigned renderPassKey = impl_->renderPathData_->passInfos_[frame.renderPassIndex_]->key_;
         impl_->SetPipeline(renderPassKey, vertexShader_, pixelShader_, impl_->pipelineStates_, vertexBuffers_);
@@ -2729,7 +2824,7 @@ void Graphics::PrepareDraw()
                     if (!buffer)
                     {
                     #ifdef ACTIVE_FRAMELOGDEBUG
-                        URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u no buffer !", shaderStage == VS ? "VS":"PS", set, binding.id_);
+                        URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... update stage=%s Set=%u.%u no buffer !", shaderStage == VS ? "VS":"PS", set, binding.id_);
                     #endif
                         continue;
                     }
@@ -2741,7 +2836,7 @@ void Graphics::PrepareDraw()
                         descriptorSetBindDirty = true;
                         dynamicOffsets.Push(buffer->GetObjectIndex() * impl_->GetUBOPaddedSize(sizePerObject));
                     #ifdef ACTIVE_FRAMELOGDEBUG
-                        URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u obj=%u dynamic update buffer=%u dyncount=%u dynoffset=%u !",
+                        URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... update stage=%s Set=%u.%u obj=%u dynamic update buffer=%u dyncount=%u dynoffset=%u !",
                                         shaderStage == VS ? "VS":"PS", set, binding.id_, buffer->GetObjectIndex(), buffer, dynamicOffsets.Size(), dynamicOffsets.Back());
                     #endif
                     }
@@ -2762,7 +2857,7 @@ void Graphics::PrepareDraw()
                         descriptorWrite.pBufferInfo      = &bufferInfo;
                         descriptorWrite.pNext            = nullptr;
                     #ifdef ACTIVE_FRAMELOGDEBUG
-                        URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u write=%u SPGroup=%u size=%u descInd=%u update buffer=%u !",
+                        URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... update stage=%s Set=%u.%u write=%u SPGroup=%u size=%u descInd=%u update buffer=%u !",
                                           shaderStage == VS ? "VS":"PS", set, binding.id_, descriptorWritesCount+1, binding.unitStart_, sizePerObject, alloc.index_, buffer);
                     #endif
                         descriptorWritesCount++;
@@ -2800,7 +2895,7 @@ void Graphics::PrepareDraw()
 					{
 						newDecriptorSet = true;
 					#ifdef ACTIVE_FRAMELOGDEBUG
-                        URHO3D_LOGDEBUGF("PrepareDraw ... consume a new descriptor for %s Set=%u.%u dexInd=%u !", shaderStage == VS ? "VS":"PS", set, binding.id_, alloc.index_);
+                        URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... consume a new descriptor for %s Set=%u.%u dexInd=%u !", shaderStage == VS ? "VS":"PS", set, binding.id_, alloc.index_);
                     #endif
 					}
 					if (!frame.textureDirty_ && !newDecriptorSet)
@@ -2816,7 +2911,7 @@ void Graphics::PrepareDraw()
                         if (!texture)
                         {
 //                        #ifdef ACTIVE_FRAMELOGDEBUG
-//                            URHO3D_LOGERRORF("PrepareDraw ... update stage=%s Set=%u.%u check texture unit=%u %u/%u no Texture in the unit ... SKIP !",
+//                            URHO3D_LOGERRORF("Graphics() - PrepareDraw ... update stage=%s Set=%u.%u check texture unit=%u %u/%u no Texture in the unit ... SKIP !",
 //                                             shaderStage == VS ? "VS":"PS", set, binding.id_+numTexturesToUpdate, unit, numTexturesToUpdate, binding.unitRange_);
 //                        #endif
                             continue;
@@ -2825,7 +2920,7 @@ void Graphics::PrepareDraw()
                         if (!texture->GetShaderResourceView() || !texture->GetSampler())
                         {
 //                        #ifdef ACTIVE_FRAMELOGDEBUG
-//                            URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u check texture unit=%u %u/%u name=%s imageview=%u sampler=%u ... SKIP !",
+//                            URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... update stage=%s Set=%u.%u check texture unit=%u %u/%u name=%s imageview=%u sampler=%u ... SKIP !",
 //                                             shaderStage == VS ? "VS":"PS", set, binding.id_+numTexturesToUpdate, unit, numTexturesToUpdate, binding.unitRange_,
 //                                             texture->GetName().CString(), texture->GetShaderResourceView(), texture->GetSampler());
 //                        #endif
@@ -2838,7 +2933,7 @@ void Graphics::PrepareDraw()
                         imageInfo.sampler     = (VkSampler)(texture->GetSampler());
 
                     #ifdef ACTIVE_FRAMELOGDEBUG
-                        URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u update unit=%u texture=%s imageview=%u sampler=%u !",
+                        URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... update stage=%s Set=%u.%u update unit=%u texture=%s imageview=%u sampler=%u !",
                                          shaderStage == VS ? "VS":"PS", set, binding.id_+numTexturesToUpdate, unit,
                                          texture->GetName().CString(), texture->GetShaderResourceView(), texture->GetSampler());
                     #endif
@@ -2873,7 +2968,7 @@ void Graphics::PrepareDraw()
                         descriptorWrite.pNext           = nullptr;
 
                     #ifdef ACTIVE_FRAMELOGDEBUG
-                        URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u write=%u descInd=%u update %u samplers !",
+                        URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... update stage=%s Set=%u.%u write=%u descInd=%u update %u samplers !",
                                          shaderStage == VS ? "VS":"PS", set, binding.id_, descriptorWritesCount+1, alloc.index_, numTexturesToUpdate);
                     #endif
                         descriptorWritesCount++;
@@ -2901,7 +2996,7 @@ void Graphics::PrepareDraw()
                     descriptorSetGroupsBindInfos.Resize(descriptorSetGroupsBindInfos.Size()+1);
                     descriptorSetGroupsBindInfos.Back().firstset_ = i;
                 #ifdef ACTIVE_FRAMELOGDEBUG
-                    URHO3D_LOGDEBUGF("PrepareDraw ... push bind group[%d] firstset=%d", i, descriptorSetGroupsBindInfos.Size()-1);
+                    URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... push bind group[%d] firstset=%d", i, descriptorSetGroupsBindInfos.Size()-1);
                 #endif
                 }
 
@@ -2915,7 +3010,7 @@ void Graphics::PrepareDraw()
                 }
 
             #ifdef ACTIVE_FRAMELOGDEBUG
-                URHO3D_LOGDEBUGF("PrepareDraw ... push set=%d to bind group[%d]", i, descriptorSetGroupsBindInfos.Size()-1);
+                URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... push set=%d to bind group[%d]", i, descriptorSetGroupsBindInfos.Size()-1);
             #endif
             }
         }
@@ -2924,7 +3019,7 @@ void Graphics::PrepareDraw()
         if (descriptorWritesCount > 0)
         {
         #ifdef ACTIVE_FRAMELOGDEBUG
-            URHO3D_LOGDEBUGF("PrepareDraw ... update descriptor Sets num writes = %u !", descriptorWritesCount);
+            URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... update descriptor Sets num writes = %u !", descriptorWritesCount);
         #endif
             vkUpdateDescriptorSets(impl_->device_, descriptorWritesCount, descriptorWrites.Buffer(), 0, nullptr);
         }
@@ -2934,7 +3029,10 @@ void Graphics::PrepareDraw()
         {
             DescriptorSetGroupBindInfo& info = descriptorSetGroupsBindInfos[j];
         #ifdef ACTIVE_FRAMELOGDEBUG
-            URHO3D_LOGDEBUGF("PrepareDraw ... bind descriptor Sets Group started sets=%u->%u (numsets=%u/%u)!", info.firstset_, info.firstset_+info.handles_.Size()-1, info.handles_.Size(), numDescriptorSets);
+            URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... bind descriptor Sets Group started sets=%u->%u (numsets=%u/%u)!", info.firstset_, info.firstset_+info.handles_.Size()-1, info.handles_.Size(), numDescriptorSets);
+        #endif
+        #if defined(DEBUG_VULKANCOMMANDS)
+            URHO3D_LOGDEBUGF("vkCmdBindDescriptorSets (pass:%d)", frame.renderPassIndex_);
         #endif
             vkCmdBindDescriptorSets(frame.commandBuffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, impl_->pipelineInfo_->pipelineLayout_,
                                     info.firstset_, info.handles_.Size(), info.handles_.Buffer(), info.dynoffsets_.Size(), info.dynoffsets_.Size() ? info.dynoffsets_.Buffer() : nullptr);
@@ -3001,7 +3099,7 @@ void Graphics::PrepareDraw()
                     if (!buffer)
                     {
                     #ifdef ACTIVE_FRAMELOGDEBUG
-                        URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u no buffer !", shaderStage == VS ? "VS":"PS", set, bind);
+                        URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... update stage=%s Set=%u.%u no buffer !", shaderStage == VS ? "VS":"PS", set, bind);
                     #endif
                         continue;
                     }
@@ -3032,7 +3130,7 @@ void Graphics::PrepareDraw()
                         dynamicOffsets[dynamicOffsetCount] = objindex * impl_->GetUBOPaddedSize(sizePerObject);
                         dynamicOffsetCount++;
                     #ifdef ACTIVE_FRAMELOGDEBUG
-                        URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u obj=%u dynamic update buffer=%u dyncount=%u dynoffset=%u !",
+                        URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... update stage=%s Set=%u.%u obj=%u dynamic update buffer=%u dyncount=%u dynoffset=%u !",
                                          shaderStage == VS ? "VS":"PS", set, bind, objindex, buffer, dynamicOffsetCount, dynamicOffsets[dynamicOffsetCount-1]);
                     #endif
                         // reuse the same dynamic descriptor, if it's not a new descriptor set
@@ -3064,7 +3162,7 @@ void Graphics::PrepareDraw()
                         descriptorWrite.pBufferInfo      = &bufferInfo;
                         descriptorWrite.pNext            = nullptr;
                     #ifdef ACTIVE_FRAMELOGDEBUG
-                        URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u write=%u constantGroup=%u size=%u descInd=%u update buffer=%u !",
+                        URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... update stage=%s Set=%u.%u write=%u constantGroup=%u size=%u descInd=%u update buffer=%u !",
                                          shaderStage == VS ? "VS":"PS", set, bind, descriptorWritesCount+1, binding.unitStart_, sizePerObject, descriptorIndex, buffer);
                     #endif
                         descriptorWritesCount++;
@@ -3100,7 +3198,7 @@ void Graphics::PrepareDraw()
                         if (!texture->GetShaderResourceView() || !texture->GetSampler())
                         {
                         #ifdef ACTIVE_FRAMELOGDEBUG
-                            URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u check texture unit=%u %u/%u name=%s imageview=%u sampler=%u ... SKIP !",
+                            URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... update stage=%s Set=%u.%u check texture unit=%u %u/%u name=%s imageview=%u sampler=%u ... SKIP !",
                                              shaderStage == VS ? "VS":"PS", set, bind+numTexturesToUpdate, unit, numTexturesToUpdate, binding.unitRange_,
                                              texture->GetName().CString(), texture->GetShaderResourceView(), texture->GetSampler());
                         #endif
@@ -3113,7 +3211,7 @@ void Graphics::PrepareDraw()
                         imageInfo.sampler     = (VkSampler)(texture->GetSampler());
 
                     #ifdef ACTIVE_FRAMELOGDEBUG
-                        URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u update unit=%u texture=%s imageview=%u sampler=%u !",
+                        URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... update stage=%s Set=%u.%u update unit=%u texture=%s imageview=%u sampler=%u !",
                                          shaderStage == VS ? "VS":"PS", set, bind+numTexturesToUpdate, unit,
                                          texture->GetName().CString(), texture->GetShaderResourceView(), texture->GetSampler());
                     #endif
@@ -3155,7 +3253,7 @@ void Graphics::PrepareDraw()
                         descriptorWrite.pNext           = nullptr;
 
                     #ifdef ACTIVE_FRAMELOGDEBUG
-                        URHO3D_LOGDEBUGF("PrepareDraw ... update stage=%s Set=%u.%u write=%u descInd=%u update %u samplers !",
+                        URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... update stage=%s Set=%u.%u write=%u descInd=%u update %u samplers !",
                                          shaderStage == VS ? "VS":"PS", set, bind, descriptorWritesCount+1, descriptorIndex, numTexturesToUpdate);
                     #endif
                         descriptorWritesCount++;
@@ -3174,7 +3272,7 @@ void Graphics::PrepareDraw()
         if (descriptorWritesCount > 0)
         {
         #ifdef ACTIVE_FRAMELOGDEBUG
-            URHO3D_LOGDEBUGF("PrepareDraw ... update descriptor Sets num writes = %u !", descriptorWritesCount);
+            URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... update descriptor Sets num writes = %u !", descriptorWritesCount);
         #endif
             vkUpdateDescriptorSets(impl_->device_, descriptorWritesCount, descriptorWrites.Buffer(), 0, nullptr);
         }
@@ -3202,9 +3300,12 @@ void Graphics::PrepareDraw()
         if (impl_->pipelineInfo_->pipeline_)
         {
         #ifdef ACTIVE_FRAMELOGDEBUG
-            URHO3D_LOGDEBUGF("PrepareDraw ... frame=%u bind pipeline(%u) %s vs=%s ps=%s states=%u stencilvalue=%u !", impl_->GetFrameIndex(), impl_->pipelineInfo_->pipeline_,
+            URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... frame=%u bind pipeline(%u) %s vs=%s ps=%s states=%u stencilvalue=%u !", impl_->GetFrameIndex(), impl_->pipelineInfo_->pipeline_,
                              impl_->pipelineInfo_->vs_->GetName().CString(), impl_->pipelineInfo_->vs_->GetDefines().CString(),
                              impl_->pipelineInfo_->ps_->GetDefines().CString(), impl_->pipelineInfo_->pipelineStates_, impl_->pipelineInfo_->stencilValue_);
+        #endif
+        #if defined(DEBUG_VULKANCOMMANDS)
+            URHO3D_LOGDEBUGF("vkCmdBindPipeline       (pass:%d)", frame.renderPassIndex_);
         #endif
             vkCmdBindPipeline(frame.commandBuffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, impl_->pipelineInfo_->pipeline_);
             frame.lastPipelineBound_ = impl_->pipelineInfo_->pipeline_;
@@ -3223,10 +3324,13 @@ void Graphics::PrepareDraw()
     {
         if (indexBuffer_)
         {
-            vkCmdBindIndexBuffer(frame.commandBuffer_, (VkBuffer)indexBuffer_->GetGPUObject(), 0, indexBuffer_->GetIndexSize() == sizeof(unsigned) ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16);
         #ifdef ACTIVE_FRAMELOGDEBUG
-            URHO3D_LOGDEBUGF("PrepareDraw ... frame=%u bind index buffer=%u !", impl_->GetFrameIndex(), indexBuffer_->GetGPUObject());
+            URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... frame=%u bind index buffer=%u !", impl_->GetFrameIndex(), indexBuffer_->GetGPUObject());
         #endif
+        #if defined(DEBUG_VULKANCOMMANDS)
+            URHO3D_LOGDEBUGF("vkCmdBindIndexBuffer    (pass:%d)", frame.renderPassIndex_);
+        #endif
+            vkCmdBindIndexBuffer(frame.commandBuffer_, (VkBuffer)indexBuffer_->GetGPUObject(), 0, indexBuffer_->GetIndexSize() == sizeof(unsigned) ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16);
         }
 
         impl_->indexBufferDirty_ = false;
@@ -3240,32 +3344,50 @@ void Graphics::PrepareDraw()
         if (impl_->vertexBuffers_.Size())
         {
         #ifdef ACTIVE_FRAMELOGDEBUG
-            URHO3D_LOGDEBUGF("PrepareDraw ... frame=%u bind vertex buffers numVertexBuffers=%u ...", impl_->GetFrameIndex(), impl_->vertexBuffers_.Size());
+            URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... frame=%u bind vertex buffers numVertexBuffers=%u ...", impl_->GetFrameIndex(), impl_->vertexBuffers_.Size());
         #endif
             for (unsigned i=0; i < impl_->vertexBuffers_.Size(); i++)
             {
             #ifdef ACTIVE_FRAMELOGDEBUG
-                URHO3D_LOGDEBUGF("PrepareDraw ...         bind vertex buffer=%u", vertexBuffers_[i]->GetGPUObject());
+                URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ...         bind vertex buffer=%u", vertexBuffers_[i]->GetGPUObject());
             #endif
                 impl_->vertexBuffers_[i] = (VkBuffer)vertexBuffers_[i]->GetGPUObject();
                 impl_->vertexOffsets_[i] = 0;
             }
+        #if defined(DEBUG_VULKANCOMMANDS)
+            URHO3D_LOGDEBUGF("vkCmdBindVertexBuffers  (pass:%d)", frame.renderPassIndex_);
+        #endif
             vkCmdBindVertexBuffers(frame.commandBuffer_, 0, impl_->vertexBuffers_.Size(), impl_->vertexBuffers_.Buffer(), impl_->vertexOffsets_.Buffer());
         }
         else
         {
-            URHO3D_LOGERRORF("PrepareDraw ... frame=%u can't bind buffers null size !", impl_->GetFrameIndex());
+            URHO3D_LOGERRORF("Graphics() - PrepareDraw ... frame=%u can't bind buffers null size !", impl_->GetFrameIndex());
         }
     }
 
     // Set viewport
     vkCmdSetViewport(frame.commandBuffer_, 0, 1, &impl_->viewport_);
-
+#if defined(DEBUG_VULKANCOMMANDS)
+    URHO3D_LOGDEBUGF("vkCmdSetViewport        (pass:%d viewport:%F %F %F %F)", frame.renderPassIndex_,
+        impl_->viewport_.x, impl_->viewport_.y, impl_->viewport_.width, impl_->viewport_.height);
+#endif
     // Set scissor
     if (scissorTest_)
+    {
+    #if defined(DEBUG_VULKANCOMMANDS)
+        URHO3D_LOGDEBUGF("vkCmdSetScissor         (pass:%d scissor:%d %d %u %u Framed)", frame.renderPassIndex_,
+            impl_->frameScissor_.offset.x, impl_->frameScissor_.offset.y, impl_->frameScissor_.extent.width, impl_->frameScissor_.extent.height);        
+    #endif        
         vkCmdSetScissor(frame.commandBuffer_, 0, 1, &impl_->frameScissor_);
+    }
     else
+    {
+    #if defined(DEBUG_VULKANCOMMANDS)
+        URHO3D_LOGDEBUGF("vkCmdSetScissor         (pass:%d scissor:%d %d %d %d)", frame.renderPassIndex_,
+            impl_->screenScissor_.offset.x, impl_->screenScissor_.offset.y, impl_->screenScissor_.extent.width, impl_->screenScissor_.extent.height);
+    #endif
         vkCmdSetScissor(frame.commandBuffer_, 0, 1, &impl_->screenScissor_);
+    }
 
 //    URHO3D_LOGERRORF("PrepareDraw ... End : scissorTest=%u ", scissorTest_);
 }

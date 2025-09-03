@@ -69,6 +69,7 @@ Camera::Camera(Context* context) :
     lodBias_(1.0f),
     viewMask_(DEFAULT_VIEWMASK),
     viewOverrideFlags_(VO_NONE),
+    viewport_(0),
     fillMode_(FILL_SOLID),
     projectionOffset_(Vector2::ZERO),
     reflectionPlane_(Plane::UP),

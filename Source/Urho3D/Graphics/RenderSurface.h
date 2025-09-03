@@ -126,25 +126,6 @@ public:
     /// Set or clear the need resolve flag. Called internally by Graphics.
     void SetResolveDirty(bool enable) { resolveDirty_ = enable; }
 
-#ifdef URHO3D_VULKAN_RENDERSURFACE
-    /// Return Vulkan framebuffer.
-    VkFramebuffer GetFramebuffer() const;
-    /// Return Vulkan render pass.
-    VkRenderPass GetRenderPass() const;
-    /// Return Vulkan color image view.
-    VkImageView GetColorImageView() const;
-    /// Return Vulkan depth image view.
-    VkImageView GetDepthImageView() const;
-    /// Return Vulkan resolve image view.
-    VkImageView GetResolveImageView() const;
-    /// Create Vulkan framebuffer.
-    bool CreateFramebuffer(VkRenderPass renderPass, const Vector<VkImageView>& attachments);
-    /// Create Vulkan resolve image view for multisampling.
-    bool CreateResolveImageView();
-    /// Create Vulkan depth image view.
-    bool CreateDepthImageView();
-#endif
-
 private:
     /// Parent texture.
     Texture* parentTexture_;
@@ -166,23 +147,6 @@ private:
         /// OpenGL target.
         unsigned target_;
     };
-
-#ifdef URHO3D_VULKAN_RENDERSURFACE
-    /// Vulkan framebuffer.
-    VkFramebuffer framebuffer_;
-    /// Vulkan render pass.
-    VkRenderPass renderPass_;
-    /// Vulkan color image view.
-    VkImageView colorImageView_;
-    /// Vulkan depth image view.
-    VkImageView depthImageView_;
-    /// Vulkan resolve image view.
-    VkImageView resolveImageView_;
-    /// Vulkan render buffer image (for CreateRenderBuffer).
-    VkImage renderBufferImage_;
-    /// Vulkan render buffer memory (for CreateRenderBuffer).
-    VkDeviceMemory renderBufferMemory_;
-#endif
 
     /// Viewports.
     Vector<SharedPtr<Viewport> > viewports_;

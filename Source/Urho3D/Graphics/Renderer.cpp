@@ -741,9 +741,11 @@ void Renderer::Update(float timeStep)
     // to render auxiliary views before dependent main views
     for (unsigned i = viewports_.Size() - 1; i < viewports_.Size(); --i)
     {
+#ifdef ACTIVE_FRAMELOGDEBUG
+        URHO3D_LOGDEBUGF("Renderer() - Update : Main Viewport index=%u camera=%u ", i, viewports_[i]->GetCamera());
+#endif
+        viewports_[i]->GetCamera()->SetViewport(i);
         QueueViewport(0, viewports_[i]);
-        if (viewports_[i] && viewports_[i]->GetCamera())
-            viewports_[i]->GetCamera()->SetViewport(i);
     }
 
     // Update main viewports. This may queue further views
@@ -756,7 +758,15 @@ void Renderer::Update(float timeStep)
 
     // Update viewports that were added as result of the event above
     for (unsigned i = numMainViewports; i < queuedViewports_.Size(); ++i)
+    {
+        Viewport* viewport = queuedViewports_[i].second_.Get();
+#ifdef ACTIVE_FRAMELOGDEBUG
+        URHO3D_LOGDEBUGF("Renderer() - Update : Other viewport index=%u camera=%u", i, viewport->GetCamera());
+#endif
+        if (viewport && viewport->GetCamera())
+            viewport->GetCamera()->SetViewport(i);
         UpdateQueuedViewport(i);
+    }
 
     queuedViewports_.Clear();
     resetViews_ = false;
