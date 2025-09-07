@@ -2662,11 +2662,13 @@ void GraphicsImpl::SetRenderPass(unsigned commandpassindex)
                     subpassIndex_ = subpassIndex;
             }
         }
+#ifdef URHO3D_VULKAN_USE_SEPARATE_CLEARPASS        
         else
         {
             subpassIndex_ = 0;
             UpdateViewportTexture(1, subpassIndex_);
         }
+#endif
     }
 }
 
