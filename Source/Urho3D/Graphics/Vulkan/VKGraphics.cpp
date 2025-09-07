@@ -2573,12 +2573,13 @@ void Graphics::PrepareDraw()
     }
 
     FrameData& frame = *impl_->frame_;
-
+    impl_->viewportIndex_   = Max(0, impl_->viewportIndex_);
+    
 #if defined(ACTIVE_FRAMELOGDEBUG) || defined(DEBUG_VULKANCOMMANDS)
-    URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... frame=%u ... pipelineDirty=%s textureDirty=%s frameRenderPassIndex=(%d,%d) implRenderPassIndex=(%d,%d)",
+    URHO3D_LOGDEBUGF("Graphics() - PrepareDraw ... frame=%u ... pipelineDirty=%s textureDirty=%s frameRenderPassIndex=(%d,%d) implRenderPassIndex=(%d,%d) viewportIndex_(impl:%d,frame:%d)",
                      impl_->GetFrameIndex(), impl_->pipelineDirty_ ? "true":"false",
                      frame.textureDirty_ && textures_[0] ? (!textures_[0]->GetName().Empty() ? textures_[0]->GetName().CString() : "noname") : "false",
-                     frame.renderPassIndex_, frame.subpassIndex_, impl_->renderPassIndex_, impl_->subpassIndex_);
+                     frame.renderPassIndex_, frame.subpassIndex_, impl_->renderPassIndex_, impl_->subpassIndex_, impl_->viewportIndex_, frame.viewportIndex_);
 #endif
 
     // End of the current renderpass.
