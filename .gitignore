@@ -125,3 +125,6 @@ CMakeDoxygenDefaults.cmake
 
 # cmake compile commands for clang
 /compile_commands.json
+
+# launch script
+launch*
