@@ -43,6 +43,10 @@
 #include "../../Graphics/RenderPath.h"
 #include "../../Graphics/Texture2D.h"
 
+// For Collection typeid
+#include <typeinfo>
+#include <typeindex>
+
 #define NUMDESCRIPTORSETS 100
 
 //#define ACTIVE_FRAMELOGDEBUG
@@ -60,6 +64,104 @@ class Context;
 typedef HashMap<Pair<ShaderVariation*, ShaderVariation*>, SharedPtr<ShaderProgram> > ShaderProgramMap;
 typedef HashMap<unsigned, SharedPtr<ConstantBuffer> > ConstantBufferMap;
 
+class Collection
+{
+private:
+    struct Base
+    {
+        virtual ~Base() {}
+        virtual std::type_index Type() const = 0;
+        virtual void* Ptr() const = 0;
+    };
+
+    template<typename T> struct Derived : Base
+    {
+        Derived(T* ptr) : ptr_(ptr) {}
+        ~Derived() override { delete ptr_; }
+
+        std::type_index Type() const override { return typeid(T); }
+        void* Ptr() const override { return ptr_; }
+
+        T* ptr_;
+    };
+
+public:
+    Collection() = default;
+    explicit Collection(unsigned bytesize) {}
+    ~Collection() { Clear(); }
+
+    void Clear()
+    {
+        for (auto* obj : storage_)
+            delete obj;
+        storage_.Clear();
+    }
+
+    template<typename T> T& New()
+    {
+        T* ptr = new T;
+        storage_.Push(new Derived<T>(ptr));
+        return *ptr;
+    }
+
+    template<typename T> T& Push(const T& value)
+    {
+        T& object = New<T>();
+        object = value;
+        return object;
+    }
+
+    template<typename T> T* Find() const
+    {
+        for (auto* obj : storage_)
+        {
+            if (obj->Type() == typeid(T))
+                return static_cast<T*>(obj->Ptr());
+        }
+        return nullptr;
+    }
+    
+    template<typename T> void FindAll(PODVector<T*>& results) const
+    {
+        for (auto* obj : storage_)
+        {
+            if (obj->Type() == typeid(T))
+                results.Push(static_cast<T*>(obj->Ptr()));
+        }
+    }
+    
+    template<typename T> bool IsTypeAtIndex(unsigned index) const
+    {
+        if (index >= Size())
+            return false;
+        return storage_[index]->Type() == typeid(T);
+    }
+
+    ///\todo typeid().name() is implementation-defined and may return mangled names.
+    //       Consider using a demangling function or storing a human-readable type name in Derived<T>.
+    //       Currently, used in log only.
+    const char* GetTypeAt(unsigned index) const
+    {
+        static char buffer[512];
+        String name(storage_[index]->Type().name());
+        strncpy(buffer, name.CString(), sizeof(buffer) - 1);
+        buffer[sizeof(buffer) - 1] = '\0';
+        return buffer;
+    }
+
+    void* At(unsigned i) { return storage_[i]->Ptr(); }
+    void* Front() { return storage_.Front()->Ptr(); }
+    void* Back() { return storage_.Back()->Ptr(); }
+
+    template<typename T> T& At(unsigned i) { return *static_cast<T*>(storage_[i]->Ptr()); }
+    template<typename T> T& Front() { return *static_cast<T*>(storage_.Front()->Ptr()); }
+    template<typename T> T& Back() { return *static_cast<T*>(storage_.Back()->Ptr()); }
+
+    unsigned Size() const { return storage_.Size(); }
+
+private:
+    Vector<Base*> storage_;
+};
 
 struct PhysicalDeviceInfo
 {
