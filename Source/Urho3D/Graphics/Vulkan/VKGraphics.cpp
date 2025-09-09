@@ -136,6 +136,8 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
 
     bool maximize = false;
 
+    URHO3D_LOGDEBUGF("Graphics() - SetMode on monitor=%d ...", monitor);
+
 #if defined(IOS) || defined(TVOS)
     // iOS and tvOS app always take the fullscreen (and with status bar hidden)
     fullscreen = true;
@@ -144,15 +146,15 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
     // check video driver
     if (!SDL_GetCurrentVideoDriver())
     {
-        URHO3D_LOGINFOF("Graphics() - api=%s no video driver !", GetApiName().CString());
+        URHO3D_LOGERRORF("Graphics() - api=%s no video driver !", GetApiName().CString());
         return false;
     }
 
     // check the number of video devices
     int numvideodisplays = SDL_GetNumVideoDisplays();
-    if (numvideodisplays == 0)
+    if (numvideodisplays <= 0)
     {
-        URHO3D_LOGINFOF("Graphics() - api=%s driver=%s no video display !", GetApiName().CString(), SDL_GetCurrentVideoDriver());
+        URHO3D_LOGERRORF("Graphics() - api=%s driver=%s no video display ... root cause: '%s'", GetApiName().CString(), SDL_GetCurrentVideoDriver(), SDL_GetError());
         return false;
     }
 
@@ -239,11 +241,9 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
 
         if (!window_)
         {
-    #ifdef URHO3D_LOGGING
             URHO3D_LOGINFOF("Graphics() - %s %s Try to create window with w=%d h=%d fullscreen=%s borderless=%s maximize=%s externalWindow_=%u...",
                              GetApiName().CString(), SDL_GetCurrentVideoDriver(), width, height,
                              fullscreen?"true":"false", borderless?"true":"false", maximize?"true":"false", externalWindow_);
-    #endif
             if (!externalWindow_)
             {
                 unsigned flags = SDL_WINDOW_VULKAN | SDL_WINDOW_SHOWN;
@@ -266,7 +266,7 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
     #endif
             }
 
-            URHO3D_LOGINFOF("create window=%u ", window_);
+            URHO3D_LOGDEBUGF("create window=%u ", window_);
         }
 
         if (!window_)
@@ -347,7 +347,8 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
 
     // Recreate the SwapChain
     //impl_->UpdateSwapChain(width, height, 0, &vsync_, &tripleBuffer_);
-    URHO3D_LOGERRORF("Graphics() - SetMode ...");
+    URHO3D_LOGDEBUG("Graphics() - SetMode ...");
+
     impl_->UpdateSwapChain(width, height, &sRGB_, &vsync_, &tripleBuffer_);
 
     SDL_Vulkan_GetDrawableSize(window_, &width_, &height_);
@@ -367,7 +368,6 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
 
 #ifdef URHO3D_LOGGING
 //    URHO3D_LOGINFOF("Graphics() - Adapter used %s %s", (const char *) glGetString(GL_VENDOR), (const char *) glGetString(GL_RENDERER));
-
     String msg;
     msg.AppendWithFormat("Graphics() - api=%s driver=%s Set screen mode %dx%d %s monitor %d", GetApiName().CString(), SDL_GetCurrentVideoDriver(), width_, height_, (fullscreen_ ? "fullscreen" : "windowed"), monitor_);
     if (borderless_)
