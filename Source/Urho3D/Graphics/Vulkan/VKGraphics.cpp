@@ -129,9 +129,6 @@ Graphics::~Graphics()
     context_->ReleaseSDL();
 }
 
-// Test for fullscreen with multiscreens on linux
-#define TEST_FULLSCREEN
-
 bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, bool resizable, bool highDPI, bool vsync, bool tripleBuffer, int multiSample, int monitor, int refreshRate)
 {
     URHO3D_PROFILE(SetScreenMode);
@@ -172,24 +169,23 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
 
     multiSample = Clamp(multiSample, 1, 16);
 
-#ifdef TEST_FULLSCREEN
-    {
-        URHO3D_LOGDEBUGF("Graphics() - SetMode : entries : driver=%s w=%d h=%d numDisplays=%d monitor=%d borderless=%d fullscreen=%d ...", 
-                        SDL_GetCurrentVideoDriver(), width, height, numvideodisplays, monitor, borderless, fullscreen);
-
-        for (int i=0 ; i < numvideodisplays; i++)
-        {
-            SDL_DisplayMode mode;
-            SDL_GetDesktopDisplayMode(monitor, &mode);
-            URHO3D_LOGDEBUGF("  display[%d] mode:(w:%d,h:%d,r:%d,f:%u,ptr:%u)", i, mode.w, mode.h, mode.format, mode.refresh_rate, mode.driverdata);
-        }
-    }
-#endif
-
     if (IsInitialized() && width == width_ && height == height_ && fullscreen == fullscreen_ && borderless == borderless_ &&
         resizable == resizable_ && vsync == vsync_ && tripleBuffer == tripleBuffer_ && multiSample == multiSample_ &&
         monitor == monitor_ && refreshRate == refreshRate_)
         return true;
+
+    // Fix issue 'X11_XRRSetCrtcConfig failed' with fullscreen on X11 multiple screens :
+    // use desktop mode borderless.
+    if (strcmp(SDL_GetCurrentVideoDriver(), "x11") == 0 && fullscreen && numvideodisplays > 1)
+    {
+        SDL_DisplayMode mode;
+        SDL_GetDesktopDisplayMode(monitor, &mode);
+        width = mode.w;
+        height = mode.h;    
+        borderless = true;
+        fullscreen = resizable = false;
+        URHO3D_LOGDEBUGF("Use x11 borderless desktop display mode w:%d h:%d", width, height);
+    }
 
     // If zero dimensions in windowed mode, set windowed mode to maximize and set a predefined default restored window size.
     // If zero in fullscreen, use desktop mode
@@ -210,8 +206,8 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
         }
     }
 
-    // Check fullscreen mode validity (desktop only). Use a closest match if not found
 #ifdef DESKTOP_GRAPHICS
+    // Check fullscreen mode validity (desktop only). Use a closest match if not found
     if (fullscreen)
     {
         PODVector<IntVector3> resolutions = GetResolutions(monitor);
@@ -223,7 +219,6 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
             for (unsigned i = 0; i < resolutions.Size(); ++i)
             {
                 unsigned error = (unsigned)(Abs(resolutions[i].x_ - width) + Abs(resolutions[i].y_ - height));
-                URHO3D_LOGDEBUGF("  resolution[%d] w:%d,h:%d,r:%d", i, resolutions[i].x_, resolutions[i].y_ , resolutions[i].z_);
                 if (refreshRate != 0)
                     error += (unsigned)(Abs(resolutions[i].z_ - refreshRate));
                 if (error < bestError)
@@ -236,16 +231,6 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
             width = resolutions[best].x_;
             height = resolutions[best].y_;
             refreshRate = resolutions[best].z_;
-            URHO3D_LOGDEBUGF("  => selected i:%d w:%d,h:%d", best, resolutions[best].x_, resolutions[best].y_);
-        }
-        else
-        {            
-            SDL_DisplayMode mode;
-            SDL_GetDesktopDisplayMode(monitor, &mode);
-            width = mode.w;
-            height = mode.h;
-            URHO3D_LOGDEBUGF("  use desktop display w=%d h=%d !", 
-                monitor_, width, height);
         }
     }
 #endif
@@ -354,9 +339,6 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
         if (strcmp(SDL_GetCurrentVideoDriver(), "wayland") == 0)
             fullscreenflag |= SDL_WINDOW_FULLSCREEN_DESKTOP;
         
-#ifdef TEST_FULLSCREEN
-        fullscreenflag = SDL_WINDOW_FULLSCREEN_DESKTOP;            
-#endif
         if (SDL_SetWindowFullscreen(window_, fullscreenflag) != 0)
         {
             URHO3D_LOGERRORF("Graphics() - api=%s driver=%s Could not change to fullscreen, root cause: '%s'", GetApiName().CString(), SDL_GetCurrentVideoDriver(), SDL_GetError());
