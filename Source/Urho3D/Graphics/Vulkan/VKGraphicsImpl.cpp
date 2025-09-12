@@ -204,18 +204,20 @@ static const float LineWidthValues_[] =
 
 const char* RenderPassTypeStr[] =
 {
+    "PASS_NONE",
     "PASS_CLEAR",
     "PASS_VIEW",
+    "PASS_CLEAR|PASS_VIEW",
     "PASS_COPY",
+    "PASS_CLEAR|PASS_COPY",
+    "PASS_VIEW|PASS_COPY",
+    "PASS_CLEAR|PASS_VIEW|PASS_COPY",
     "PASS_PRESENT"
 };
 
-const char* GetRenderPassTypeName(unsigned type)
+const char* GraphicsImpl::GetRenderPassTypeName(unsigned type)
 {
-    if (type == PASS_CLEAR) return "PASS_CLEAR";
-    else if (type == PASS_VIEW) return "PASS_VIEW";
-    else if (type == PASS_COPY) return "PASS_COPY";
-    else return "PASS_PRESENT";
+    return type > PASS_PRESENT ? "PASS_ERROR" : RenderPassTypeStr[type];
 }
 
 const char* RenderSlotTypeStr[] =
@@ -2586,8 +2588,9 @@ void GraphicsImpl::UpdateViewportTexture(unsigned renderpassindex, unsigned subp
 {
     viewportTexture_ = 0;
 #ifdef ACTIVE_FRAMELOGDEBUG
-    URHO3D_LOGDEBUGF("GraphicsImpl() - UpdateViewportTexture : frame_=%u renderpassindex=%u subpassindex=%u viewportIndex=%d", 
-        frame_, renderpassindex, subpassindex, viewportIndex_);
+    if (frame_ && frame_->id_ == 0)
+        URHO3D_LOGDEBUGF("GraphicsImpl() - UpdateViewportTexture : frame_=%u renderpassindex=%u subpassindex=%u viewportIndex=%d", 
+            frame_, renderpassindex, subpassindex, viewportIndex_);
 #endif
     if (!frame_ || !renderpassindex)
         return;
@@ -2636,7 +2639,8 @@ void GraphicsImpl::SetRenderPass(unsigned commandpassindex)
     if (renderPathData_)
     {
 #ifdef ACTIVE_FRAMELOGDEBUG
-        URHO3D_LOGDEBUGF("GraphicsImpl() - SetRenderPass : commandpassindex=%u ...", commandpassindex);
+        if (frame_ && frame_->id_ == 0)
+            URHO3D_LOGDEBUGF("GraphicsImpl() - SetRenderPass : commandpassindex=%u ...", commandpassindex);
 #endif
         HashMap<unsigned, Pair<unsigned, unsigned > >::ConstIterator it = renderPathData_->renderPathCommandIndexToRenderPassIndexes_.Find(commandpassindex);
         if (it != renderPathData_->renderPathCommandIndexToRenderPassIndexes_.End())
@@ -2645,7 +2649,8 @@ void GraphicsImpl::SetRenderPass(unsigned commandpassindex)
             unsigned subpassIndex    = it->second_.second_;
 
 #ifdef ACTIVE_FRAMELOGDEBUG
-            URHO3D_LOGDEBUGF("GraphicsImpl() - SetRenderPass : commandpassindex=%u renderpassIndex=%u(%u) subpassIndex=%u(%u)",
+            if (frame_ && frame_->id_ == 0)
+                URHO3D_LOGDEBUGF("GraphicsImpl() - SetRenderPass : commandpassindex=%u renderpassIndex=%u(%u) subpassIndex=%u(%u)",
                              commandpassindex, renderpassIndex, renderPassIndex_, subpassIndex, subpassIndex_);
 #endif
             if (renderPassIndex_ != renderpassIndex || subpassIndex_ != subpassIndex)
@@ -2965,7 +2970,7 @@ bool GraphicsImpl::CreateRenderPasses(RenderPathData& renderPathData)
             continue;
         }
 
-        URHO3D_LOGDEBUGF("GraphicsImpl() - Create Render Passes for renderPathData=%u .. passindex=%u passid=%d passkey=%d passtype=%s(%d) numsubpasses=%u ... OK !",
+        URHO3D_LOGDEBUGF("GraphicsImpl() - CreateRenderPasses : renderPathData=%u .. passindex=%u passid=%d passkey=%d passtype=%s(%d) numsubpasses=%u ... OK !",
             &renderPathData, passindex, renderPassInfo.id_, renderPassInfo.key_, GetRenderPassTypeName(renderPassInfo.type_), renderPassInfo.type_, renderPassInfo.subpasses_.Size());
     }
 
@@ -2974,9 +2979,9 @@ bool GraphicsImpl::CreateRenderPasses(RenderPathData& renderPathData)
 
 bool GraphicsImpl::UpdateViewportAttachments()
 { 
-#ifdef ACTIVE_FRAMELOGDEBUG                
+#ifdef ACTIVE_FRAMELOGDEBUG
     URHO3D_LOGDEBUG("GraphicsImpl() - UpdateViewportAttachments ...");
-#endif      
+#endif
     // Create Viewports RenderTarget Buffers
     viewportsAttachments_.Resize(MAX_RENDERSLOTS * viewportSizes_.Size());
     for (unsigned viewSizeIndex = 0; viewSizeIndex < viewportSizes_.Size(); viewSizeIndex++)
@@ -2986,17 +2991,17 @@ bool GraphicsImpl::UpdateViewportAttachments()
             RenderAttachment& attachment = viewportsAttachments_[viewSizeIndex * MAX_RENDERSLOTS + slot];
             if (slot > RENDERSLOT_PRESENT && slot < MAX_RENDERSLOTS && attachment.slot_ == RENDERSLOT_NONE)
             {
-#ifdef ACTIVE_FRAMELOGDEBUG                
-                URHO3D_LOGDEBUGF("... attachment slot=%s(%d) viewSizeIndex=%u w=%u h=%u ...", RenderSlotTypeStr[slot], slot, viewSizeIndex, viewportSizes_[viewSizeIndex].x_, viewportSizes_[viewSizeIndex].y_);
-#endif                
                 CreateImageAttachment(slot, attachment, viewportSizes_[viewSizeIndex].x_, viewportSizes_[viewSizeIndex].y_);
+#ifdef ACTIVE_FRAMELOGDEBUG
+                URHO3D_LOGDEBUGF("- attachment slot=%s(%d) viewSizeIndex=%u size=%ux%u imagview=%u ...", RenderSlotTypeStr[slot], slot, viewSizeIndex, viewportSizes_[viewSizeIndex].x_, viewportSizes_[viewSizeIndex].y_, attachment.imageView_);
+#endif
             }                
 #ifdef ACTIVE_FRAMELOGDEBUG
             else         
             {
-                URHO3D_LOGDEBUGF("... attachment slot=%s(%d) viewSizeIndex=%u w=%u h=%u ... already created", RenderSlotTypeStr[slot], slot, viewSizeIndex, viewportSizes_[viewSizeIndex].x_, viewportSizes_[viewSizeIndex].y_);
+                URHO3D_LOGDEBUGF("- attachment slot=%s(%d) viewSizeIndex=%u ... swapchain images", RenderSlotTypeStr[slot], slot, viewSizeIndex, viewportSizes_[viewSizeIndex].x_, viewportSizes_[viewSizeIndex].y_);
             }
-#endif                
+#endif
         }
     }
 
@@ -3017,54 +3022,73 @@ bool GraphicsImpl::UpdateViewportAttachments()
     }
 
     // Create frameBuffers if don't not exist
-    const VkAllocationCallbacks* pAllocator = nullptr;
-    PODVector<VkImageView> framebufferAttachments;
     for (unsigned viewSizeIndex = 0; viewSizeIndex < viewportSizes_.Size(); viewSizeIndex++)
     {    
         int width = viewportSizes_[viewSizeIndex].x_;
         int height = viewportSizes_[viewSizeIndex].y_;
 
-        for (unsigned frameindex = 0; frameindex < numFrames_; frameindex++)
+#ifdef ACTIVE_FRAMELOGDEBUG
+        URHO3D_LOGDEBUGF("- viewSizeIndex=%u w=%u h=%u swapChainImages=%u ... ", viewSizeIndex, width, height, numFrames_);
+#endif    
+        PODVector<VkImageView> framebufferAttachments;
+        for (HashMap<unsigned, RenderPassInfo>::Iterator it = renderPassInfos_.Begin(); it != renderPassInfos_.End(); ++it)
         {
-            FrameData& frame = frames_[frameindex];
+            RenderPassInfo& renderPassInfo = it->second_;
+            const unsigned fbindex = viewSizeIndex * renderPassInfos_.Size() + renderPassInfo.id_;
+            Vector<String> logImageViews(renderPassInfo.attachments_.Size());
 
-            for (HashMap<unsigned, RenderPassInfo>::Iterator it = renderPassInfos_.Begin(); it != renderPassInfos_.End(); ++it)
+            for (unsigned frameindex = 0; frameindex < numFrames_; frameindex++)
             {
-                RenderPassInfo& renderPassInfo = it->second_;
-                const unsigned fbindex = viewSizeIndex * renderPassInfos_.Size() + renderPassInfo.id_;
+                FrameData& frame = frames_[frameindex];                
                 VkFramebuffer& framebuffer = frame.framebuffers_[fbindex];
 
                 if (framebuffer == VK_NULL_HANDLE)
                 {
-#ifdef ACTIVE_FRAMELOGDEBUG
-                    URHO3D_LOGDEBUGF("... framebuffer frame=%u fbindex=%u viewSizeIndex=%u renderpass=%d w=%u h=%u ... ", 
-                                    frameindex, fbindex, viewSizeIndex, renderPassInfo.id_, width, height);
-#endif    
                     framebufferAttachments.Resize(renderPassInfo.attachments_.Size());
                     for (unsigned k = 0; k < renderPassInfo.attachments_.Size(); k++)
                     {
                         int slot = renderPassInfo.attachments_[k].slot_;
                         if (slot == RENDERSLOT_PRESENT)
                             framebufferAttachments[k] = frame.imageView_;
+                        else if (slot != RENDERSLOT_NONE)
+                            framebufferAttachments[k] = viewportsAttachments_[viewSizeIndex * MAX_RENDERSLOTS + slot].imageView_;
                         else
-                            framebufferAttachments[k] = slot != RENDERSLOT_NONE ? viewportsAttachments_[viewSizeIndex * MAX_RENDERSLOTS + slot].imageView_ : VK_NULL_HANDLE;
+                            framebufferAttachments[k] = VK_NULL_HANDLE;
 #ifdef ACTIVE_FRAMELOGDEBUG
-                        URHO3D_LOGDEBUGF("   -> add attachement %u : slot=%s(%d) imageview=%u", k, RenderSlotTypeStr[slot], slot, framebufferAttachments[k]);
-#endif                        
+                        if (framebufferAttachments[k] != VK_NULL_HANDLE)
+                        {
+                            logImageViews[k].AppendWithFormat("%u", (void*)framebufferAttachments[k]);
+                            if (frameindex < numFrames_-1)
+                                logImageViews[k] += ", ";
+                        }
+#endif
                     }
 
+                    const VkAllocationCallbacks* pAllocator = nullptr;
                     VkFramebufferCreateInfo framebufferInfo{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
                     framebufferInfo.renderPass      = renderPassInfo.renderPass_;
                     framebufferInfo.attachmentCount = framebufferAttachments.Size();
                     framebufferInfo.pAttachments    = &framebufferAttachments[0];
                     framebufferInfo.layers          = 1;
                     framebufferInfo.width           = width;
-                    framebufferInfo.height          = height;                                
+                    framebufferInfo.height          = height;
                     if (vkCreateFramebuffer(device_, &framebufferInfo, pAllocator, &framebuffer) != VK_SUCCESS)
                     {
                         URHO3D_LOGERRORF("Can't create framebuffer !");
                         return false;
                     }
+#ifdef ACTIVE_FRAMELOGDEBUG
+                    if (frameindex == numFrames_-1)
+                    {
+                        URHO3D_LOGDEBUGF("... %u VkFramebuffers created fbindex=%u for renderpasstype=%s renderpass=%d ... ", 
+                                    numFrames_, fbindex, GetRenderPassTypeName(renderPassInfo.type_), renderPassInfo.id_);    
+                        for (unsigned k = 0; k < renderPassInfo.attachments_.Size(); k++)
+                        {
+                            int slot = renderPassInfo.attachments_[k].slot_;
+                            URHO3D_LOGDEBUGF("   -> attachement[%u] : slot=%s(%d) imageviews=(%s)", k, RenderSlotTypeStr[slot], slot, logImageViews[k].CString());
+                        }                                        
+                    }
+#endif
                 }
             }
         }
@@ -3114,13 +3138,17 @@ void GraphicsImpl::SetViewport(int index, const IntRect& rect)
         URHO3D_LOGDEBUGF("GraphicsImpl() - SetViewport : Update Attachments !");
 #endif
         vkDeviceWaitIdle(device_);        
-        SetViewports();        
+        SetViewports();
     }
 
     if (index == -1)
     {
         viewport_ = screenViewport_;
         screenScissor_ = { 0, 0, swapChainExtent_.width, swapChainExtent_.height };
+#ifdef ACTIVE_FRAMELOGDEBUG
+        if (frame_ && frame_->id_ == 0)
+            URHO3D_LOGDEBUGF("GraphicsImpl() - SetViewport : index=-1 use screenViewport=(%F %F %F %F) !", viewport_.x, viewport_.y, viewport_.width, viewport_.height);
+#endif
     }
     else if (index >= viewportInfos_.Size())
     {
@@ -3129,25 +3157,32 @@ void GraphicsImpl::SetViewport(int index, const IntRect& rect)
         screenScissor_.extent.width = rect.Width();
         screenScissor_.extent.height = rect.Height();
         viewport_ = { (float)screenScissor_.offset.x, (float)screenScissor_.offset.y, (float)screenScissor_.extent.width, (float)screenScissor_.extent.height };
-#ifdef ACTIVE_FRAMELOGDEBUG        
-        URHO3D_LOGDEBUGF("GraphicsImpl() - SetViewport : index=%d > numviewports(%u) rect=(%F %F %F %F)", index, viewportInfos_.Size(), viewport_.x, viewport_.y, viewport_.width, viewport_.height);
+#ifdef ACTIVE_FRAMELOGDEBUG
+        if (frame_ && frame_->id_ == 0)
+            URHO3D_LOGDEBUGF("GraphicsImpl() - SetViewport : index=%d > numviewports(%u) rect=(%F %F %F %F)", index, viewportInfos_.Size(), viewport_.x, viewport_.y, viewport_.width, viewport_.height);
 #endif
     }
     else if (!renderPassInfo_ || (renderPassInfo_ && (renderPassInfo_->type_ & (PASS_COPY|PASS_PRESENT))))
     {
         screenScissor_ = viewportInfos_[index].rect_;
         viewport_ = { (float)screenScissor_.offset.x, (float)screenScissor_.offset.y, (float)screenScissor_.extent.width, (float)screenScissor_.extent.height };
+#ifdef ACTIVE_FRAMELOGDEBUG
+        if (frame_ && frame_->id_ == 0)
+            URHO3D_LOGDEBUGF("GraphicsImpl() - SetViewport : index=%d renderPassInfo_=%u renderPassType=%s use viewport=(%F %F %F %F) !", index, 
+                renderPassInfo_, !renderPassInfo_ ? "null" : GetRenderPassTypeName(renderPassInfo_->type_), viewport_.x, viewport_.y, viewport_.width, viewport_.height);
+#endif
     }
     else
     {
         viewport_ = { 0.f, 0.f, (float)viewportInfos_[index].rect_.extent.width, (float)viewportInfos_[index].rect_.extent.height };
         screenScissor_ = { 0, 0, (unsigned)viewport_.width, (unsigned)viewport_.height };
+#ifdef ACTIVE_FRAMELOGDEBUG
+        if (frame_ && frame_->id_ == 0)
+            URHO3D_LOGDEBUGF("GraphicsImpl() - SetViewport : index=%d use viewport=(%F %F %F %F) !", index, viewport_.x, viewport_.y, viewport_.width, viewport_.height);
+#endif
     }
 
     viewportIndex_ = index;
-#ifdef ACTIVE_FRAMELOGDEBUG
-    URHO3D_LOGDEBUGF("GraphicsImpl() - SetViewport : index=%d rect=(%F %F %F %F)", viewportIndex_, viewport_.x, viewport_.y, viewport_.width, viewport_.height);
-#endif
 }
 
 void GraphicsImpl::SetViewports()
@@ -3209,8 +3244,9 @@ void GraphicsImpl::SetViewports()
 
 void GraphicsImpl::SetClearValue(const Color& c, float depth, unsigned stencil)
 {
-#ifdef ACTIVE_FRAMELOGDEBUG    
-    URHO3D_LOGDEBUGF("GraphicsImpl() - SetClearValue : r:%F g:%F b:%F a:%F d:%F s:%u ...", c.r_, c.g_, c.b_, c.a_, depth, stencil);
+#ifdef ACTIVE_FRAMELOGDEBUG
+    if (frame_ && frame_->id_ == 0)
+        URHO3D_LOGDEBUGF("GraphicsImpl() - SetClearValue : r:%F g:%F b:%F a:%F d:%F s:%u ...", c.r_, c.g_, c.b_, c.a_, depth, stencil);
 #endif
     clearColor_.color.float32[0] = c.r_;
     clearColor_.color.float32[1] = c.g_;
@@ -3699,7 +3735,7 @@ bool GraphicsImpl::AcquireFrame()
         {
 //            semaphorePool_.Push(acquiresync);
             vkQueueWaitIdle(presentQueue_);
-            URHO3D_LOGERRORF("AcquireFrame : can't get image !");
+            URHO3D_LOGERRORF("Graphics() - AcquireFrame : can't get image ... VK_ERROR=%d !", result);
 //            exit(-1);
             return false;
         }

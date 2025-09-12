@@ -358,7 +358,8 @@ bool View::Define(RenderSurface* renderTarget, Viewport* viewport)
     if (!renderTarget && graphics_->GetViewRenderRatio() == 1.f)
         viewRect_ = viewportRect_;
 #if defined(ACTIVE_FRAMELOGDEBUG) || defined(DEBUG_VULKANCOMMANDS)
-    URHO3D_LOGDEBUGF("View() - Define : this=%u renderTarget=%u, viewRenderRatio=%f viewport=%u viewportRect_=%s viewRect=%s viewSize=%s rtSize=%s", 
+    if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+        URHO3D_LOGDEBUGF("View() - Define : this=%u renderTarget=%u, viewRenderRatio=%f viewport=%u viewportRect_=%s viewRect=%s viewSize=%s rtSize=%s", 
                     this, renderTarget, viewport, graphics_->GetViewRenderRatio(), viewportRect_.ToString().CString(), viewRect_.ToString().CString(), 
                     viewSize_.ToString().CString(), rtSize_.ToString().CString());
 #endif                
@@ -570,7 +571,8 @@ void View::Update(const FrameInfo& frame)
         return;
 
 #ifdef ACTIVE_FRAMELOGDEBUG
-    URHO3D_LOGDEBUGF("View Update : view=%u viewSize_=%s...", this, viewSize_.ToString().CString());
+    if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+        URHO3D_LOGDEBUGF("View Update : view=%u viewSize_=%s...", this, viewSize_.ToString().CString());
 #endif
 
     frame_.camera_ = cullCamera_;
@@ -615,7 +617,8 @@ void View::Update(const FrameInfo& frame)
 void View::Render()
 {
 #if defined(ACTIVE_FRAMELOGDEBUG) || defined(DEBUG_VULKANCOMMANDS)
-    URHO3D_LOGDEBUGF("View Render : view=%u sourceview=%u ... rendertarget=%u ... BEGIN", this, sourceView_.Get(), renderTarget_);
+    if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+        URHO3D_LOGDEBUGF("View Render : view=%u sourceview=%u ... rendertarget=%u ... BEGIN", this, sourceView_.Get(), renderTarget_);
 #endif
 
     SendViewEvent(E_BEGINVIEWRENDER);
@@ -732,14 +735,16 @@ void View::Render()
     // (backbuffer should contain proper depth already)
 
 #ifdef ACTIVE_FRAMELOGDEBUG
-    URHO3D_LOGDEBUGF("View Render : view=%u fromViewportIndex_=%u currentRenderTarget_=%u renderTarget_=%u", 
-        this, camera_->GetViewport(), currentRenderTarget_, renderTarget_);
+    if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+        URHO3D_LOGDEBUGF("View Render : view=%u fromViewportIndex_=%u currentRenderTarget_=%u renderTarget_=%u", 
+            this, camera_->GetViewport(), currentRenderTarget_, renderTarget_);
 #endif
 
     if (currentRenderTarget_ != renderTarget_)
     {
 #if defined(ACTIVE_FRAMELOGDEBUG) || defined(DEBUG_VULKANCOMMANDS)
-        URHO3D_LOGDEBUGF("View Render : view=%u Blit from currentRenderTarget_=%u to renderTarget_=%u", this, currentRenderTarget_, renderTarget_);
+        if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+            URHO3D_LOGDEBUGF("View Render : view=%u Blit from currentRenderTarget_=%u to renderTarget_=%u", this, currentRenderTarget_, renderTarget_);
 #endif
 #ifdef URHO3D_VULKAN
         graphics_->GetImpl()->SetRenderPass(Technique::copyPassIndex);
@@ -751,7 +756,8 @@ void View::Render()
     {
         // Copy rendered viewport texture to swapchain image
 #if defined(ACTIVE_FRAMELOGDEBUG) || defined(DEBUG_VULKANCOMMANDS)
-        URHO3D_LOGDEBUGF("View Render : view=%u Blit viewport texture to viewport rect=%s", this, viewRect_.ToString().CString(), currentRenderTarget_);
+        if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+            URHO3D_LOGDEBUGF("View Render : view=%u Blit viewport texture to viewport rect=%s", this, viewRect_.ToString().CString(), currentRenderTarget_);
 #endif
         graphics_->GetImpl()->SetRenderPass(Technique::copyPassIndex);
         BlitFramebuffer(graphics_->GetImpl()->GetCurrentViewportTexture(), 0, !usedResolve_);
@@ -761,7 +767,8 @@ void View::Render()
     SendViewEvent(E_ENDVIEWRENDER);
 
 #if defined(ACTIVE_FRAMELOGDEBUG) || defined(DEBUG_VULKANCOMMANDS)
-    URHO3D_LOGDEBUGF("View Render : view=%u ... END", this);
+    if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+        URHO3D_LOGDEBUGF("View Render : view=%u ... END", this);
 #endif    
 }
 
@@ -1556,7 +1563,8 @@ void View::ExecuteRenderPathCommands()
     View* actualView = sourceView_ ? sourceView_ : this;
 
 #ifdef ACTIVE_FRAMELOGDEBUG
-    URHO3D_LOGDEBUGF("View() - ExecuteRenderPathCommands : this=%u actualView=%u ... BEGIN", this, actualView);
+    if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+        URHO3D_LOGDEBUGF("View() - ExecuteRenderPathCommands : this=%u actualView=%u ... BEGIN", this, actualView);
 #endif
     // If not reusing shadowmaps, render all of them first
     if (!renderer_->GetReuseShadowMaps() && renderer_->GetDrawShadows() && !actualView->lightQueues_.Empty())
@@ -1589,7 +1597,7 @@ void View::ExecuteRenderPathCommands()
             if (actualView->IsNecessary(command))
                 lastCommandIndex = i;
             #ifdef ACTIVE_FRAMELOGDEBUG
-            else
+            else if (graphics_->GetImpl()->GetCurrentFrame() == 0)
                 URHO3D_LOGDEBUGF("View Execute : cmd[%i] = %s Not Necessary ... Skip !", i, command.pass_.CString());
             #endif
         }
@@ -1600,7 +1608,8 @@ void View::ExecuteRenderPathCommands()
             if (!actualView->IsNecessary(command))
             {
             #ifdef ACTIVE_FRAMELOGDEBUG
-                URHO3D_LOGDEBUGF("View Execute : cmd[%i] = %s Not Necessary ... Skip !", i, command.pass_.CString());
+                if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+                    URHO3D_LOGDEBUGF("View Execute : cmd[%i] = %s Not Necessary ... Skip !", i, command.pass_.CString());
             #endif
                 continue;
             }
@@ -1683,8 +1692,9 @@ void View::ExecuteRenderPathCommands()
                 {
                     URHO3D_PROFILE(ClearRenderTarget);
                 #ifdef ACTIVE_FRAMELOGDEBUG
-                    URHO3D_LOGDEBUGF("View Execute Clear %s passindex=%u currentRenderTarget=%u ...",
-                        command.pass_.CString(), command.passIndex_, currentRenderTarget_);
+                    if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+                        URHO3D_LOGDEBUGF("View Execute Clear %s passindex=%u currentRenderTarget=%u ...",
+                            command.pass_.CString(), command.passIndex_, currentRenderTarget_);
                 #endif
                     Color clearColor = command.clearColor_;
                     if (command.useFogColor_)
@@ -1702,7 +1712,8 @@ void View::ExecuteRenderPathCommands()
                     {
                         URHO3D_PROFILE(RenderScenePass);
                     #ifdef ACTIVE_FRAMELOGDEBUG
-                        URHO3D_LOGDEBUGF("View Execute Scene Pass %s passindex=%u ...", command.pass_.CString(), command.passIndex_);
+                        if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+                            URHO3D_LOGDEBUGF("View Execute Scene Pass %s passindex=%u ...", command.pass_.CString(), command.passIndex_);
                     #endif
                         SetRenderTargets(command);
                         bool allowDepthWrite = SetTextures(command);
@@ -1728,7 +1739,8 @@ void View::ExecuteRenderPathCommands()
                 {
                     URHO3D_PROFILE(RenderQuad);
                 #ifdef ACTIVE_FRAMELOGDEBUG
-                    URHO3D_LOGDEBUGF("View Execute Quad %s...", command.pass_.CString());
+                    if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+                        URHO3D_LOGDEBUGF("View Execute Quad %s...", command.pass_.CString());
                 #endif
                     SetRenderTargets(command);
                     SetTextures(command);
@@ -1742,16 +1754,20 @@ void View::ExecuteRenderPathCommands()
                 {
                     URHO3D_PROFILE(RenderLights);
                 #ifdef ACTIVE_FRAMELOGDEBUG
-                    URHO3D_LOGDEBUGF("View Execute Forward Lights %s...", command.pass_.CString());
+                    if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+                        URHO3D_LOGDEBUGF("View Execute Forward Lights %s...", command.pass_.CString());
                 #endif
                     SetRenderTargets(command);
 
                     for (Vector<LightBatchQueue>::Iterator it = actualView->lightQueues_.Begin(); it != actualView->lightQueues_.End(); ++it)
                     {
                     #ifdef ACTIVE_FRAMELOGDEBUG
-                        LightBatchQueue& queue = *it;
-                        URHO3D_LOGDEBUGF(" ... LightBatchQueue light=%u litbasebatches=%u litbatches=%u",
-                                         queue.light_, queue.litBaseBatches_.sortedBatches_.Size(), queue.litBatches_.sortedBatches_.Size());
+                        if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+                        {
+                            LightBatchQueue& queue = *it;
+                            URHO3D_LOGDEBUGF(" ... LightBatchQueue light=%u litbasebatches=%u litbatches=%u",
+                                             queue.light_, queue.litBaseBatches_.sortedBatches_.Size(), queue.litBatches_.sortedBatches_.Size());
+                        }
                     #endif
 
                         // If reusing shadowmaps, render each of them before the lit batches
@@ -1797,7 +1813,8 @@ void View::ExecuteRenderPathCommands()
                 {
                     URHO3D_PROFILE(RenderLightVolumes);
                 #ifdef ACTIVE_FRAMELOGDEBUG
-                    URHO3D_LOGDEBUGF("View Execute LightVolumes %s...", command.pass_.CString());
+                    if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+                        URHO3D_LOGDEBUGF("View Execute LightVolumes %s...", command.pass_.CString());
                 #endif
                     SetRenderTargets(command);
                     for (Vector<LightBatchQueue>::Iterator it = actualView->lightQueues_.Begin(); it != actualView->lightQueues_.End(); ++it)
@@ -1834,7 +1851,8 @@ void View::ExecuteRenderPathCommands()
             case CMD_RENDERUI:
                 {
                 #ifdef ACTIVE_FRAMELOGDEBUG
-                    URHO3D_LOGDEBUGF("View Execute RenderUI %s...", command.pass_.CString());
+                    if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+                        URHO3D_LOGDEBUGF("View Execute RenderUI %s...", command.pass_.CString());
                 #endif
                     SetRenderTargets(command);
                     GetSubsystem<UI>()->Render(true);
@@ -1845,7 +1863,8 @@ void View::ExecuteRenderPathCommands()
                 {
                     using namespace RenderPathEvent;
                 #ifdef ACTIVE_FRAMELOGDEBUG
-                    URHO3D_LOGDEBUGF("View Execute SendEvent %s...", command.eventName_.CString());
+                    if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+                        URHO3D_LOGDEBUGF("View Execute SendEvent %s...", command.eventName_.CString());
                 #endif
                     VariantMap& eventData = GetEventDataMap();
                     eventData[P_NAME] = command.eventName_;
@@ -1864,7 +1883,8 @@ void View::ExecuteRenderPathCommands()
     }
 
 #ifdef ACTIVE_FRAMELOGDEBUG
-    URHO3D_LOGDEBUGF("View() - ExecuteRenderPathCommands : this=%u actualView=%u ... END !", this, actualView);
+    if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+        URHO3D_LOGDEBUGF("View() - ExecuteRenderPathCommands : this=%u actualView=%u ... END !", this, actualView);
 #endif    
 }
 
@@ -1886,7 +1906,8 @@ void View::SetRenderTargets(RenderPathCommand& command)
         {
             Texture* texture = FindNamedTexture(command.outputs_[index].name_, true, false);
 #ifdef ACTIVE_FRAMELOGDEBUG
-            URHO3D_LOGDEBUGF("View() - SetRenderTargets : view=%u output=%u find=%s texture=%u",
+            if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+                URHO3D_LOGDEBUGF("View() - SetRenderTargets : view=%u output=%u find=%s texture=%u",
                     this, index, command.outputs_[index].name_.CString(), texture);
 #endif
             // Check for depth only rendering (by specifying a depth texture as the sole output)
@@ -1955,7 +1976,8 @@ bool View::SetTextures(RenderPathCommand& command)
         if (command.textureNames_[i].Empty())
             continue;
 #ifdef ACTIVE_FRAMELOGDEBUG
-        URHO3D_LOGDEBUGF("View SetTextures ... pass=%s texturename[i]=%s", command.pass_.CString(), command.textureNames_[i].CString());
+        if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+            URHO3D_LOGDEBUGF("View SetTextures ... pass=%s texturename[i]=%s", command.pass_.CString(), command.textureNames_[i].CString());
 #endif
         // Bind the rendered output
         if (!command.textureNames_[i].Compare("viewport", false))
@@ -1963,7 +1985,8 @@ bool View::SetTextures(RenderPathCommand& command)
 #ifdef URHO3D_VULKAN
             currentViewportTexture_ = graphics_->GetImpl()->GetCurrentViewportTexture();
 #ifdef ACTIVE_FRAMELOGDEBUG
-            URHO3D_LOGDEBUGF("View() - SetTextures ... view=%u pass=%s texturename[%d]=%s texture=%u", this,
+            if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+                URHO3D_LOGDEBUGF("View() - SetTextures ... view=%u pass=%s texturename[%d]=%s texture=%u", this,
                              command.pass_.CString(), i, command.textureNames_[i].CString(), currentViewportTexture_);
 #endif
 #endif
@@ -2278,7 +2301,8 @@ void View::BlitFramebuffer(Texture* source, RenderSurface* destination, bool dep
     IntRect srcRect = (GetRenderSurfaceFromTexture(source) == renderTarget_) ? viewRect_ : IntRect(0, 0, srcSize.x_, srcSize.y_);
     IntRect destRect = (destination && destination == renderTarget_) ? viewRect_ : viewportRect_;
 #ifdef ACTIVE_FRAMELOGDEBUG
-    URHO3D_LOGDEBUGF("View() - BlitFramebuffer : view=%u textsrc=%u rendertarget=%u srcrect=%s destrect=%s ...", 
+    if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+        URHO3D_LOGDEBUGF("View() - BlitFramebuffer : view=%u textsrc=%u rendertarget=%u srcrect=%s destrect=%s ...", 
                     this, source, destination, srcRect.ToString().CString(), destRect.ToString().CString());
 #endif
     graphics_->SetBlendMode(BLEND_REPLACE);
@@ -2303,8 +2327,9 @@ void View::BlitFramebuffer(Texture* source, RenderSurface* destination, bool dep
 
     graphics_->SetTexture(TU_DIFFUSE, source);
     DrawFullscreenQuad(true);
-#ifdef ACTIVE_FRAMELOGDEBUG    
-    URHO3D_LOGDEBUGF(" ... End View Blitting !");
+#ifdef ACTIVE_FRAMELOGDEBUG
+    if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+        URHO3D_LOGDEBUGF(" ... End View Blitting !");
 #endif
 }
 

@@ -742,7 +742,8 @@ void Renderer::Update(float timeStep)
     for (unsigned i = viewports_.Size() - 1; i < viewports_.Size(); --i)
     {
 #ifdef ACTIVE_FRAMELOGDEBUG
-        URHO3D_LOGDEBUGF("Renderer() - Update : Main Viewport index=%u camera=%u ", i, viewports_[i]->GetCamera());
+        if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+            URHO3D_LOGDEBUGF("Renderer() - Update : Main Viewport index=%u camera=%u ", i, viewports_[i]->GetCamera());
 #endif
         viewports_[i]->GetCamera()->SetViewport(i);
         QueueViewport(0, viewports_[i]);
@@ -761,7 +762,8 @@ void Renderer::Update(float timeStep)
     {
         Viewport* viewport = queuedViewports_[i].second_.Get();
 #ifdef ACTIVE_FRAMELOGDEBUG
-        URHO3D_LOGDEBUGF("Renderer() - Update : Other viewport index=%u camera=%u", i, viewport->GetCamera());
+        if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+            URHO3D_LOGDEBUGF("Renderer() - Update : Other viewport index=%u camera=%u", i, viewport->GetCamera());
 #endif
         if (viewport && viewport->GetCamera())
             viewport->GetCamera()->SetViewport(i);
@@ -1529,7 +1531,8 @@ void Renderer::OptimizeLightByStencil(Light* light, Camera* camera)
         graphics_->SetDepthWrite(false);
 
     #ifdef ACTIVE_FRAMELOGDEBUG
-        URHO3D_LOGDEBUGF("Renderer OptimizeLightByStencil ... stencilvalue=%u ", lightStencilValue_);
+        if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+            URHO3D_LOGDEBUGF("Renderer OptimizeLightByStencil ... stencilvalue=%u ", lightStencilValue_);        
     #endif
         graphics_->SetStencilTest(true, CMP_ALWAYS, OP_REF, OP_KEEP, OP_KEEP, lightStencilValue_);
         graphics_->SetShaders(graphics_->GetShader(VS, "Stencil"), graphics_->GetShader(PS, "Stencil"));

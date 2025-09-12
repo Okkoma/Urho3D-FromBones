@@ -189,7 +189,8 @@ void Batch::Prepare(View* view, Camera* camera, bool setModelTransform, bool all
     Texture2D* shadowMap = lightQueue_ ? lightQueue_->shadowMap_ : 0;
 
 #ifdef ACTIVE_FRAMELOGDEBUG
-    URHO3D_LOGINFOF("Batch Prepare cam=%u pass=%s material=%s lightqueue=%u light=%u numvertexlights=%u depthwrite=%s vs=%u %s ps=%u %s",
+    if (graphics->GetImpl()->GetCurrentFrame() == 0)
+        URHO3D_LOGINFOF("Batch Prepare cam=%u pass=%s material=%s lightqueue=%u light=%u numvertexlights=%u depthwrite=%s vs=%u(%s) ps=%u(%s)",
                         camera, pass_ ? pass_->GetName().CString() : "none",
                         material_ ? material_->GetName().CString() : "none",
                         lightQueue_, light, lightQueue_ ? lightQueue_->vertexLights_.Size() : 0,
@@ -602,19 +603,21 @@ void Batch::Prepare(View* view, Camera* camera, bool setModelTransform, bool all
                 graphics->SetShaderParameter(VSP_NUMVERTEXLIGHTS, (int)lightQueue_->vertexLights_.Size());
             #endif
             #ifdef ACTIVE_FRAMELOGDEBUG
-                URHO3D_LOGDEBUGF("Batch Prepare pass=%s name=%s vs=%s ps=%s : Use Vertex Lights numLights=%u", pass_ ? pass_->GetName().CString() : "none",
-                         vertexShader_->GetName().CString(), vertexShader_->GetDefines().CString(),
-                         pixelShader_->GetDefines().CString(), lightQueue_->vertexLights_.Size());
+                if (graphics->GetImpl()->GetCurrentFrame() == 0)
+                    URHO3D_LOGDEBUGF("Batch Prepare pass=%s name=%s vs=%s ps=%s : Use Vertex Lights numLights=%u", pass_ ? pass_->GetName().CString() : "none",
+                             vertexShader_->GetName().CString(), vertexShader_->GetDefines().CString(),
+                             pixelShader_->GetDefines().CString(), lightQueue_->vertexLights_.Size());
             #endif
             }
         }
         else if (lightQueue_->vertexLights_.Size())
         {
         #ifdef ACTIVE_FRAMELOGDEBUG
-            URHO3D_LOGDEBUGF("Batch Prepare pass=%s name=%s vs=%s ps=%s : Has Vertex Lights num=%u but no VSP_VERTEXLIGHTS parameter",
-                         pass_ ? pass_->GetName().CString() : "none",
-                         vertexShader_->GetName().CString(), vertexShader_->GetDefines().CString(),
-                         pixelShader_->GetDefines().CString(), lightQueue_->vertexLights_.Size());
+            if (graphics->GetImpl()->GetCurrentFrame() == 0)
+                URHO3D_LOGDEBUGF("Batch Prepare pass=%s name=%s vs=%s ps=%s : Has Vertex Lights num=%u but no VSP_VERTEXLIGHTS parameter",
+                             pass_ ? pass_->GetName().CString() : "none",
+                             vertexShader_->GetName().CString(), vertexShader_->GetDefines().CString(),
+                             pixelShader_->GetDefines().CString(), lightQueue_->vertexLights_.Size());
         #endif
         }
     }

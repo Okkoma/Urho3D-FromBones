@@ -859,7 +859,8 @@ void UI::Render(bool resetRenderTargets, VertexBuffer* buffer, const PODVector<U
         graphics_->ResetRenderTargets();
 
 #ifdef ACTIVE_FRAMELOGDEBUG
-    URHO3D_LOGDEBUG("UI Render...");
+    if (graphics_->GetImpl()->GetCurrentFrame() == 0)
+        URHO3D_LOGDEBUG("UI Render...");
 #endif
 
 //    URHO3D_LOGWARNINGF("UI() - Render : buffer=%u bsize=%u bstart=%u bend=%u ...", buffer, batches.Size(), batchStart, batchEnd);

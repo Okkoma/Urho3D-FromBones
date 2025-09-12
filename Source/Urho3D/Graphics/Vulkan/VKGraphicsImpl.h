@@ -510,6 +510,8 @@ public:
     void SetClearValue(const Color& c, float depth, unsigned stencil);
 
 	/// Getters
+    const char* GetRenderPassTypeName(unsigned type);
+    unsigned GetCurrentFrame() const { return currentFrame_; }
     static PipelineInfo* GetPipelineInfo() { return pipelineInfo_; }
     static unsigned GetUBOPaddedSize(unsigned size);
     static VkFormat GetSwapChainFormat() { return swapChainInfo_.format; }
