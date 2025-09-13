@@ -73,7 +73,8 @@ static const String EP_WINDOW_RESIZABLE = "WindowResizable";
 static const String EP_WINDOW_TITLE = "WindowTitle";
 static const String EP_WINDOW_WIDTH = "WindowWidth";
 static const String EP_WORKER_THREADS = "WorkerThreads";
-// FromBones upscaling
+// FromBones
+static const String EP_FULLSCREEN_DESKTOP = "FullScreenDesktop";
 static const String EP_VIEWRENDER_SCALE = "ViewRenderScale";
 
 }

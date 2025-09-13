@@ -262,7 +262,9 @@ bool Engine::Initialize(const VariantMap& parameters)
             graphics->SetForceGL2(GetParameter(parameters, EP_FORCE_GL2).GetBool());
 #endif
 
-        // FromBones upscaling 
+        // FromBones fullscreen default mode
+        graphics->SetFullscreenDesktopMode(GetParameter(parameters, EP_FULLSCREEN_DESKTOP, false).GetBool());
+        // FromBones Upscaling
         graphics->SetDefaultViewRenderScale(GetParameter(parameters, EP_VIEWRENDER_SCALE, 1).GetInt());
         
         if (!graphics->SetMode(

@@ -231,6 +231,7 @@ Graphics::Graphics(Context* context) :
     position_(SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED),
     multiSample_(1),
     fullscreen_(false),
+    defaultFullscreenMode_(SDL_WINDOW_FULLSCREEN),
     borderless_(false),
     resizable_(false),
     highDPI_(false),
@@ -308,6 +309,10 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
 
     // check the number of video devices
     int numvideodisplays = SDL_GetNumVideoDisplays();
+
+    URHO3D_LOGDEBUGF("Graphics() - SetMode : %dx%d fullscreen:%d borderless:%d resizable:%d highDPI:%d monitor:%d(%d)", 
+                    width, height, fullscreen, borderless, resizable, highDPI, monitor, numvideodisplays);
+
     if (numvideodisplays == 0)
     {
         URHO3D_LOGINFOF("Graphics() - api=%s driver=%s no video display !", GetApiName().CString(), SDL_GetCurrentVideoDriver());
@@ -343,10 +348,6 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
         return true;
     }
 
-    // If wayland backend and fullscreen, get desktopDisplayMode.
-    if (strcmp(SDL_GetCurrentVideoDriver(), "wayland") == 0 && fullscreen)
-        width = 0;
-
     // If zero dimensions in windowed mode, set windowed mode to maximize and set a predefined default restored window size.
     // If zero in fullscreen, use desktop mode
     if (!width || !height)
@@ -366,34 +367,60 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
         }
     }
 
-    // Check fullscreen mode validity (desktop only). Use a closest match if not found
-#ifdef DESKTOP_GRAPHICS
+    unsigned fullscreenflag = 0;
+    int renderscale = defaultViewRenderScale_;
     if (fullscreen)
     {
-        PODVector<IntVector3> resolutions = GetResolutions(monitor);
-        if (resolutions.Size())
+        fullscreenflag = defaultFullscreenMode_;
+        // Use Desktop Mode on wayland
+        if (strcmp(SDL_GetCurrentVideoDriver(), "wayland") == 0)
+            fullscreenflag = SDL_WINDOW_FULLSCREEN_DESKTOP;
+        // Fix issue 'X11_XRRSetCrtcConfig failed' with fullscreen on X11 multiple screens
+        else if (strcmp(SDL_GetCurrentVideoDriver(), "x11") == 0 && numvideodisplays > 1)
+            fullscreenflag = SDL_WINDOW_FULLSCREEN_DESKTOP;
+
+        if (fullscreenflag == SDL_WINDOW_FULLSCREEN_DESKTOP)
         {
-            unsigned best = 0;
-            unsigned bestError = M_MAX_UNSIGNED;
-
-            for (unsigned i = 0; i < resolutions.Size(); ++i)
-            {
-                unsigned error = (unsigned)(Abs(resolutions[i].x_ - width) + Abs(resolutions[i].y_ - height));
-                if (refreshRate != 0)
-                    error += (unsigned)(Abs(resolutions[i].z_ - refreshRate));
-                if (error < bestError)
-                {
-                    best = i;
-                    bestError = error;
-                }
-            }
-
-            width = resolutions[best].x_;
-            height = resolutions[best].y_;
-            refreshRate = resolutions[best].z_;
+            SDL_DisplayMode desktopMode;
+            SDL_GetDesktopDisplayMode(monitor, &desktopMode);
+            renderscale = desktopMode.h > height ? desktopMode.h / height + (desktopMode.w % height ? 1 : 0) : 1; 
+            URHO3D_LOGDEBUGF("Graphics() - Use fullscreen desktop mode=%dx%d (%dx%d) renderscale=%d(%d)", 
+                    desktopMode.w, desktopMode.h, width, height, renderscale, defaultViewRenderScale_);
+            
+            width = desktopMode.w;
+            height = desktopMode.h;
         }
+        // Check fullscreen mode validity (desktop only). Use a closest match if not found
+    #ifdef DESKTOP_GRAPHICS
+        else
+        {
+            PODVector<IntVector3> resolutions = GetResolutions(monitor);
+            if (resolutions.Size())
+            {
+                unsigned best = 0;
+                unsigned bestError = M_MAX_UNSIGNED;
+
+                for (unsigned i = 0; i < resolutions.Size(); ++i)
+                {
+                    unsigned error = (unsigned)(Abs(resolutions[i].x_ - width) + Abs(resolutions[i].y_ - height));
+                    if (refreshRate != 0)
+                        error += (unsigned)(Abs(resolutions[i].z_ - refreshRate));
+                    if (error < bestError)
+                    {
+                        best = i;
+                        bestError = error;
+                    }
+                }
+
+                width = resolutions[best].x_;
+                height = resolutions[best].y_;
+                refreshRate = resolutions[best].z_;
+            }
+        }
+    #endif
     }
-#endif
+
+    UpdateViewRenderRatio(renderscale); 
 
     // With an external window, only the size can change after initial setup, so do not recreate context
     if (!externalWindow_ || !impl_->context_)
@@ -458,7 +485,7 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
 
         unsigned flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
         if (fullscreen)
-            flags |= SDL_WINDOW_FULLSCREEN;
+            flags |= fullscreenflag;
         if (borderless)
             flags |= SDL_WINDOW_BORDERLESS;
         if (resizable)
@@ -539,7 +566,7 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, (GLint*)&impl_->systemFBO_);
 #endif
 
-    fullscreen_ = fullscreen;
+    fullscreen_ = SDL_GetWindowFlags(window_) & (SDL_WINDOW_FULLSCREEN|SDL_WINDOW_FULLSCREEN_DESKTOP);
     borderless_ = borderless;
     resizable_ = resizable;
     vsync_ = vsync;
@@ -583,7 +610,6 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
 #endif
 
     using namespace ScreenMode;
-
     VariantMap& eventData = GetEventDataMap();
     eventData[P_WIDTH] = width_;
     eventData[P_HEIGHT] = height_;

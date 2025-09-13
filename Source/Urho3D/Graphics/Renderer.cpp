@@ -745,7 +745,10 @@ void Renderer::Update(float timeStep)
         if (graphics_->GetImpl()->GetCurrentFrame() == 0)
             URHO3D_LOGDEBUGF("Renderer() - Update : Main Viewport index=%u camera=%u ", i, viewports_[i]->GetCamera());
 #endif
-        viewports_[i]->GetCamera()->SetViewport(i);
+        if (!viewports_[i])
+            continue;
+        if (viewports_[i]->GetCamera())
+            viewports_[i]->GetCamera()->SetViewport(i);
         QueueViewport(0, viewports_[i]);
     }
 
@@ -1746,9 +1749,11 @@ void Renderer::Initialize()
     graphics_->GetImpl()->RegisterPipelineInfo(GraphicsImpl::RenderPass_2C_1DS, noTextureVS, noTexturePS, graphics_->GetImpl()->GetPipelineStateVariation(stateBlendAlphaMS4, PIPELINESTATE_LINEWIDTH, 2), 1, &vertexElements);
 #endif
 
-    SubscribeToEvent(E_RENDERUPDATE, URHO3D_HANDLER(Renderer, HandleRenderUpdate));
-
     URHO3D_LOGINFO("Initialized renderer");
+
+    SendEvent(E_RENDERER_INITIALIZED);
+
+    SubscribeToEvent(E_RENDERUPDATE, URHO3D_HANDLER(Renderer, HandleRenderUpdate));
 }
 
 void Renderer::LoadShaders()

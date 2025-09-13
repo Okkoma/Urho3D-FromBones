@@ -40,6 +40,10 @@ URHO3D_EVENT(E_SCREENMODE, ScreenMode)
     URHO3D_PARAM(P_REFRESHRATE, RefreshRate);      // int
 }
 
+URHO3D_EVENT(E_RENDERER_INITIALIZED, RendererInitialized)
+{
+}
+
 /// Window position changed.
 URHO3D_EVENT(E_WINDOWPOS, WindowPos)
 {

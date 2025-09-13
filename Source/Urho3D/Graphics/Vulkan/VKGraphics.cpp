@@ -45,6 +45,7 @@
 #include "../../IO/Log.h"
 #include "../../Resource/ResourceCache.h"
 #include "Graphics/Vulkan/VKGraphicsImpl.h"
+#include "SDL/SDL_video.h"
 
 #ifdef URHO3D_VOLK
 #define VOLK_IMPLEMENTATION
@@ -77,6 +78,7 @@ Graphics::Graphics(Context* context) :
     position_(SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED),
     multiSample_(1),
     fullscreen_(false),
+    defaultFullscreenMode_(SDL_WINDOW_FULLSCREEN),
     borderless_(false),
     resizable_(false),
     highDPI_(false),
@@ -135,6 +137,7 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
     URHO3D_PROFILE(SetScreenMode);
 
     bool maximize = false;
+    bool firstSetMode = window_ == nullptr;
 
 #if defined(IOS) || defined(TVOS)
     // iOS and tvOS app always take the fullscreen (and with status bar hidden)
@@ -148,11 +151,12 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
         return false;
     }
 
-    URHO3D_LOGDEBUGF("Graphics() - SetMode : %dx%d fullscreen:%d borderless:%d resizable:%d highDPI:%d monitor:%d viewRenderScaleDirty_:%d", 
-                    width, height, fullscreen, borderless, resizable, highDPI, monitor, viewRenderScaleDirty_);
-
     // check the number of video devices
     int numvideodisplays = SDL_GetNumVideoDisplays();
+
+    URHO3D_LOGDEBUGF("Graphics() - SetMode : %dx%d fullscreen:%d borderless:%d resizable:%d highDPI:%d monitor:%d(%d)", 
+                    width, height, fullscreen, borderless, resizable, highDPI, monitor, numvideodisplays);
+
     if (numvideodisplays <= 0)
     {
         URHO3D_LOGERRORF("Graphics() - api=%s driver=%s no video display ... root cause: '%s'", GetApiName().CString(), SDL_GetCurrentVideoDriver(), SDL_GetError());
@@ -178,19 +182,6 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
         monitor == monitor_ && refreshRate == refreshRate_)
         return true;
 
-    // Fix issue 'X11_XRRSetCrtcConfig failed' with fullscreen on X11 multiple screens :
-    // use desktop mode borderless.
-    if (strcmp(SDL_GetCurrentVideoDriver(), "x11") == 0 && fullscreen && numvideodisplays > 1)
-    {
-        SDL_DisplayMode mode;
-        SDL_GetDesktopDisplayMode(monitor, &mode);
-        width = mode.w;
-        height = mode.h;    
-        borderless = true;
-        fullscreen = resizable = false;
-        URHO3D_LOGDEBUGF("Use x11 borderless desktop display mode w:%d h:%d", width, height);
-    }
-
     // If zero dimensions in windowed mode, set windowed mode to maximize and set a predefined default restored window size.
     // If zero in fullscreen, use desktop mode
     if (!width || !height)
@@ -210,34 +201,60 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
         }
     }
 
-#ifdef DESKTOP_GRAPHICS
-    // Check fullscreen mode validity (desktop only). Use a closest match if not found
+    unsigned fullscreenflag = 0;
+    int renderscale = defaultViewRenderScale_;
     if (fullscreen)
     {
-        PODVector<IntVector3> resolutions = GetResolutions(monitor);
-        if (resolutions.Size())
+        fullscreenflag = defaultFullscreenMode_;
+        // Use Desktop Mode on wayland
+        if (strcmp(SDL_GetCurrentVideoDriver(), "wayland") == 0)
+            fullscreenflag = SDL_WINDOW_FULLSCREEN_DESKTOP;
+        // Fix issue 'X11_XRRSetCrtcConfig failed' with fullscreen on X11 multiple screens
+        else if (strcmp(SDL_GetCurrentVideoDriver(), "x11") == 0 && numvideodisplays > 1)
+            fullscreenflag = SDL_WINDOW_FULLSCREEN_DESKTOP;
+
+        if (fullscreenflag == SDL_WINDOW_FULLSCREEN_DESKTOP)
         {
-            unsigned best = 0;
-            unsigned bestError = M_MAX_UNSIGNED;
-
-            for (unsigned i = 0; i < resolutions.Size(); ++i)
-            {
-                unsigned error = (unsigned)(Abs(resolutions[i].x_ - width) + Abs(resolutions[i].y_ - height));
-                if (refreshRate != 0)
-                    error += (unsigned)(Abs(resolutions[i].z_ - refreshRate));
-                if (error < bestError)
-                {
-                    best = i;
-                    bestError = error;
-                }
-            }
-
-            width = resolutions[best].x_;
-            height = resolutions[best].y_;
-            refreshRate = resolutions[best].z_;
+            SDL_DisplayMode desktopMode;
+            SDL_GetDesktopDisplayMode(monitor, &desktopMode);
+            renderscale = desktopMode.h > height ? desktopMode.h / height + (desktopMode.w % height ? 1 : 0) : 1; 
+            URHO3D_LOGDEBUGF("Graphics() - Use fullscreen desktop mode=%dx%d (%dx%d) renderscale=%d(%d)", 
+                    desktopMode.w, desktopMode.h, width, height, renderscale, defaultViewRenderScale_);
+            
+            width = desktopMode.w;
+            height = desktopMode.h;
         }
+        // Check fullscreen mode validity (desktop only). Use a closest match if not found
+    #ifdef DESKTOP_GRAPHICS
+        else
+        {
+            PODVector<IntVector3> resolutions = GetResolutions(monitor);
+            if (resolutions.Size())
+            {
+                unsigned best = 0;
+                unsigned bestError = M_MAX_UNSIGNED;
+
+                for (unsigned i = 0; i < resolutions.Size(); ++i)
+                {
+                    unsigned error = (unsigned)(Abs(resolutions[i].x_ - width) + Abs(resolutions[i].y_ - height));
+                    if (refreshRate != 0)
+                        error += (unsigned)(Abs(resolutions[i].z_ - refreshRate));
+                    if (error < bestError)
+                    {
+                        best = i;
+                        bestError = error;
+                    }
+                }
+
+                width = resolutions[best].x_;
+                height = resolutions[best].y_;
+                refreshRate = resolutions[best].z_;
+            }
+        }
+    #endif
     }
-#endif
+
+    UpdateViewRenderRatio(renderscale); 
 
     // With an external window, only the size can change after initial setup, so do not recreate context
     if (!externalWindow_ || !impl_->GetInstance())
@@ -262,7 +279,7 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
             {
                 unsigned flags = SDL_WINDOW_VULKAN | SDL_WINDOW_SHOWN;
                 if (fullscreen)
-                    flags |= SDL_WINDOW_FULLSCREEN;
+                    flags |= fullscreenflag;
                 if (borderless)
                     flags |= SDL_WINDOW_BORDERLESS;
                 if (resizable)
@@ -323,35 +340,33 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
         }
     }
 
-    if (!fullscreen)
+    // update the window
+    if (!firstSetMode)
     {
-        if (SDL_SetWindowFullscreen(window_, 0) == 0)
+        // update the window size
+        if (width_ != width || height_ != height)
         {
             SDL_SetWindowSize(window_, width, height);
-            fullscreen_ = false;
+            URHO3D_LOGDEBUGF("Graphics() - update window size ... %dx%d", width, height);
         }
-    }
-    else
-    {
-        SDL_DisplayMode mode;
-        mode.w = width;
-        mode.h = height;
-        mode.refresh_rate = refreshRate;
-        SDL_SetWindowDisplayMode(window_, &mode);
-        int fullscreenflag = SDL_WINDOW_FULLSCREEN;
-        // allow fullscreen desktop with wayland
-        if (strcmp(SDL_GetCurrentVideoDriver(), "wayland") == 0)
-            fullscreenflag |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-        
+
+        // update the window fullscreen mode
+        if (fullscreen)
+        {
+            SDL_DisplayMode mode;
+            mode.w = width;
+            mode.h = height;
+            mode.refresh_rate = refreshRate;
+            SDL_SetWindowDisplayMode(window_, &mode);
+        }
         if (SDL_SetWindowFullscreen(window_, fullscreenflag) != 0)
         {
             URHO3D_LOGERRORF("Graphics() - api=%s driver=%s Could not change to fullscreen, root cause: '%s'", GetApiName().CString(), SDL_GetCurrentVideoDriver(), SDL_GetError());
             return false;
         }
-
-        fullscreen_ = true;
     }
 
+    fullscreen_ = fullscreen;
     borderless_ = borderless;
     resizable_ = resizable;
     vsync_ = vsync;
@@ -360,18 +375,19 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
     monitor_ = monitor;
     refreshRate_ = refreshRate;
 
-    // Recreate the SwapChain
-    //impl_->UpdateSwapChain(width, height, 0, &vsync_, &tripleBuffer_);
-    URHO3D_LOGDEBUG("Graphics() - SetMode ...");
-
-    impl_->UpdateSwapChain(width, height, &sRGB_, &vsync_, &tripleBuffer_);
-
+    // Get the size of the surface in pixel
     SDL_Vulkan_GetDrawableSize(window_, &width_, &height_);
     SDL_GetWindowPosition(window_, &position_.x_, &position_.y_);
 
+    // Recreate the SwapChain
+    URHO3D_LOGDEBUGF("Graphics() - update swapchain ... %dx%d", width_, height_);
+    impl_->UpdateSwapChain(width_, height_, &sRGB_, &vsync_, &tripleBuffer_);
+
+    // Get the size of the window in pixel
     int logicalWidth, logicalHeight;
     SDL_GetWindowSize(window_, &logicalWidth, &logicalHeight);
     highDPI_ = (width_ != logicalWidth) || (height_ != logicalHeight);
+    URHO3D_LOGDEBUGF("Graphics() - drawable size=%dx%d logical size=%dx%d highdpi=%d", width_, height_, logicalWidth, logicalHeight, highDPI_);
 
     // Reset rendertargets and viewport for the new screen mode
     ResetRenderTargets();
@@ -382,7 +398,6 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
     CheckFeatureSupport();
 
 #ifdef URHO3D_LOGGING
-//    URHO3D_LOGINFOF("Graphics() - Adapter used %s %s", (const char *) glGetString(GL_VENDOR), (const char *) glGetString(GL_RENDERER));
     String msg;
     msg.AppendWithFormat("Graphics() - api=%s driver=%s Set screen mode %dx%d %s monitor %d", GetApiName().CString(), SDL_GetCurrentVideoDriver(), width_, height_, (fullscreen_ ? "fullscreen" : "windowed"), monitor_);
     if (borderless_)
@@ -397,7 +412,6 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
 #endif
 
     using namespace ScreenMode;
-
     VariantMap& eventData = GetEventDataMap();
     eventData[P_WIDTH] = width_;
     eventData[P_HEIGHT] = height_;
@@ -2104,7 +2118,7 @@ void Graphics::OnWindowResized()
 	impl_->surfaceDirty_ = true;
 #endif
 
-    SDL_GL_GetDrawableSize(window_, &newWidth, &newHeight);
+    SDL_Vulkan_GetDrawableSize(window_, &newWidth, &newHeight);
     if (!impl_->surfaceDirty_ && newWidth == width_ && newHeight == height_)
         return;
 
@@ -2117,8 +2131,8 @@ void Graphics::OnWindowResized()
 
 //    // Reset rendertargets and viewport for the new screen size. Also clean up any FBO's, as they may be screen size dependent
 //    CleanupFramebuffers();
-//    ResetRenderTargets();
-//
+    ResetRenderTargets();
+
     if ((uint32_t)width_ != impl_->swapChainExtent_.width || (uint32_t)height_ != impl_->swapChainExtent_.height)
     {
         URHO3D_LOGERRORF("Graphics() - OnWindowResized ...");
@@ -2737,7 +2751,7 @@ void Graphics::PrepareDraw()
             renderPassBI.renderArea = impl_->screenScissor_;
             renderPassBI.framebuffer = framebuffers ? framebuffers[frame.id_] : frame.framebuffers_[fbindex];
         }
-        else if (renderPassInfo->type_ & (PASS_CLEAR|PASS_PRESENT))
+        else if (renderPassInfo->type_ & (PASS_CLEAR|PASS_PRESENT|PASS_COPY))
         {
             renderPassBI.renderArea.offset = { 0, 0 };
 			renderPassBI.renderArea.extent = impl_->swapChainExtent_;
@@ -2745,9 +2759,11 @@ void Graphics::PrepareDraw()
         }
         else
         {
-            fbindex += impl_->viewportInfos_[frame.viewportIndex_].viewSizeIndex_ * impl_->renderPassInfos_.Size();
+            int viewSizeIndex = impl_->viewportInfos_[frame.viewportIndex_].viewSizeIndex_;
+            fbindex += viewSizeIndex * impl_->renderPassInfos_.Size();
 			renderPassBI.renderArea.offset = impl_->screenScissor_.offset;
-			renderPassBI.renderArea.extent = impl_->viewportInfos_[frame.viewportIndex_].rect_.extent;
+			renderPassBI.renderArea.extent.width = impl_->viewportSizes_[viewSizeIndex].x_;
+            renderPassBI.renderArea.extent.height = impl_->viewportSizes_[viewSizeIndex].y_;
             renderPassBI.framebuffer = frame.framebuffers_[fbindex];
         }  
         

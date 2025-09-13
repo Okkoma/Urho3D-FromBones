@@ -2192,10 +2192,12 @@ void View::AllocateScreenBuffers()
         if (deferred_ || hasScenePassToRTs || hasCustomDepth)
             needSubstitute = true;
     }
+
+#ifdef URHO3D_OPENGL
     // FromBones : upscaling
     if (!renderTarget_ && graphics_->GetViewRenderRatio() != 1.f)    
         needSubstitute = true;
-    
+#endif    
     // Follow final rendertarget format, or use RGB to match the backbuffer format
     unsigned format = renderTarget_ ? renderTarget_->GetParentTexture()->GetFormat() : Graphics::GetRGBFormat();
 

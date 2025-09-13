@@ -69,16 +69,28 @@ void Graphics::SetExternalWindow(void* window)
         URHO3D_LOGERROR("Window already opened, can not set external window");
 }
 
+void Graphics::SetFullscreenDesktopMode(bool enable)
+{    
+    defaultFullscreenMode_ = enable ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
+}
+
+bool Graphics::IsFullscreenDesktopMode() const
+{
+    return defaultFullscreenMode_ == SDL_WINDOW_FULLSCREEN_DESKTOP;
+}
+
 void Graphics::SetDefaultViewRenderScale(int renderscale)
 {
-    viewRenderScale_ = renderscale;
-    UpdateViewRenderRatio(renderscale);
+    if (renderscale != defaultViewRenderScale_)
+    {
+        defaultViewRenderScale_ = renderscale;
+        UpdateViewRenderRatio(renderscale);
+    }
 }
 
 void Graphics::UpdateViewRenderRatio(int renderscale)
 {
-    if (GetApiName() == "GL3")
-        viewRenderRatio_ = Clamp(1.f / renderscale, 0.1f, 1.f);
+    viewRenderRatio_ = Clamp(1.f / renderscale, 0.1f, 1.f);
 }
 
 void Graphics::SetWindowTitle(const String& windowTitle)

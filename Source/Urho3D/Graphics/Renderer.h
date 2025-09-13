@@ -181,6 +181,8 @@ public:
     /// Destruct.
     virtual ~Renderer();
 
+    bool IsInitialized() const { return initialized_; }
+
     /// Set number of backbuffer viewports to render.
     void SetNumViewports(unsigned num);
     /// Set a backbuffer viewport.

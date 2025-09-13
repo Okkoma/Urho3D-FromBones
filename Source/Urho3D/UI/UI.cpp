@@ -781,8 +781,6 @@ void UI::Initialize(int width, int height)
 {
     URHO3D_PROFILE(InitUI);
 
-    URHO3D_LOGDEBUGF("UI() - Initialize ... %dx%d", width, height);
-
     if (!graphics_)
     {
         graphics_ = GetSubsystem<Graphics>();
@@ -796,6 +794,8 @@ void UI::Initialize(int width, int height)
         width = graphics_->GetWidth();
         height = graphics_->GetHeight();
     }
+
+    URHO3D_LOGDEBUGF("UI() - Initialize ... %dx%d", width, height);
 
     UIBatch::posAdjust = Vector3(Graphics::GetPixelUVOffset(), 0.0f);
     UIBatch::Initialize(graphics_);

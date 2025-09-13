@@ -2339,10 +2339,11 @@ void GraphicsImpl::UpdateSwapChain(int width, int height, bool* srgb, bool* vsyn
         if (CreateRenderPaths())
         {
             CreatePipelines();
-            SetViewports();
             URHO3D_LOGDEBUGF("UpdateSwapChain !");
         }
     }
+
+    SetViewports();
 }
 
 // Render Pass
@@ -3174,7 +3175,8 @@ void GraphicsImpl::SetViewport(int index, const IntRect& rect)
     }
     else
     {
-        viewport_ = { 0.f, 0.f, (float)viewportInfos_[index].rect_.extent.width, (float)viewportInfos_[index].rect_.extent.height };
+        const IntVector2& viewsize = viewportSizes_[viewportInfos_[index].viewSizeIndex_];
+        viewport_ = { 0.f, 0.f, (float)viewsize.x_, (float)viewsize.y_ };
         screenScissor_ = { 0, 0, (unsigned)viewport_.width, (unsigned)viewport_.height };
 #ifdef ACTIVE_FRAMELOGDEBUG
         if (frame_ && frame_->id_ == 0)
@@ -3219,9 +3221,15 @@ void GraphicsImpl::SetViewports()
         screenViewport_ = { 0.f, 0.f, (float)swapChainExtent_.width, (float)swapChainExtent_.height };
     }
 
+    // Use View Render Ratio
+#ifdef ACTIVE_FRAMELOGDEBUG
+    URHO3D_LOGDEBUGF("GraphicsImpl() - SetViewports : viewRenderRatio=%F", graphics_->GetViewRenderRatio());
+#endif       
+    float vratio = graphics_->GetViewRenderRatio();
+
     for (int i = 0; i < viewportInfos_.Size(); i++)
     {
-        IntVector2 size(viewportInfos_[i].rect_.extent.width, viewportInfos_[i].rect_.extent.height);
+        IntVector2 size(viewportInfos_[i].rect_.extent.width * vratio, viewportInfos_[i].rect_.extent.height * vratio);
         Vector<IntVector2>::Iterator it = viewportSizes_.Find(size);
         if (it == viewportSizes_.End())
         {

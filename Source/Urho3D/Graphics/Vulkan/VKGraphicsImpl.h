@@ -505,7 +505,7 @@ public:
 
 	// Viewports
 	void SetViewports();
-	void SetViewport(int viewport, const IntRect& rect);
+	void SetViewport(int viewport, const IntRect& rect=IntRect::ZERO);
 
     void SetClearValue(const Color& c, float depth, unsigned stencil);
 

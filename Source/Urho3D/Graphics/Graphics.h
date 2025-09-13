@@ -205,9 +205,12 @@ public:
     void SetDefaultTextureFilterMode(TextureFilterMode mode);
     /// Set default texture anisotropy level. Called by Renderer before rendering.
     void SetDefaultTextureAnisotropy(unsigned level);
+    /// FromBones : true fullscreen or desktop mode
+    void SetFullscreenDesktopMode(bool enable);
+    bool IsFullscreenDesktopMode() const;
     /// FromBones upscaling : Set View render scale and ratio (inverse of scale and clamped)
     void SetDefaultViewRenderScale(int renderscale);
-    int GetDefaultViewRenderScale() const { return viewRenderScale_; }
+    int GetDefaultViewRenderScale() const { return defaultViewRenderScale_; }
     void UpdateViewRenderRatio(int renderscale);
     /// Reset all rendertargets, depth-stencil surface and viewport.
     void ResetRenderTargets();
@@ -662,7 +665,7 @@ private:
     /// Window height in pixels.
     int height_;
     /// FromBones upscaling : View render ratio.
-    int viewRenderScale_{1};
+    int defaultViewRenderScale_{1};
     float viewRenderRatio_{1.f};
     /// Window position.
     IntVector2 position_;
@@ -670,6 +673,8 @@ private:
     int multiSample_;
     /// Fullscreen flag.
     bool fullscreen_;
+    /// Default Fullscreen Mode
+    unsigned defaultFullscreenMode_;
     /// Borderless flag.
     bool borderless_;
     /// Resizable flag.
