@@ -217,7 +217,7 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
         {
             SDL_DisplayMode desktopMode;
             SDL_GetDesktopDisplayMode(monitor, &desktopMode);
-            renderscale = desktopMode.h > height ? desktopMode.h / height + (desktopMode.w % height ? 1 : 0) : 1; 
+            renderscale = desktopMode.h > height ? desktopMode.h / height + (desktopMode.h % height ? 1 : 0) : 1; 
             URHO3D_LOGDEBUGF("Graphics() - Use fullscreen desktop mode=%dx%d (%dx%d) renderscale=%d(%d)", 
                     desktopMode.w, desktopMode.h, width, height, renderscale, defaultViewRenderScale_);
             
