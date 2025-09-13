@@ -1297,7 +1297,7 @@ void AnimatedSprite2D::SetRenderTargetAttr(const String& rttNodeParams)
                 renderTarget_->GetNode()->Remove();
                 renderTarget_.Reset();
 
-                URHO3D_LOGERRORF("AnimatedSprite2D() - SetRenderTargetAttr : this=%u ... remove renderAnimation numRenderedNodes=%u",
+                URHO3D_LOGINFOF("AnimatedSprite2D() - SetRenderTargetAttr : this=%u ... remove renderAnimation numRenderedNodes=%u",
                                 this, rootnode->GetNumChildren());
 
                 if (!sRttRootNode_->GetNumChildren())
@@ -1316,13 +1316,13 @@ void AnimatedSprite2D::SetRenderTargetAttr(const String& rttNodeParams)
             // If no Render Target Texture, use classic rendering
             if (!sRttTexture_)
             {
-                URHO3D_LOGERRORF("AnimatedSprite2D() - SetRenderTargetAttr : node=%s(%u) ... no renderTargetTexture ... use classic rendering !", node_->GetName().CString(), node_->GetID());
+                URHO3D_LOGWARNINGF("AnimatedSprite2D() - SetRenderTargetAttr : node=%s(%u) ... no renderTargetTexture ... use classic rendering !", node_->GetName().CString(), node_->GetID());
                 renderTarget_.Reset();
                 SetRenderTargetFrom(renderTargetParams_);
             }
         }
 
-        URHO3D_LOGERRORF("AnimatedSprite2D() - SetRenderTargetAttr : this=%u ... params=%s",
+        URHO3D_LOGINFOF("AnimatedSprite2D() - SetRenderTargetAttr : this=%u ... params=%s",
                          this, renderTargetParams_.CString());
     }
 }

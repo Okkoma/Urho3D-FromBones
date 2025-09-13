@@ -154,7 +154,7 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
     // check the number of video devices
     int numvideodisplays = SDL_GetNumVideoDisplays();
 
-    URHO3D_LOGDEBUGF("Graphics() - SetMode : %dx%d fullscreen:%d borderless:%d resizable:%d highDPI:%d monitor:%d(%d)", 
+    URHO3D_LOGINFOF("Graphics() - SetMode : %dx%d fullscreen:%d borderless:%d resizable:%d highDPI:%d monitor:%d(%d)", 
                     width, height, fullscreen, borderless, resizable, highDPI, monitor, numvideodisplays);
 
     if (numvideodisplays <= 0)
@@ -443,7 +443,7 @@ void Graphics::SetSRGB(bool enable)
     {
         sRGB_ = enable;
         impl_->swapChainDirty_ = true;
-        URHO3D_LOGERRORF("Graphics() - SetSRGB ...");
+        URHO3D_LOGDEBUGF("Graphics() - SetSRGB ...");
         impl_->UpdateSwapChain(width_, height_, &sRGB_);
     }
 }
@@ -513,7 +513,7 @@ bool Graphics::BeginFrame()
 
     if (impl_->swapChainDirty_)
     {
-        URHO3D_LOGERRORF("Graphics() - BeginFrame ...");
+        URHO3D_LOGERRORF("Graphics() - BeginFrame ... swapChainDirty_");
         impl_->UpdateSwapChain(width_, height_, &sRGB_);
     }
 
@@ -2135,7 +2135,7 @@ void Graphics::OnWindowResized()
 
     if ((uint32_t)width_ != impl_->swapChainExtent_.width || (uint32_t)height_ != impl_->swapChainExtent_.height)
     {
-        URHO3D_LOGERRORF("Graphics() - OnWindowResized ...");
+        URHO3D_LOGDEBUGF("Graphics() - OnWindowResized ...");
         impl_->UpdateSwapChain(width_, height_, &sRGB_);
 
         URHO3D_LOGDEBUGF("Window was resized to %dx%d sRGB=%u", width_, height_, sRGB_);
@@ -2229,7 +2229,7 @@ void Graphics::Release(bool clearGPUObjects, bool closeWindow)
     if (!window_)
         return;
 
-    URHO3D_LOGERRORF("Graphics - Release(%s, %s) ...", clearGPUObjects ? "true":"false", closeWindow ? "true":"false");
+    URHO3D_LOGDEBUGF("Graphics - Release(%s, %s) ...", clearGPUObjects ? "true":"false", closeWindow ? "true":"false");
 
 //    if (impl_->device_)
 //        vkDeviceWaitIdle(impl_->device_);
@@ -2293,7 +2293,7 @@ void Graphics::Release(bool clearGPUObjects, bool closeWindow)
         }
     }
 
-    URHO3D_LOGERRORF("Graphics - Release() !");
+    URHO3D_LOGDEBUG("Graphics - Release() !");
 }
 
 void Graphics::Restore()

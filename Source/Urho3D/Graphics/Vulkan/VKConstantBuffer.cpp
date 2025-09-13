@@ -50,7 +50,7 @@ void ConstantBuffer::Release()
         vkDestroyBuffer(graphics_->GetImpl()->GetDevice(), (VkBuffer)object_.buffer_, 0);
         object_.memory_ = VK_NULL_HANDLE;
     #endif
-        URHO3D_LOGERRORF("Release constant buffer size=%u !", size_);
+        URHO3D_LOGDEBUGF("Release constant buffer size=%u !", size_);
     }
 
     object_.buffer_ = 0;

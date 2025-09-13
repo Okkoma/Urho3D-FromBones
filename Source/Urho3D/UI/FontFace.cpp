@@ -130,7 +130,7 @@ void FontFace::AddCustomTexture(Texture2D* texture)
 {
     textures_.Push(SharedPtr<Texture2D>(texture));
 
-    URHO3D_LOGERRORF("FontFace() - AddCustomTexture : texture=%s", String((void*)texture).CString());
+    URHO3D_LOGDEBUGF("FontFace() - AddCustomTexture : texture=%s", String((void*)texture).CString());
 }
 
 }

@@ -702,7 +702,7 @@ void PipelineBuilder::AddDynamicState(VkDynamicState state)
 void PipelineBuilder::SetMultiSampleState(int p)
 {
     int samples = Min(1 << p, VK_SAMPLE_COUNT_64_BIT);
-    URHO3D_LOGDEBUGF("multisample = numSamples=%d (puissance=%d)", samples, p);
+    //URHO3D_LOGDEBUGF("multisample = numSamples=%d (puissance=%d)", samples, p);
     multiSampleState_.sampleShadingEnable  = p > 0 ? VK_TRUE : VK_FALSE;
     multiSampleState_.rasterizationSamples = (VkSampleCountFlagBits)(samples);
     //multiSampleState_.sampleShadingEnable  = VK_FALSE;
@@ -2796,7 +2796,7 @@ void GraphicsImpl::DestroyAttachment(RenderAttachment& attachment)
     if (attachment.slot_ == RENDERSLOT_NONE)
         return;
 
-    URHO3D_LOGINFOF("DestroyAttachment slot=%s(%d) !", RenderSlotTypeStr[attachment.slot_], attachment.slot_);
+    URHO3D_LOGDEBUGF("DestroyAttachment slot=%s(%d) !", RenderSlotTypeStr[attachment.slot_], attachment.slot_);
 
     if (attachment.slot_ > RENDERSLOT_PRESENT)
     {
@@ -3403,11 +3403,11 @@ PipelineInfo* GraphicsImpl::RegisterPipelineInfo(unsigned renderPassKey, ShaderV
         table.Resize(stencilValue_ + 1);
     table[stencilValue_] = &info;
 
-    URHO3D_LOGERRORF("RegisterPipelineInfo name=%s key=%u keyname=%s ...", vs->GetName().CString(), key.Value(), keyname.CString());
-    URHO3D_LOGERRORF("                     renderPassKey=%u ...", renderPassKey);
-    URHO3D_LOGERRORF("                     %s vs=%s(%u)", vs->GetCachedFileName().CString(), vs->GetDefines().CString(), vs->GetVariationHash().Value());
-    URHO3D_LOGERRORF("                     %s ps=%s(%u)", ps->GetCachedFileName().CString(), ps->GetDefines().CString(), ps->GetVariationHash().Value());
-    URHO3D_LOGERRORF("                     states=%u(%s) stencilValue=%u", states, DumpPipelineStates(states).CString(), stencilValue_);
+    URHO3D_LOGDEBUGF("RegisterPipelineInfo name=%s key=%u keyname=%s ...", vs->GetName().CString(), key.Value(), keyname.CString());
+    URHO3D_LOGDEBUGF("                     renderPassKey=%u ...", renderPassKey);
+    URHO3D_LOGDEBUGF("                     %s vs=%s(%u)", vs->GetCachedFileName().CString(), vs->GetDefines().CString(), vs->GetVariationHash().Value());
+    URHO3D_LOGDEBUGF("                     %s ps=%s(%u)", ps->GetCachedFileName().CString(), ps->GetDefines().CString(), ps->GetVariationHash().Value());
+    URHO3D_LOGDEBUGF("                     states=%u(%s) stencilValue=%u", states, DumpPipelineStates(states).CString(), stencilValue_);
 
     return &info;
 }
@@ -3479,7 +3479,7 @@ VkPipeline GraphicsImpl::CreatePipeline(PipelineInfo* info)
     int stencilmode         = GetPipelineStateInternal(info, PIPELINESTATE_STENCILMODE);
     int samples             = GetPipelineStateInternal(info, PIPELINESTATE_SAMPLES);
 
-    URHO3D_LOGERRORF("CreatePipeline name=%s key=%u vs=%s ps=%s prim=%d fill=%d cull=%d linew=%F blend=%u colorwrite=%s depthtest=%d depthwrite=%s depthenable=%s stencil=%s stencilvalue=%u samples=%d",
+    URHO3D_LOGINFOF("CreatePipeline name=%s key=%u vs=%s ps=%s prim=%d fill=%d cull=%d linew=%F blend=%u colorwrite=%s depthtest=%d depthwrite=%s depthenable=%s stencil=%s stencilvalue=%u samples=%d",
                      info->vs_->GetName().CString(), info->key_.Value(), info->vs_->GetDefines().CString(),
                      info->ps_->GetDefines().CString(), primitive, fillmode, cullmode, LineWidthValues_[linewidth], blendmode, colormask ? "true":"false", depthtest, depthwrite ? "true":"false",
                      depthenable ? "true":"false", stenciltest ? "true":"false", info->stencilValue_, samples);
@@ -3698,7 +3698,7 @@ void GraphicsImpl::DumpRegisteredPipelineInfo() const
                            info.ps_ ? info.ps_->GetDefines().CString() : "null");
     }
 
-    URHO3D_LOGERRORF("%s", s.CString());
+    URHO3D_LOGINFOF("%s", s.CString());
 }
 
 // Presentation

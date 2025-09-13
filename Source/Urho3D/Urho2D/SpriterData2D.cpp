@@ -82,7 +82,8 @@ SpriterData::~SpriterData()
 
 void SpriterData::Register()
 {
-    URHO3D_LOGERRORF("SpriterData() - Register");
+    URHO3D_LOGDEBUGF("SpriterData() - Register");
+    
 #ifdef USE_KEYPOOLS
     KeyPool::Create<BoneTimelineKey>(10000);
     KeyPool::Create<SpriteTimelineKey>(20000);

@@ -82,18 +82,18 @@ Scene::Scene(Context* context) :
 
 Scene::~Scene()
 {
-	URHO3D_LOGINFO("~Scene() ...");
+	URHO3D_LOGDEBUG("~Scene() ...");
 
     // Remove scene reference and owner from all nodes that still exist
 	if (localNodes_.Size())
 	{
-		URHO3D_LOGINFOF("~Scene() ... %u Local Nodes", localNodes_.Size());
+		URHO3D_LOGDEBUGF("~Scene() ... %u Local Nodes", localNodes_.Size());
 		for (HashMap<unsigned, Node*>::Iterator i = localNodes_.Begin(); i != localNodes_.End(); ++i)
 			if (i->second_) i->second_->ResetScene();
 	}
 	if (replicatedNodes_.Size())
 	{
-		URHO3D_LOGINFOF("~Scene() ... %u Replicate Nodes", replicatedNodes_.Size());
+		URHO3D_LOGDEBUGF("~Scene() ... %u Replicate Nodes", replicatedNodes_.Size());
 		for (HashMap<unsigned, Node*>::Iterator i = replicatedNodes_.Begin(); i != replicatedNodes_.End(); ++i)
 			if (i->second_) i->second_->ResetScene();
 	}
@@ -112,7 +112,7 @@ Scene::~Scene()
 		RemoveChild(children_.Begin() + i);
 	}
 
-	URHO3D_LOGINFO("~Scene() ... OK !");
+	URHO3D_LOGDEBUG("~Scene() ... OK !");
 }
 
 void Scene::RegisterObject(Context* context)

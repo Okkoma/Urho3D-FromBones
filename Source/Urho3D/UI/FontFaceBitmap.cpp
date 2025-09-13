@@ -129,7 +129,7 @@ bool FontFaceBitmap::Load(const unsigned char* fontData, unsigned fontDataSize, 
 //            if (!texture)
 //                return 0;
 
-            URHO3D_LOGERRORF("Load Font Bitmap from %s wait for adding custom texture", textureFile.CString());
+            URHO3D_LOGDEBUGF("Load Font Bitmap from %s wait for adding custom texture", textureFile.CString());
 
 //            textures_.Push(texture);
         }

@@ -147,7 +147,7 @@ bool Texture2D::SetData(unsigned level, int x, int y, int width, int height, con
     bool wholeLevel = x == 0 && y == 0 && width == levelWidth && height == levelHeight;
     unsigned format = GetSRGB() ? GetSRGBFormat(format_) : format_;
 
-    URHO3D_LOGERRORF("SetData ... name=%s level=%u (numlevels=%u) srgb=%u format=%u ...",
+    URHO3D_LOGDEBUGF("SetData ... name=%s level=%u (numlevels=%u) srgb=%u format=%u ...",
                      GetName().CString(), level, levels_, GetSRGB(), format);
 
     if (!IsCompressed())
@@ -241,7 +241,7 @@ bool Texture2D::SetData(Image* image, bool useAlpha)
         if (!object_.name_)
             return false;
 
-		URHO3D_LOGERRORF("SetData ... From Image name=%s (numlevels=%u) requestedLevels=%u srgb=%u format=%u ...",
+		URHO3D_LOGDEBUGF("SetData ... From Image name=%s (numlevels=%u) requestedLevels=%u srgb=%u format=%u ...",
                      GetName().CString(), levels_, requestedLevels_, GetSRGB(), format);
 
         for (unsigned i = 0; i < levels_; ++i)
@@ -273,7 +273,7 @@ bool Texture2D::SetData(Image* image, bool useAlpha)
             needDecompress = true;
         }
 
-		URHO3D_LOGERRORF("SetData ... From Compressed Image name=%s numCompressedlevels=%u (numlevels=%u) srgb=%u format=%u needCompress=%s ...",
+		URHO3D_LOGDEBUGF("SetData ... From Compressed Image name=%s numCompressedlevels=%u (numlevels=%u) srgb=%u format=%u needCompress=%s ...",
                      GetName().CString(), levels, levels_, GetSRGB(), format, needDecompress ? "true":"false");
 
         unsigned mipsToSkip = mipsToSkip_[quality];

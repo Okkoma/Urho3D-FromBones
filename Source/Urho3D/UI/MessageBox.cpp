@@ -109,7 +109,7 @@ MessageBox::MessageBox(Context* context, const String& messageString, const Stri
 
 MessageBox::~MessageBox()
 {
-//    URHO3D_LOGINFO("~MessageBox()");
+//    URHO3D_LOGDEBUG("~MessageBox()");
     // This would remove the UI-element regardless of whether it is parented to UI's root or UI's modal-root
     if (window_)
         window_->Remove();
