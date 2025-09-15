@@ -86,7 +86,7 @@ Graphics::Graphics(Context* context) :
     monitor_(0),
     refreshRate_(0),
     tripleBuffer_(false),
-    sRGB_(false),
+    sRGB_(true),
     forceGL2_(false),
     instancingSupport_(false),
     lightPrepassSupport_(false),
@@ -177,10 +177,37 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
 
     multiSample = Clamp(multiSample, 1, 16);
 
+    unsigned fullscreenflag = 0;
+    int renderscale = defaultViewRenderScale_;
+    if (fullscreen)
+    {
+        fullscreenflag = defaultFullscreenMode_;
+        // Use Desktop Mode on wayland
+        if (strcmp(SDL_GetCurrentVideoDriver(), "wayland") == 0)
+            fullscreenflag = SDL_WINDOW_FULLSCREEN_DESKTOP;
+        // Fix issue 'X11_XRRSetCrtcConfig failed' with fullscreen on X11 multiple screens
+        else if (strcmp(SDL_GetCurrentVideoDriver(), "x11") == 0 && numvideodisplays > 1)
+            fullscreenflag = SDL_WINDOW_FULLSCREEN_DESKTOP;
+
+        if (fullscreenflag == SDL_WINDOW_FULLSCREEN_DESKTOP)
+        {
+            SDL_DisplayMode desktopMode;
+            SDL_GetDesktopDisplayMode(monitor, &desktopMode);
+            renderscale = desktopMode.h > height ? desktopMode.h / height + (desktopMode.h % height ? 1 : 0) : 1; 
+            URHO3D_LOGDEBUGF("Graphics() - Use fullscreen desktop mode=%dx%d (%dx%d) renderscale=%d(%d)", 
+                    desktopMode.w, desktopMode.h, width, height, renderscale, GetViewRenderScale());
+            
+            width = desktopMode.w;
+            height = desktopMode.h;
+        }
+    }
+
     if (IsInitialized() && width == width_ && height == height_ && fullscreen == fullscreen_ && borderless == borderless_ &&
         resizable == resizable_ && vsync == vsync_ && tripleBuffer == tripleBuffer_ && multiSample == multiSample_ &&
-        monitor == monitor_ && refreshRate == refreshRate_)
+        monitor == monitor_ && refreshRate == refreshRate_ && renderscale == GetViewRenderScale())
         return true;
+
+    UpdateViewRenderRatio(renderscale); 
 
     // If zero dimensions in windowed mode, set windowed mode to maximize and set a predefined default restored window size.
     // If zero in fullscreen, use desktop mode
@@ -201,60 +228,34 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
         }
     }
 
-    unsigned fullscreenflag = 0;
-    int renderscale = defaultViewRenderScale_;
-    if (fullscreen)
+#ifdef DESKTOP_GRAPHICS
+    // Check fullscreen mode validity (desktop only). Use a closest match if not found
+    if (fullscreen && fullscreenflag == SDL_WINDOW_FULLSCREEN)
     {
-        fullscreenflag = defaultFullscreenMode_;
-        // Use Desktop Mode on wayland
-        if (strcmp(SDL_GetCurrentVideoDriver(), "wayland") == 0)
-            fullscreenflag = SDL_WINDOW_FULLSCREEN_DESKTOP;
-        // Fix issue 'X11_XRRSetCrtcConfig failed' with fullscreen on X11 multiple screens
-        else if (strcmp(SDL_GetCurrentVideoDriver(), "x11") == 0 && numvideodisplays > 1)
-            fullscreenflag = SDL_WINDOW_FULLSCREEN_DESKTOP;
+        PODVector<IntVector3> resolutions = GetResolutions(monitor);
+        if (resolutions.Size())
+        {
+            unsigned best = 0;
+            unsigned bestError = M_MAX_UNSIGNED;
 
-        if (fullscreenflag == SDL_WINDOW_FULLSCREEN_DESKTOP)
-        {
-            SDL_DisplayMode desktopMode;
-            SDL_GetDesktopDisplayMode(monitor, &desktopMode);
-            renderscale = desktopMode.h > height ? desktopMode.h / height + (desktopMode.h % height ? 1 : 0) : 1; 
-            URHO3D_LOGDEBUGF("Graphics() - Use fullscreen desktop mode=%dx%d (%dx%d) renderscale=%d(%d)", 
-                    desktopMode.w, desktopMode.h, width, height, renderscale, defaultViewRenderScale_);
-            
-            width = desktopMode.w;
-            height = desktopMode.h;
-        }
-        // Check fullscreen mode validity (desktop only). Use a closest match if not found
-    #ifdef DESKTOP_GRAPHICS
-        else
-        {
-            PODVector<IntVector3> resolutions = GetResolutions(monitor);
-            if (resolutions.Size())
+            for (unsigned i = 0; i < resolutions.Size(); ++i)
             {
-                unsigned best = 0;
-                unsigned bestError = M_MAX_UNSIGNED;
-
-                for (unsigned i = 0; i < resolutions.Size(); ++i)
+                unsigned error = (unsigned)(Abs(resolutions[i].x_ - width) + Abs(resolutions[i].y_ - height));
+                if (refreshRate != 0)
+                    error += (unsigned)(Abs(resolutions[i].z_ - refreshRate));
+                if (error < bestError)
                 {
-                    unsigned error = (unsigned)(Abs(resolutions[i].x_ - width) + Abs(resolutions[i].y_ - height));
-                    if (refreshRate != 0)
-                        error += (unsigned)(Abs(resolutions[i].z_ - refreshRate));
-                    if (error < bestError)
-                    {
-                        best = i;
-                        bestError = error;
-                    }
+                    best = i;
+                    bestError = error;
                 }
-
-                width = resolutions[best].x_;
-                height = resolutions[best].y_;
-                refreshRate = resolutions[best].z_;
             }
-        }
-    #endif
-    }
 
-    UpdateViewRenderRatio(renderscale); 
+            width = resolutions[best].x_;
+            height = resolutions[best].y_;
+            refreshRate = resolutions[best].z_;
+        }            
+    }
+#endif
 
     // With an external window, only the size can change after initial setup, so do not recreate context
     if (!externalWindow_ || !impl_->GetInstance())
@@ -380,7 +381,7 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
     SDL_GetWindowPosition(window_, &position_.x_, &position_.y_);
 
     // Recreate the SwapChain
-    URHO3D_LOGDEBUGF("Graphics() - update swapchain ... %dx%d", width_, height_);
+    URHO3D_LOGDEBUGF("Graphics() - update swapchain ... %dx%d sRGB=%d vSync=%d", width_, height_, sRGB_, vsync_);
     impl_->UpdateSwapChain(width_, height_, &sRGB_, &vsync_, &tripleBuffer_);
 
     // Get the size of the window in pixel
@@ -587,11 +588,14 @@ void Graphics::EndFrame()
 
 void Graphics::Clear(unsigned flags, const Color& color, float depth, unsigned stencil)
 {
-    impl_->SetClearValue(color, depth, stencil);
+    if (flags & CLEAR_COLOR)
+        impl_->SetClearColor(color);
+    if (flags & (CLEAR_DEPTH|CLEAR_STENCIL))
+        impl_->SetClearDepthStencil(depth, stencil);
 
-#ifdef URHO3D_VULKAN_USE_SEPARATE_CLEARPASS
+//#ifdef URHO3D_VULKAN_USE_SEPARATE_CLEARPASS
     PrepareDraw();
-#endif
+//#endif
 }
 
 bool Graphics::ResolveToTexture(Texture2D* destination, const IntRect& viewport)
@@ -2851,7 +2855,7 @@ void Graphics::PrepareDraw()
 
     // Set Descriptors.
 #ifdef ACTIVE_DESCRIPTOR_UPDATEANDBIND_NEW
-    if (impl_->pipelineInfo_ && impl_->pipelineInfo_->descriptorsGroups_.Size())
+    if (vertexShader_ && impl_->pipelineInfo_ && impl_->pipelineInfo_->descriptorsGroups_.Size())
     {
         const unsigned MaxBindingsBySet = 16;
         const unsigned numDescriptorSets = impl_->pipelineInfo_->descriptorsGroups_.Size();

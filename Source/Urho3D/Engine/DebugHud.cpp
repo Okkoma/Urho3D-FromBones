@@ -199,13 +199,23 @@ void DebugHud::Update()
     }
 
     if (envText_->IsVisible())
-    {
+    {        
+        String renderscale;
+        if (graphics->GetViewRenderScale() != 1)
+            renderscale.AppendWithFormat("%dx%d",
+                graphics->GetWidth() / graphics->GetViewRenderScale(), 
+                graphics->GetHeight() / graphics->GetViewRenderScale()
+            );
+
         String env;
-        env.AppendWithFormat("Platform:%s OS:%s Vdisplay:%s Gapi:%s", 
+        env.AppendWithFormat("Platform:%s Display:%s Api:%s %s %s(%dx%d)", 
             GetPlatform().CString(),
-            GetOSVersion().CString(),
             graphics->GetVideoDriverName().CString(),
-            graphics->GetApiName().CString()
+            graphics->GetApiName().CString(),
+            graphics->GetFullscreen() ? "Fullscreen" : "Windowed",
+            renderscale.CString(),
+            graphics->GetWidth(),
+            graphics->GetHeight()        
             );
 
         envText_->SetText(env);

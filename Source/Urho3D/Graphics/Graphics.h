@@ -129,7 +129,7 @@ public:
     /// End frame rendering and swap buffers.
     void EndFrame();
     /// Clear any or all of rendertarget, depth buffer and stencil buffer.
-    void Clear(unsigned flags, const Color& color = Color(0.0f, 0.0f, 0.0f, 0.0f), float depth = 1.0f, unsigned stencil = 0);
+    void Clear(unsigned flags, const Color& color = Color(0.0f, 0.0f, 0.0f, 1.0f), float depth = 1.0f, unsigned stencil = 0);
     /// Resolve multisampled backbuffer to a texture rendertarget. The texture's size should match the viewport size.
     bool ResolveToTexture(Texture2D* destination, const IntRect& viewport);
     /// Resolve a multisampled texture on itself.
@@ -211,6 +211,7 @@ public:
     /// FromBones upscaling : Set View render scale and ratio (inverse of scale and clamped)
     void SetDefaultViewRenderScale(int renderscale);
     int GetDefaultViewRenderScale() const { return defaultViewRenderScale_; }
+    int GetViewRenderScale() const { return (int)(1.f / viewRenderRatio_); }
     void UpdateViewRenderRatio(int renderscale);
     /// Reset all rendertargets, depth-stencil surface and viewport.
     void ResetRenderTargets();

@@ -333,20 +333,47 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
 
     multiSample = Clamp(multiSample, 1, 16);
 
+    unsigned fullscreenflag = 0;
+    int renderscale = defaultViewRenderScale_;
+    if (fullscreen)
+    {
+        fullscreenflag = defaultFullscreenMode_;
+        // Use Desktop Mode on wayland
+        if (strcmp(SDL_GetCurrentVideoDriver(), "wayland") == 0)
+            fullscreenflag = SDL_WINDOW_FULLSCREEN_DESKTOP;
+        // Fix issue 'X11_XRRSetCrtcConfig failed' with fullscreen on X11 multiple screens
+        else if (strcmp(SDL_GetCurrentVideoDriver(), "x11") == 0 && numvideodisplays > 1)
+            fullscreenflag = SDL_WINDOW_FULLSCREEN_DESKTOP;
+
+        if (fullscreenflag == SDL_WINDOW_FULLSCREEN_DESKTOP)
+        {
+            SDL_DisplayMode desktopMode;
+            SDL_GetDesktopDisplayMode(monitor, &desktopMode);
+            renderscale = desktopMode.h > height ? desktopMode.h / height + (desktopMode.h % height ? 1 : 0) : 1; 
+            URHO3D_LOGDEBUGF("Graphics() - Use fullscreen desktop mode=%dx%d (%dx%d) renderscale=%d(%d)", 
+                    desktopMode.w, desktopMode.h, width, height, renderscale, GetViewRenderScale());
+            
+            width = desktopMode.w;
+            height = desktopMode.h;
+        }
+    }
+
     if (IsInitialized() && width == width_ && height == height_ && fullscreen == fullscreen_ && borderless == borderless_ &&
         resizable == resizable_ && vsync == vsync_ && tripleBuffer == tripleBuffer_ && multiSample == multiSample_ &&
-        monitor == monitor_ && refreshRate == refreshRate_)
+        monitor == monitor_ && refreshRate == refreshRate_ && renderscale == GetViewRenderScale())
         return true;
 
     // If only vsync changes, do not destroy/recreate the context
     if (IsInitialized() && width == width_ && height == height_ && fullscreen == fullscreen_ && borderless == borderless_ &&
         resizable == resizable_ && tripleBuffer == tripleBuffer_ && multiSample == multiSample_ && monitor == monitor_ &&
-        refreshRate == refreshRate_ && vsync != vsync_)
+        refreshRate == refreshRate_ && vsync != vsync_ && renderscale == GetViewRenderScale()) 
     {
         SDL_GL_SetSwapInterval(vsync ? 1 : 0);
         vsync_ = vsync;
         return true;
     }
+
+    UpdateViewRenderRatio(renderscale); 
 
     // If zero dimensions in windowed mode, set windowed mode to maximize and set a predefined default restored window size.
     // If zero in fullscreen, use desktop mode
@@ -367,60 +394,34 @@ bool Graphics::SetMode(int width, int height, bool fullscreen, bool borderless, 
         }
     }
 
-    unsigned fullscreenflag = 0;
-    int renderscale = defaultViewRenderScale_;
-    if (fullscreen)
+#ifdef DESKTOP_GRAPHICS
+    // Check fullscreen mode validity (desktop only). Use a closest match if not found
+    if (fullscreen && fullscreenflag == SDL_WINDOW_FULLSCREEN)
     {
-        fullscreenflag = defaultFullscreenMode_;
-        // Use Desktop Mode on wayland
-        if (strcmp(SDL_GetCurrentVideoDriver(), "wayland") == 0)
-            fullscreenflag = SDL_WINDOW_FULLSCREEN_DESKTOP;
-        // Fix issue 'X11_XRRSetCrtcConfig failed' with fullscreen on X11 multiple screens
-        else if (strcmp(SDL_GetCurrentVideoDriver(), "x11") == 0 && numvideodisplays > 1)
-            fullscreenflag = SDL_WINDOW_FULLSCREEN_DESKTOP;
+        PODVector<IntVector3> resolutions = GetResolutions(monitor);
+        if (resolutions.Size())
+        {
+            unsigned best = 0;
+            unsigned bestError = M_MAX_UNSIGNED;
 
-        if (fullscreenflag == SDL_WINDOW_FULLSCREEN_DESKTOP)
-        {
-            SDL_DisplayMode desktopMode;
-            SDL_GetDesktopDisplayMode(monitor, &desktopMode);
-            renderscale = desktopMode.h > height ? desktopMode.h / height + (desktopMode.w % height ? 1 : 0) : 1; 
-            URHO3D_LOGDEBUGF("Graphics() - Use fullscreen desktop mode=%dx%d (%dx%d) renderscale=%d(%d)", 
-                    desktopMode.w, desktopMode.h, width, height, renderscale, defaultViewRenderScale_);
-            
-            width = desktopMode.w;
-            height = desktopMode.h;
-        }
-        // Check fullscreen mode validity (desktop only). Use a closest match if not found
-    #ifdef DESKTOP_GRAPHICS
-        else
-        {
-            PODVector<IntVector3> resolutions = GetResolutions(monitor);
-            if (resolutions.Size())
+            for (unsigned i = 0; i < resolutions.Size(); ++i)
             {
-                unsigned best = 0;
-                unsigned bestError = M_MAX_UNSIGNED;
-
-                for (unsigned i = 0; i < resolutions.Size(); ++i)
+                unsigned error = (unsigned)(Abs(resolutions[i].x_ - width) + Abs(resolutions[i].y_ - height));
+                if (refreshRate != 0)
+                    error += (unsigned)(Abs(resolutions[i].z_ - refreshRate));
+                if (error < bestError)
                 {
-                    unsigned error = (unsigned)(Abs(resolutions[i].x_ - width) + Abs(resolutions[i].y_ - height));
-                    if (refreshRate != 0)
-                        error += (unsigned)(Abs(resolutions[i].z_ - refreshRate));
-                    if (error < bestError)
-                    {
-                        best = i;
-                        bestError = error;
-                    }
+                    best = i;
+                    bestError = error;
                 }
-
-                width = resolutions[best].x_;
-                height = resolutions[best].y_;
-                refreshRate = resolutions[best].z_;
             }
-        }
-    #endif
-    }
 
-    UpdateViewRenderRatio(renderscale); 
+            width = resolutions[best].x_;
+            height = resolutions[best].y_;
+            refreshRate = resolutions[best].z_;
+        }
+    }
+#endif
 
     // With an external window, only the size can change after initial setup, so do not recreate context
     if (!externalWindow_ || !impl_->context_)

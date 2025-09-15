@@ -52,7 +52,7 @@
 //#define ACTIVE_FRAMELOGDEBUG
 //#define DEBUG_VULKANCOMMANDS
 
-#define URHO3D_VULKAN_BEGINFRAME_WITH_CLEARPASS
+//#define URHO3D_VULKAN_BEGINFRAME_WITH_CLEARPASS
 //#define URHO3D_VULKAN_USE_SEPARATE_CLEARPASS
 
 
@@ -507,7 +507,9 @@ public:
 	void SetViewports();
 	void SetViewport(int viewport, const IntRect& rect=IntRect::ZERO);
 
-    void SetClearValue(const Color& c, float depth, unsigned stencil);
+    // Clearing
+    void SetClearColor(const Color& c);
+    void SetClearDepthStencil(float depth, unsigned stencil);
 
 	/// Getters
     const char* GetRenderPassTypeName(unsigned type);

@@ -1171,6 +1171,7 @@ GraphicsImpl::GraphicsImpl() :
     renderPassInfo_(nullptr),
     viewportTexture_(nullptr),
     renderPassIndex_(-1),
+    subpassIndex_(-1),
     viewportIndex_(0),
     fboDirty_(false)
 {
@@ -1241,12 +1242,12 @@ bool GraphicsImpl::CreateVulkanInstance(Context* context, const String& appname,
     // Get required extensions for the SDL window context
 	PODVector<const char*> contextExtensions;
     {
-    unsigned int extensionCount = 0;
-    SDL_Vulkan_GetInstanceExtensions(window, &extensionCount, 0);
-    if (!extensionCount)
-    {
-        URHO3D_LOGERRORF("Unable to query the number of Vulkan instance extension names !");
-        return false;
+        unsigned int extensionCount = 0;
+        SDL_Vulkan_GetInstanceExtensions(window, &extensionCount, 0);
+        if (!extensionCount)
+        {
+            URHO3D_LOGERRORF("Unable to query the number of Vulkan instance extension names !");
+            return false;
 		}
 		contextExtensions.Resize(extensionCount);
 		SDL_Vulkan_GetInstanceExtensions(window, &extensionCount, contextExtensions.Buffer());
@@ -1996,16 +1997,15 @@ bool GraphicsImpl::CreateSwapChain(int width, int height, bool* srgb, bool* vsyn
     numimages = Clamp(numimages, (unsigned int)physicalInfo_.surfaceCapabilities_.minImageCount,
                       (unsigned int)physicalInfo_.surfaceCapabilities_.maxImageCount);
 
-
     VkSurfaceTransformFlagBitsKHR transform    = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;//physicalInfo_.surfaceCapabilities_.currentTransform;
     VkCompositeAlphaFlagBitsKHR compositeAlpha = physicalInfo_.surfaceCapabilities_.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR ? 
                                                     VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR : VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
 
-    URHO3D_LOGDEBUGF("Create swapchain numimages=%u (min=%u max=%u) required=%ux%u capabilities=%ux%u => %ux%u srgb=%s surfaceFormat=%u colorSpace=%u compAlpha=%u(%u)...",
+    URHO3D_LOGDEBUGF("Create swapchain numimages=%u (min=%u max=%u) required=%ux%u capabilities=%ux%u => %ux%u srgb=%s vsync=%s surfaceFormat=%u colorSpace=%u compAlpha=%u(%u)...",
                      numimages, physicalInfo_.surfaceCapabilities_.minImageCount, physicalInfo_.surfaceCapabilities_.maxImageCount,
                      width, height, physicalInfo_.surfaceCapabilities_.maxImageExtent.width, physicalInfo_.surfaceCapabilities_.maxImageExtent.height,
-                     swapChainExtent_.width, swapChainExtent_.height, srgb && (*srgb == true) ? "true":"false", swapChainInfo_.format, swapChainInfo_.colorSpace,
-                     compositeAlpha, physicalInfo_.surfaceCapabilities_.supportedCompositeAlpha
+                     swapChainExtent_.width, swapChainExtent_.height, srgb && (*srgb == true) ? "true":"false", vsync && (*vsync == true) ? "true":"false",
+                     swapChainInfo_.format, swapChainInfo_.colorSpace, compositeAlpha, physicalInfo_.surfaceCapabilities_.supportedCompositeAlpha
                     );
 
     // set the queue sharing mode.
@@ -3250,18 +3250,23 @@ void GraphicsImpl::SetViewports()
     UpdateViewportAttachments();
 }
 
-void GraphicsImpl::SetClearValue(const Color& c, float depth, unsigned stencil)
+// Clear Values
+void GraphicsImpl::SetClearColor(const Color& c)
 {
 #ifdef ACTIVE_FRAMELOGDEBUG
     if (frame_ && frame_->id_ == 0)
-        URHO3D_LOGDEBUGF("GraphicsImpl() - SetClearValue : r:%F g:%F b:%F a:%F d:%F s:%u ...", c.r_, c.g_, c.b_, c.a_, depth, stencil);
+        URHO3D_LOGDEBUGF("GraphicsImpl() - SetClearColor : r:%F g:%F b:%F a:%F d:%F s:%u ...", c.r_, c.g_, c.b_, c.a_, depth, stencil);
 #endif
     clearColor_.color.float32[0] = c.r_;
     clearColor_.color.float32[1] = c.g_;
     clearColor_.color.float32[2] = c.b_;
-    clearColor_.color.float32[3] = c.a_;   
+    clearColor_.color.float32[3] = c.a_;
+}
+
+void GraphicsImpl::SetClearDepthStencil(float depth, unsigned stencil)
+{
     clearDepth_.depthStencil.depth = depth;
-    clearDepth_.depthStencil.stencil = stencil;   
+    clearDepth_.depthStencil.stencil = stencil;
 }
 
 // Pipeline
