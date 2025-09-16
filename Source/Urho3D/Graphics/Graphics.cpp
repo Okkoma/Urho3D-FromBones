@@ -213,8 +213,8 @@ PODVector<IntVector3> Graphics::GetResolutions(int monitor) const
     // Emscripten is not able to return a valid list
 #ifndef __EMSCRIPTEN__
     // Prune resolutions on fullscreen desktop mode : 
-    // keep resolutions for which the height of the desktop resoution is an integer multiple.
-    bool pruneResolutions = (SDL_GetWindowFlags(window_) & SDL_WINDOW_FULLSCREEN_DESKTOP);    
+    // keep resolutions for which the height of the desktop resolution is an integer multiple.
+    bool pruneResolutions = (SDL_GetWindowFlags(window_) & SDL_WINDOW_FULLSCREEN_DESKTOP) != SDL_WINDOW_FULLSCREEN;    
     IntVector2 desktopResolution = GetDesktopResolution(monitor_);
     int desktopRefreshRate = GetRefreshRate();
 
