@@ -47,7 +47,7 @@
 #include <typeinfo>
 #include <typeindex>
 
-#define NUMDESCRIPTORSETS 100
+#define NUMDESCRIPTORSETS 200
 
 //#define ACTIVE_FRAMELOGDEBUG
 //#define DEBUG_VULKANCOMMANDS
