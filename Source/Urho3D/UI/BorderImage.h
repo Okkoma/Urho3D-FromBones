@@ -113,6 +113,8 @@ protected:
     IntRect imageBorder_;
     /// Offset to image rectangle on hover.
     IntVector2 hoverOffset_;
+    /// FromBones hoverColor
+    unsigned hoverColor_;
     /// Blend mode flag.
     BlendMode blendMode_;
     /// Tiled flag.

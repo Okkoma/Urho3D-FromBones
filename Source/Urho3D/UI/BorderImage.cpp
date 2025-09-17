@@ -44,6 +44,7 @@ BorderImage::BorderImage(Context* context) :
     border_(IntRect::ZERO),
     imageBorder_(IntRect::ZERO),
     hoverOffset_(IntVector2::ZERO),
+    hoverColor_(0U),
     blendMode_(BLEND_REPLACE),
     tiled_(false)
 {
@@ -67,6 +68,7 @@ void BorderImage::RegisterObject(Context* context)
     URHO3D_ACCESSOR_ATTRIBUTE("Image Border", GetImageBorder, SetImageBorder, IntRect, IntRect::ZERO, AM_FILE);
     URHO3D_ACCESSOR_ATTRIBUTE("Hover Image Offset", GetHoverOffset, SetHoverOffset, IntVector2, IntVector2::ZERO, AM_FILE);
     URHO3D_ACCESSOR_ATTRIBUTE("Sprite Hover", GetEmptyAttr, SetSpriteHover, String, String::EMPTY, AM_DEFAULT);
+    URHO3D_ATTRIBUTE("Sprite Hover Color", unsigned, hoverColor_, 0U, AM_FILE);
     URHO3D_ACCESSOR_ATTRIBUTE("Tiled", IsTiled, SetTiled, bool, false, AM_FILE);
     URHO3D_ENUM_ACCESSOR_ATTRIBUTE("Blend Mode", GetBlendMode, SetBlendMode, BlendMode, blendModeNames, 0, AM_FILE);
 }
@@ -216,46 +218,48 @@ void BorderImage::GetBatches(PODVector<UIBatch>& batches, PODVector<float>& vert
     IntVector2 uvTopLeft(imageRect_.left_, imageRect_.top_);
     uvTopLeft += offset;
 
+    unsigned color = hovering_ ? hoverColor_ : 0;
+
     // Top
     if (border_.top_)
     {
         if (border_.left_)
-            batch.AddQuad(x, 0, border_.left_, border_.top_, uvTopLeft.x_, uvTopLeft.y_, uvBorder.left_, uvBorder.top_);
+            batch.AddQuad(x, 0, border_.left_, border_.top_, uvTopLeft.x_, uvTopLeft.y_, uvBorder.left_, uvBorder.top_, color);
         if (innerSize.x_)
             batch.AddQuad(x + border_.left_, 0, innerSize.x_, border_.top_, uvTopLeft.x_ + uvBorder.left_, uvTopLeft.y_,
-                innerUvSize.x_, uvBorder.top_, tiled_);
+                innerUvSize.x_, uvBorder.top_, tiled_, color);
         if (border_.right_)
             batch.AddQuad(x + border_.left_ + innerSize.x_, 0, border_.right_, border_.top_,
-                uvTopLeft.x_ + uvBorder.left_ + innerUvSize.x_, uvTopLeft.y_, uvBorder.right_, uvBorder.top_);
+                uvTopLeft.x_ + uvBorder.left_ + innerUvSize.x_, uvTopLeft.y_, uvBorder.right_, uvBorder.top_, color);
     }
     // Middle
     if (innerSize.y_)
     {
         if (border_.left_)
             batch.AddQuad(x, border_.top_, border_.left_, innerSize.y_, uvTopLeft.x_, uvTopLeft.y_ + uvBorder.top_,
-                uvBorder.left_, innerUvSize.y_, tiled_);
+                uvBorder.left_, innerUvSize.y_, tiled_, color);
         if (innerSize.x_)
             batch.AddQuad(x + border_.left_, border_.top_, innerSize.x_, innerSize.y_, uvTopLeft.x_ + uvBorder.left_,
-                uvTopLeft.y_ + uvBorder.top_, innerUvSize.x_, innerUvSize.y_, tiled_);
+                uvTopLeft.y_ + uvBorder.top_, innerUvSize.x_, innerUvSize.y_, tiled_, color);
         if (border_.right_)
             batch.AddQuad(x + border_.left_ + innerSize.x_, border_.top_, border_.right_, innerSize.y_,
                 uvTopLeft.x_ + uvBorder.left_ + innerUvSize.x_, uvTopLeft.y_ + uvBorder.top_, uvBorder.right_, innerUvSize.y_,
-                tiled_);
+                tiled_, color);
     }
     // Bottom
     if (border_.bottom_)
     {
         if (border_.left_)
             batch.AddQuad(x, border_.top_ + innerSize.y_, border_.left_, border_.bottom_, uvTopLeft.x_,
-                uvTopLeft.y_ + uvBorder.top_ + innerUvSize.y_, uvBorder.left_, uvBorder.bottom_);
+                uvTopLeft.y_ + uvBorder.top_ + innerUvSize.y_, uvBorder.left_, uvBorder.bottom_, color);
         if (innerSize.x_)
             batch.AddQuad(x + border_.left_, border_.top_ + innerSize.y_, innerSize.x_, border_.bottom_,
                 uvTopLeft.x_ + uvBorder.left_, uvTopLeft.y_ + uvBorder.top_ + innerUvSize.y_, innerUvSize.x_, uvBorder.bottom_,
-                tiled_);
+                tiled_, color);
         if (border_.right_)
             batch.AddQuad(x + border_.left_ + innerSize.x_, border_.top_ + innerSize.y_, border_.right_, border_.bottom_,
                 uvTopLeft.x_ + uvBorder.left_ + innerUvSize.x_, uvTopLeft.y_ + uvBorder.top_ + innerUvSize.y_, uvBorder.right_,
-                uvBorder.bottom_);
+                uvBorder.bottom_, color);
     }
 
     UIBatch::AddOrMerge(batch, batches);
@@ -320,6 +324,5 @@ void BorderImage::SetSpriteHover(const String& spritename)
         sBorderImageSpriteSheet_ = 0;
     }
 }
-
 
 }

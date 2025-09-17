@@ -148,11 +148,15 @@ void UIBatch::SetDefaultColor()
     }
 }
 
-void UIBatch::AddQuad(int x, int y, int width, int height, int texOffsetX, int texOffsetY, int texWidth, int texHeight)
+void UIBatch::AddQuad(int x, int y, int width, int height, int texOffsetX, int texOffsetY, int texWidth, int texHeight, unsigned customColor)
 {
     unsigned topLeftColor, topRightColor, bottomLeftColor, bottomRightColor;
 
-    if (!useGradient_)
+    if (customColor)
+    {
+        topLeftColor = topRightColor = bottomLeftColor = bottomRightColor = customColor;
+    }
+    else if (!useGradient_)
     {
         // If alpha is 0, nothing will be rendered, so do not add the quad
         if (!(color_ & 0xff000000))
@@ -239,11 +243,15 @@ void UIBatch::AddQuad(int x, int y, int width, int height, int texOffsetX, int t
 }
 
 void UIBatch::AddQuad(const Matrix3x4& transform, int x, int y, int width, int height, int texOffsetX, int texOffsetY,
-    int texWidth, int texHeight)
+    int texWidth, int texHeight, unsigned customColor)
 {
     unsigned topLeftColor, topRightColor, bottomLeftColor, bottomRightColor;
 
-    if (!useGradient_)
+    if (customColor)
+    {
+        topLeftColor = topRightColor = bottomLeftColor = bottomRightColor = customColor;
+    }
+    else if (!useGradient_)
     {
         // If alpha is 0, nothing will be rendered, so do not add the quad
         if (!(color_ & 0xff000000))
@@ -326,14 +334,14 @@ void UIBatch::AddQuad(const Matrix3x4& transform, int x, int y, int width, int h
     dest[i+5] = bottomUV;
 }
 
-void UIBatch::AddQuad(int x, int y, int width, int height, int texOffsetX, int texOffsetY, int texWidth, int texHeight, bool tiled)
+void UIBatch::AddQuad(int x, int y, int width, int height, int texOffsetX, int texOffsetY, int texWidth, int texHeight, bool tiled, unsigned customColor)
 {
-    if (!(element_->HasColorGradient() || element_->GetDerivedColor().ToUInt() & 0xff000000))
+    if (!customColor && !(element_->HasColorGradient() || element_->GetDerivedColor().ToUInt() & 0xff000000))
         return; // No gradient and alpha is 0, so do not add the quad
 
     if (!tiled)
     {
-        AddQuad(x, y, width, height, texOffsetX, texOffsetY, texWidth, texHeight);
+        AddQuad(x, y, width, height, texOffsetX, texOffsetY, texWidth, texHeight, customColor);
         return;
     }
 
@@ -351,7 +359,7 @@ void UIBatch::AddQuad(int x, int y, int width, int height, int texOffsetX, int t
         {
             tileW = Min(width - tileX, texWidth);
 
-            AddQuad(x + tileX, y + tileY, tileW, tileH, texOffsetX, texOffsetY, tileW, tileH);
+            AddQuad(x + tileX, y + tileY, tileW, tileH, texOffsetX, texOffsetY, tileW, tileH, customColor);
 
             tileX += tileW;
         }

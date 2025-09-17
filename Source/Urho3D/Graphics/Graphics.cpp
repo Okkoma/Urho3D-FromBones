@@ -214,7 +214,7 @@ PODVector<IntVector3> Graphics::GetResolutions(int monitor) const
 #ifndef __EMSCRIPTEN__
     // Prune resolutions on fullscreen desktop mode : 
     // keep resolutions for which the height of the desktop resolution is an integer multiple.
-    bool pruneResolutions = (SDL_GetWindowFlags(window_) & SDL_WINDOW_FULLSCREEN_DESKTOP) != SDL_WINDOW_FULLSCREEN;    
+    bool fakefullscreen = fullscreen_ && (SDL_GetWindowFlags(window_) & SDL_WINDOW_FULLSCREEN_DESKTOP) != SDL_WINDOW_FULLSCREEN;
     IntVector2 desktopResolution = GetDesktopResolution(monitor_);
     int desktopRefreshRate = GetRefreshRate();
 
@@ -227,7 +227,7 @@ PODVector<IntVector3> Graphics::GetResolutions(int monitor) const
         int height = mode.h;
         int rate = mode.refresh_rate;
 
-        if (pruneResolutions && (rate != desktopRefreshRate || desktopResolution.y_ % height))
+        if (fakefullscreen && (rate != desktopRefreshRate || desktopResolution.y_ % height))
             continue;
 
         // Store mode if unique

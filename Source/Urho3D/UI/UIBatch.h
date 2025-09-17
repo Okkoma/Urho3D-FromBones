@@ -49,12 +49,12 @@ public:
     /// Restore UI element's default color.
     void SetDefaultColor();
     /// Add a quad.
-    void AddQuad(int x, int y, int width, int height, int texOffsetX, int texOffsetY, int texWidth = 0, int texHeight = 0);
+    void AddQuad(int x, int y, int width, int height, int texOffsetX, int texOffsetY, int texWidth = 0, int texHeight = 0, unsigned customColor=0);
     /// Add a quad using a transform matrix.
     void AddQuad(const Matrix3x4& transform, int x, int y, int width, int height, int texOffsetX, int texOffsetY, int texWidth = 0,
-        int texHeight = 0);
+        int texHeight = 0, unsigned customColor=0);
     /// Add a quad with tiled texture.
-    void AddQuad(int x, int y, int width, int height, int texOffsetX, int texOffsetY, int texWidth, int texHeight, bool tiled);
+    void AddQuad(int x, int y, int width, int height, int texOffsetX, int texOffsetY, int texWidth, int texHeight, bool tiled, unsigned customColor=0);
     /// Merge with another batch.
     bool Merge(const UIBatch& batch, unsigned counter=0);
     /// Return an interpolated color for the UI element.
